@@ -1,0 +1,21 @@
+{
+  "version": "v1",
+  "required_rule_ids": [
+    "BP-001",
+    "BP-002",
+    "BP-003",
+    "BP-004",
+    "BP-005",
+    "BP-006",
+    "BP-007",
+    "BP-008"
+  ],
+  "required_phrases": [
+    "Perl 実装の実挙動を優先",
+    "既知バグ相当",
+    "single規則の `left` は `check` の alias",
+    "ValueError",
+    "HTTP `400`",
+    "differential / golden / characterization"
+  ]
+}

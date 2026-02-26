@@ -1,0 +1,17 @@
+{
+  "version": "v1",
+  "required_terms": [
+    "`DerivationState`",
+    "`RuleCandidate`",
+    "`GrammarRule`",
+    "`GrammarId`",
+    "`RuleKind`",
+    "`RuleVersion`",
+    "`TreeMode`",
+    "`BaseSlotName`",
+    "`DerivationIndex`",
+    "`DoubleMergeTarget`",
+    "`SingleMergeTarget`",
+    "`RuleRef`"
+  ]
+}
