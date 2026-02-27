@@ -150,6 +150,12 @@
 | S1-LYT-07 | Renewed UI の横幅制限を解除し、ビューポート幅追従レイアウトへ修正する | `apps/web/src/styles.css` | Playwright + E2E |
 | S1-REG-13 | Playwright E2E 全件にレイアウト健全性（ページ幅/overflow）アサーションを追加する | `apps/web/e2e/hypothesis-loop.spec.ts` | `npm run test:e2e` |
 | S1-REG-14 | Step1主要UIの表示健全性（観察文/分割結果/Sudachiモード/語彙参照/パネル幅）を回帰テスト化する | `apps/web/e2e/hypothesis-loop.spec.ts` | `npm run test:e2e` |
+| S2-HDA-24 | `head-assist` から特定例文への固定手順注入（答え誘導）を除去し、通常探索のみで `reachable_grammatical` を算出する | `apps/api/app/api/v1/derivation.py` | `pytest` |
+| S2-REG-08 | スケートボード文の回帰を「誤って到達可能と判定しない」テストへ更新し、API全件・Web全件を再実行する | `apps/api/tests/test_derivation.py` | `pytest`, `vitest`, `playwright` |
+| DOC-HPSG-EXP-16 | 「第二層を実装しても未解決、第一層を実装しても未解決」を根拠付きでレポート化する | `docs/specs/layer1-layer2-nonconvergence-report-ja.md`, `docs/specs/hpsg-state-explosion-application-to-rh-lh-ja.md`, `docs/specs/reachability-first-layer-search-methods-ja.md` | 文書レビュー |
+| S2-HDA-25 | Perl既知7手を Python で逐次リプレイし、各手の候補存在・遷移結果・未解釈数を照合する検証モードを追加する | `apps/api/app/api/v1/derivation.py`, `apps/api/tests/test_derivation.py` | `pytest` |
+| S2-HDA-26 | DPOR/TTを無効化した深さ制限完全探索（baseline）を追加し、深さ7で既知手順を再発見できるか検証する | `apps/api/app/api/v1/derivation.py`, `apps/api/tests/test_derivation.py` | `pytest` |
+| S2-REG-09 | `未到達` と `不明(予算切れ)` の返却条件をテストで固定し、判定誤用を防止する | `apps/api/tests/test_derivation.py` | `pytest` |
 
 ## 実装メモ（2026-02-27）
 - `S2-VIS-02`: Step2 適用対象ペインを `base[slot][7]` の子ノード再帰表示に対応し、合体後ノード（親＋子）を描画するよう更新。
@@ -161,6 +167,13 @@
 - `DOC-HPSG-EXP-13`: 第一層判定コアの未到達判定条件を、`basenum` 単調減少時と非単調遷移混在時で分けて明文化。
 - `DOC-HPSG-EXP-14`: IDDFS+TTの落とし穴（深さ情報なしvisited）を禁止事項として明記し、深さ情報付きTT+reopen必須を追記。
 - `DOC-HPSG-EXP-15`: DPOR独立性の保守条件に `newnum` を含むグローバル書込を追加し、候補ペアの `a→b / b→a` 自動同値検査運用を追記。
+- `S2-HDA-24`: `head-assist` に追加されていた特定例文向けの固定手順注入を削除し、探索結果を通常ロジックへ戻した。
+- `S2-REG-08`: スケートボード文の回帰を「到達の誤主張をしない」内容へ更新し、`apps/api` 全件 (`79 passed`)・`apps/web` unit (`20 passed`)・E2E (`2 passed`) を再実行して固定。
+- `DOC-HPSG-EXP-16`: 第一層/第二層とも現時点で到達性未解決である事実を、根拠付きレポートへ整理。
+- `S2-HDA-25/S2-HDA-26/S2-REG-09`: 未解決要因を4仮説で分解し、`7手リプレイ -> 最小完全探索` の順で切り分ける方針を追加。
+- `S2-HDA-25`: 診断API `/v1/derivation/head-assist/diagnose` を追加し、既知7手リプレイ（候補存在・未解釈数推移・basenum推移）を自動照合可能にした。
+- `S2-HDA-26`: 同診断APIに DPOR/TT 無効の depth制限 baseline 探索を追加し、`imi01/1606324760.num` で単純IDDFS（深さ7）を実測。`2,000,004` ノード時点でも depth=4 探索中で再発見不可となり、判定を「深さ・遷移集合定義問題（判定3）」へ確定した。
+- `S2-REG-09`: baseline の三値判定（`reachable` / `unreachable` / `unknown`）を API テストで固定し、`unknown` と `unreachable` の混同を防止した。
 
 ## API追加（S1-GRM-02）
 - `GET /v1/reference/grammars/{grammar_id}/rule-sources`

@@ -159,6 +159,16 @@
 - **IDA* は提案側の加速器**として扱い、到達不能判定の主証拠にはしない。
 - この分離により、「到達可能なのに到達不能」と誤判定するリスクを最小化しつつ、UIの操作支援速度を維持できる。
 
+## 11. 実装評価（2026-02-27）
+- 特定例文向けの固定手順注入（答え誘導）は削除し、`head-assist` は通常探索のみで評価する構成へ戻した。
+- その条件で `ジョンがメアリをスケートボードで追いかけた` を評価すると、現行第一層実装では automatic grammatical 到達を提示できない。
+- よって現時点では、第一層実装も到達問題を未解決のまま残している。
+- まとめは [layer1-layer2-nonconvergence-report-ja.md](/Users/tomonaga/Documents/syncsemphoneIMI/syncsemphone-next/docs/specs/layer1-layer2-nonconvergence-report-ja.md) を参照。
+- 追加で診断API `POST /v1/derivation/head-assist/diagnose` を実装し、  
+  1) 既知7手リプレイ照合（strict replay）  
+  2) DPOR/TTなし baseline 探索（三値: reachable/unreachable/unknown）  
+  を分離実行できるようにした。
+
 ## 参考文献（一次資料）
 - Hart, Nilsson, Raphael (1968).  
   *A Formal Basis for the Heuristic Determination of Minimum Cost Paths*.  

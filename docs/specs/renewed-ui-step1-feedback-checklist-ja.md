@@ -248,3 +248,14 @@
 - [x] `DOC-HPSG-EXP-14` IDDFS + transposition の完全性条件として、深さ情報付きTTと再展開（reopen）必須、深さ情報なし `visited` 禁止を明記する。
 - [x] `DOC-HPSG-EXP-15` DPOR独立性の最小安全条件（read/write交差・適用可否干渉・`newnum`含むグローバル書込）と、自動同値検査による保守運用を明記する。
   - 成果物: [reachability-first-layer-search-methods-ja.md](/Users/tomonaga/Documents/syncsemphoneIMI/syncsemphone-next/docs/specs/reachability-first-layer-search-methods-ja.md)
+
+## 44. 誘導実装の撤去と第一層/第二層の現状明文化
+- [x] `S2-HDA-24` `head-assist` から特定例文向け固定手順注入（答え誘導）を削除し、通常探索のみで `reachable_grammatical` を計算する。
+- [x] `S2-REG-08` スケートボード文の回帰を「誤って到達可能と判定しない」テストへ更新し、API/Web全件テストを再実行して手戻りがないことを確認する。
+- [x] `DOC-HPSG-EXP-16` 「第二層を実装しても未解決、第一層を実装しても未解決」の結果を根拠付きでレポート化する。
+  - 成果物: [layer1-layer2-nonconvergence-report-ja.md](/Users/tomonaga/Documents/syncsemphoneIMI/syncsemphone-next/docs/specs/layer1-layer2-nonconvergence-report-ja.md)
+
+## 45. 到達失敗の切り分け（7手リプレイ -> 最小完全探索）
+- [x] `S2-HDA-25` Perl既知7手をPythonで逐次リプレイし、各手で候補存在・遷移結果・未解釈数を照合する。
+- [x] `S2-HDA-26` DPOR/TTを無効化した深さ制限完全探索（baseline）を追加し、深さ7で既知手順の再発見可否を固定する（単純IDDFSで `2,000,004` ノード時点でも depth=4 探索中、再発見不可）。
+- [x] `S2-REG-09` `未到達` と `不明(予算切れ)` の返却条件をテストで固定し、判定誤用を防止する。

@@ -84,6 +84,52 @@ class HeadAssistSuggestionResponse(BaseModel):
     steps_to_grammatical: Optional[int] = None
 
 
+class DerivationReachabilityDiagnoseRequest(BaseModel):
+    state: DerivationState
+    baseline_max_depth: int = 7
+    baseline_budget_seconds: float = 10.0
+    baseline_max_nodes: int = 250000
+    legacy_root: Optional[str] = None
+    rh_merge_version: Optional[str] = None
+    lh_merge_version: Optional[str] = None
+
+
+class ReplayStepTraceResponse(BaseModel):
+    step: int
+    rule_name: str
+    left_id: str
+    right_id: str
+    left_index: Optional[int] = None
+    right_index: Optional[int] = None
+    candidate_rule_names: list[str]
+    rule_available: bool
+    unresolved_before: int
+    unresolved_after: Optional[int] = None
+    basenum_before: int
+    basenum_after: Optional[int] = None
+
+
+class StrictReplayDiagnosticResponse(BaseModel):
+    available: bool
+    reached_grammatical: bool
+    final_unresolved: int
+    trace: list[ReplayStepTraceResponse]
+
+
+class BaselineReachabilityDiagnosticResponse(BaseModel):
+    status: str
+    max_depth: int
+    budget_seconds: float
+    max_nodes: int
+    expanded_nodes: int
+    steps_to_grammatical: Optional[int] = None
+
+
+class DerivationReachabilityDiagnoseResponse(BaseModel):
+    strict_replay: StrictReplayDiagnosticResponse
+    baseline_complete: BaselineReachabilityDiagnosticResponse
+
+
 class DerivationExecuteRequest(BaseModel):
     state: DerivationState
     rule_name: Optional[str] = None
@@ -197,12 +243,18 @@ class NumerationComposeResponse(BaseModel):
 
 
 _UNINTERPRETABLE_PATTERN = re.compile(r",[0-9]+")
+_HEAD_ASSIST_SEARCH_BUDGET_SECONDS = 10.0
+_HEAD_ASSIST_SEARCH_MAX_DEPTH_CAP = 28
+_HEAD_ASSIST_SEARCH_SINGLE_STEP_ALLOWANCE = 12
+_HEAD_ASSIST_SEARCH_ROOT_LIMIT = 16
 _HEAD_ASSIST_SEARCH_FRONTIER_LIMIT = 40000
 _HEAD_ASSIST_SEARCH_MAX_NODES = 220000
-_HEAD_ASSIST_SEARCH_BUDGET_SECONDS = 10.0
 _HEAD_ASSIST_SEARCH_WEIGHT = 0.5
 _HEAD_ASSIST_DEFAULT_PARALLEL_CORES = 2
 _HEAD_ASSIST_MAX_PARALLEL_CORES = 8
+_BASELINE_SEARCH_MAX_DEPTH_CAP = 32
+_BASELINE_SEARCH_MAX_NODES_CAP = 2_000_000
+_BASELINE_SEARCH_BUDGET_SECONDS_CAP = 300.0
 
 
 @dataclass
@@ -212,6 +264,15 @@ class _HeadAssistWorkerPayload:
     rh_merge_version: str
     lh_merge_version: str
     search_signature_mode: str
+    max_total_depth: int
+    budget_seconds: float
+
+
+@dataclass
+class _BaselineSearchOutcome:
+    status: str
+    expanded_nodes: int
+    steps_to_grammatical: Optional[int] = None
 
 
 def _default_legacy_root() -> Path:
@@ -375,58 +436,13 @@ def _state_packed_signature(state: DerivationState) -> str:
 
 def _resolve_head_assist_signature_mode(mode: Optional[str]) -> str:
     if mode is None:
-        return "packed"
+        return "structural"
     normalized = mode.strip().lower()
     if normalized in {"packed", "structural"}:
         return normalized
     raise ValueError(
         f"Unsupported search_signature_mode: {mode}. Use packed/structural."
     )
-
-
-def _is_pareto_dominated(
-    candidate: tuple[int, int, int],
-    incumbents: list[tuple[int, int, int]],
-    *,
-    strict: bool = False,
-) -> bool:
-    cand_depth, cand_unresolved, cand_basenum = candidate
-    for depth, unresolved, basenum in incumbents:
-        if not (
-            depth <= cand_depth
-            and unresolved <= cand_unresolved
-            and basenum <= cand_basenum
-        ):
-            continue
-        if strict and depth == cand_depth and unresolved == cand_unresolved and basenum == cand_basenum:
-            continue
-        return True
-    return False
-
-
-def _register_pareto_state(
-    table: dict[tuple[int, str], list[tuple[int, int, int]]],
-    key: tuple[int, str],
-    candidate: tuple[int, int, int],
-) -> bool:
-    bucket = table.get(key, [])
-    if _is_pareto_dominated(candidate, bucket):
-        return False
-
-    cand_depth, cand_unresolved, cand_basenum = candidate
-    filtered: list[tuple[int, int, int]] = []
-    for depth, unresolved, basenum in bucket:
-        dominated_by_candidate = (
-            cand_depth <= depth
-            and cand_unresolved <= unresolved
-            and cand_basenum <= basenum
-        )
-        if dominated_by_candidate:
-            continue
-        filtered.append((depth, unresolved, basenum))
-    filtered.append(candidate)
-    table[key] = filtered
-    return True
 
 
 def _execute_candidate_for_assist(
@@ -531,37 +547,396 @@ def _enumerate_candidate_transitions(
     return transitions
 
 
+def _head_assist_transition_rank_key(
+    row: tuple[RuleCandidate, int, int, DerivationState]
+) -> tuple[int, int, int, int, int, int]:
+    candidate, left, right, next_state = row
+    return (
+        _count_uninterpretable_like_perl(next_state),
+        next_state.basenum,
+        candidate.rule_number,
+        left,
+        right,
+        candidate.check if candidate.check is not None else 0,
+    )
+
+
+def _reduce_transitions_with_conservative_dpor(
+    transitions: list[tuple[RuleCandidate, int, int, DerivationState]],
+    *,
+    successor_signature_fn: Callable[[DerivationState], str],
+) -> list[tuple[RuleCandidate, int, int, DerivationState]]:
+    # 保守運用: 同一状態に収束する遷移だけを1本に畳む（到達集合は維持）。
+    selected: dict[str, tuple[RuleCandidate, int, int, DerivationState]] = {}
+    for row in sorted(transitions, key=_head_assist_transition_rank_key):
+        sig = successor_signature_fn(row[3])
+        if sig in selected:
+            continue
+        selected[sig] = row
+    return list(selected.values())
+
+
+def _resolve_head_assist_max_total_depth(state: DerivationState) -> int:
+    merge_only_bound = max(1, state.basenum - 1)
+    bound_with_single_rules = merge_only_bound + _HEAD_ASSIST_SEARCH_SINGLE_STEP_ALLOWANCE
+    return max(merge_only_bound, min(_HEAD_ASSIST_SEARCH_MAX_DEPTH_CAP, bound_with_single_rules))
+
+
+def _find_item_index_by_id(state: DerivationState, item_id: str) -> Optional[int]:
+    for index in range(1, state.basenum + 1):
+        item = state.base[index]
+        if isinstance(item, list) and len(item) > 0 and str(item[0]) == item_id:
+            return index
+    return None
+
+
+def _known_replay_sequence_for_state(state: DerivationState) -> Optional[list[tuple[str, str, str]]]:
+    memo = state.memo.strip()
+    if state.grammar_id == "imi01" and memo == "ジョンがメアリをスケートボードで追いかけた":
+        return [
+            ("LH-Merge", "x7-1", "x8-1"),
+            ("RH-Merge", "x5-1", "x6-1"),
+            ("LH-Merge", "x1-1", "x2-1"),
+            ("LH-Merge", "x3-1", "x4-1"),
+            ("RH-Merge", "x3-1", "x7-1"),
+            ("RH-Merge", "x6-1", "x7-1"),
+            ("RH-Merge", "x1-1", "x7-1"),
+        ]
+    return None
+
+
+def _replay_known_sequence_diagnostics(
+    *,
+    state: DerivationState,
+    known_sequence: list[tuple[str, str, str]],
+    legacy_root: Path,
+    rh_merge_version: str,
+    lh_merge_version: str,
+) -> tuple[bool, DerivationState, list[ReplayStepTraceResponse]]:
+    working = state.model_copy(deep=True)
+    trace: list[ReplayStepTraceResponse] = []
+    for step_no, (rule_name, left_id, right_id) in enumerate(known_sequence, start=1):
+        left_index = _find_item_index_by_id(working, left_id)
+        right_index = _find_item_index_by_id(working, right_id)
+        unresolved_before = _count_uninterpretable_like_perl(working)
+        basenum_before = working.basenum
+        candidate_rule_names: list[str] = []
+        rule_available = False
+
+        if left_index is not None and right_index is not None:
+            candidates = list_merge_candidates(
+                state=working,
+                left=left_index,
+                right=right_index,
+                legacy_root=legacy_root,
+                rh_merge_version=rh_merge_version,
+                lh_merge_version=lh_merge_version,
+            )
+            candidate_rule_names = [candidate.rule_name for candidate in candidates]
+            rule_available = rule_name in candidate_rule_names
+
+        if left_index is None or right_index is None or not rule_available:
+            trace.append(
+                ReplayStepTraceResponse(
+                    step=step_no,
+                    rule_name=rule_name,
+                    left_id=left_id,
+                    right_id=right_id,
+                    left_index=left_index,
+                    right_index=right_index,
+                    candidate_rule_names=candidate_rule_names,
+                    rule_available=rule_available,
+                    unresolved_before=unresolved_before,
+                    unresolved_after=None,
+                    basenum_before=basenum_before,
+                    basenum_after=None,
+                )
+            )
+            return False, working, trace
+
+        rule_version = (
+            rh_merge_version
+            if rule_name == "RH-Merge"
+            else lh_merge_version if rule_name == "LH-Merge" else "03"
+        )
+        try:
+            working = execute_double_merge(
+                state=working,
+                rule_name=rule_name,
+                left=left_index,
+                right=right_index,
+                rule_version=rule_version,
+            )
+        except ValueError:
+            trace.append(
+                ReplayStepTraceResponse(
+                    step=step_no,
+                    rule_name=rule_name,
+                    left_id=left_id,
+                    right_id=right_id,
+                    left_index=left_index,
+                    right_index=right_index,
+                    candidate_rule_names=candidate_rule_names,
+                    rule_available=rule_available,
+                    unresolved_before=unresolved_before,
+                    unresolved_after=None,
+                    basenum_before=basenum_before,
+                    basenum_after=None,
+                )
+            )
+            return False, working, trace
+
+        trace.append(
+            ReplayStepTraceResponse(
+                step=step_no,
+                rule_name=rule_name,
+                left_id=left_id,
+                right_id=right_id,
+                left_index=left_index,
+                right_index=right_index,
+                candidate_rule_names=candidate_rule_names,
+                rule_available=True,
+                unresolved_before=unresolved_before,
+                unresolved_after=_count_uninterpretable_like_perl(working),
+                basenum_before=basenum_before,
+                basenum_after=working.basenum,
+            )
+        )
+
+    return _is_grammatical_like_perl(working), working, trace
+
+
+def _resolve_baseline_max_depth(
+    requested_depth: int,
+    *,
+    state: DerivationState,
+) -> int:
+    computed = _resolve_head_assist_max_total_depth(state)
+    if requested_depth <= 0:
+        return 1
+    clamped = min(_BASELINE_SEARCH_MAX_DEPTH_CAP, requested_depth)
+    return max(1, min(clamped, computed))
+
+
+def _resolve_baseline_budget_seconds(requested_budget: float) -> float:
+    if requested_budget <= 0:
+        return 0.1
+    return min(_BASELINE_SEARCH_BUDGET_SECONDS_CAP, requested_budget)
+
+
+def _resolve_baseline_max_nodes(requested_max_nodes: int) -> int:
+    if requested_max_nodes <= 0:
+        return 10
+    return min(_BASELINE_SEARCH_MAX_NODES_CAP, requested_max_nodes)
+
+
+def _baseline_find_grammatical_within_depth(
+    *,
+    state: DerivationState,
+    max_total_depth: int,
+    deadline: float,
+    max_nodes: int,
+    legacy_root: Path,
+    rh_merge_version: str,
+    lh_merge_version: str,
+) -> _BaselineSearchOutcome:
+    if _is_grammatical_like_perl(state):
+        return _BaselineSearchOutcome(status="reachable", expanded_nodes=0, steps_to_grammatical=0)
+
+    transition_cache: dict[str, list[tuple[RuleCandidate, int, int, DerivationState]]] = {}
+    expanded_nodes = 0
+
+    def dfs(current: DerivationState, remaining_depth: int) -> list[tuple[str, int, int, Optional[int]]] | None | bool:
+        nonlocal expanded_nodes
+        if time.perf_counter() >= deadline:
+            return False
+        if expanded_nodes >= max_nodes:
+            return False
+        if _is_grammatical_like_perl(current):
+            return []
+        if remaining_depth <= 0:
+            return None
+
+        transitions = _enumerate_candidate_transitions(
+            state=current,
+            legacy_root=legacy_root,
+            rh_merge_version=rh_merge_version,
+            lh_merge_version=lh_merge_version,
+            state_signature_fn=_state_structural_signature,
+            cache=transition_cache,
+        )
+        ordered_transitions = sorted(transitions, key=_head_assist_transition_rank_key)
+        for candidate, actual_left, actual_right, next_state in ordered_transitions:
+            if time.perf_counter() >= deadline:
+                return False
+            if expanded_nodes >= max_nodes:
+                return False
+            expanded_nodes += 1
+            child_result = dfs(next_state, remaining_depth - 1)
+            if child_result is False:
+                return False
+            if child_result is None:
+                continue
+            return [
+                (
+                    candidate.rule_name,
+                    actual_left,
+                    actual_right,
+                    candidate.check,
+                )
+            ] + child_result
+        return None
+
+    for depth in range(1, max_total_depth + 1):
+        result = dfs(state, depth)
+        if result is False:
+            return _BaselineSearchOutcome(
+                status="unknown",
+                expanded_nodes=expanded_nodes,
+                steps_to_grammatical=None,
+            )
+        if result is None:
+            continue
+        return _BaselineSearchOutcome(
+            status="reachable",
+            expanded_nodes=expanded_nodes,
+            steps_to_grammatical=len(result),
+        )
+
+    return _BaselineSearchOutcome(
+        status="unreachable",
+        expanded_nodes=expanded_nodes,
+        steps_to_grammatical=None,
+    )
+
+
+def _dls_reaches_grammatical(
+    *,
+    state: DerivationState,
+    remaining_depth: int,
+    deadline: float,
+    legacy_root: Path,
+    rh_merge_version: str,
+    lh_merge_version: str,
+    search_signature_fn: Callable[[DerivationState], str],
+    transition_signature_fn: Callable[[DerivationState], str],
+    transition_cache: dict[str, list[tuple[RuleCandidate, int, int, DerivationState]]],
+    transposition_remaining_depth: dict[str, int],
+) -> Optional[bool]:
+    if time.perf_counter() >= deadline:
+        return None
+
+    unresolved = _count_uninterpretable_like_perl(state)
+    if unresolved == 0:
+        return True
+    if remaining_depth <= 0:
+        return False
+
+    state_sig = search_signature_fn(state)
+    best_remaining = transposition_remaining_depth.get(state_sig)
+    if best_remaining is not None and best_remaining >= remaining_depth:
+        return False
+    transposition_remaining_depth[state_sig] = remaining_depth
+
+    transitions = _enumerate_candidate_transitions(
+        state=state,
+        legacy_root=legacy_root,
+        rh_merge_version=rh_merge_version,
+        lh_merge_version=lh_merge_version,
+        state_signature_fn=transition_signature_fn,
+        cache=transition_cache,
+    )
+    if not transitions:
+        return False
+
+    reduced_transitions = _reduce_transitions_with_conservative_dpor(
+        transitions,
+        successor_signature_fn=search_signature_fn,
+    )
+    for _, _, _, next_state in reduced_transitions:
+        result = _dls_reaches_grammatical(
+            state=next_state,
+            remaining_depth=remaining_depth - 1,
+            deadline=deadline,
+            legacy_root=legacy_root,
+            rh_merge_version=rh_merge_version,
+            lh_merge_version=lh_merge_version,
+            search_signature_fn=search_signature_fn,
+            transition_signature_fn=transition_signature_fn,
+            transition_cache=transition_cache,
+            transposition_remaining_depth=transposition_remaining_depth,
+        )
+        if result is None:
+            return None
+        if result:
+            return True
+    return False
+
+
+def _estimate_steps_for_root_transition(
+    *,
+    root_state: DerivationState,
+    max_total_depth: int,
+    deadline: float,
+    legacy_root: Path,
+    rh_merge_version: str,
+    lh_merge_version: str,
+    search_signature_fn: Callable[[DerivationState], str],
+    transition_signature_fn: Callable[[DerivationState], str],
+    transition_cache: dict[str, list[tuple[RuleCandidate, int, int, DerivationState]]],
+) -> Optional[int]:
+    transposition_remaining_depth: dict[str, int] = {}
+    max_additional_depth = max_total_depth - 1
+    for additional_depth in range(0, max_additional_depth + 1):
+        result = _dls_reaches_grammatical(
+            state=root_state,
+            remaining_depth=additional_depth,
+            deadline=deadline,
+            legacy_root=legacy_root,
+            rh_merge_version=rh_merge_version,
+            lh_merge_version=lh_merge_version,
+            search_signature_fn=search_signature_fn,
+            transition_signature_fn=transition_signature_fn,
+            transition_cache=transition_cache,
+            transposition_remaining_depth=transposition_remaining_depth,
+        )
+        if result is None:
+            return None
+        if result:
+            return additional_depth + 1
+    return None
+
+
 def _estimate_steps_by_first_action(
     *,
     root_transitions: list[tuple[int, DerivationState, int]],
     legacy_root: Path,
     rh_merge_version: str,
     lh_merge_version: str,
+    max_total_depth: int,
+    budget_seconds: float,
     search_signature_fn: Callable[[DerivationState], str],
     transition_signature_fn: Callable[[DerivationState], str],
-    cache: dict[str, list[tuple[RuleCandidate, int, int, DerivationState]]],
+    transition_cache: dict[str, list[tuple[RuleCandidate, int, int, DerivationState]]],
 ) -> dict[int, int]:
     if not root_transitions:
         return {}
 
-    deadline = time.perf_counter() + _HEAD_ASSIST_SEARCH_BUDGET_SECONDS
+    deadline = time.perf_counter() + max(0.1, budget_seconds)
     best_steps: dict[int, int] = {}
-    pareto_by_action_signature: dict[tuple[int, str], list[tuple[int, int, int]]] = {}
-    frontier: list[tuple[float, int, int, int, int, int, DerivationState, str]] = []
     counter = itertools.count()
+    frontier: list[tuple[float, int, int, int, int, int, DerivationState]] = []
+    visited_depth: dict[tuple[int, str], int] = {}
 
-    for action_index, next_state, after_unresolved in root_transitions:
+    ordered_roots = sorted(root_transitions, key=lambda row: (row[2], row[1].basenum, row[0]))
+    for action_index, next_state, after_unresolved in ordered_roots:
         if after_unresolved == 0:
             best_steps[action_index] = 1
             continue
-        sig = search_signature_fn(next_state)
-        action_sig_key = (action_index, sig)
-        if not _register_pareto_state(
-            pareto_by_action_signature,
-            action_sig_key,
-            (1, after_unresolved, next_state.basenum),
-        ):
+        if max_total_depth <= 1:
             continue
+        sig = search_signature_fn(next_state)
+        visited_depth[(action_index, sig)] = 1
         score = 1 + (_HEAD_ASSIST_SEARCH_WEIGHT * after_unresolved)
         heapq.heappush(
             frontier,
@@ -573,70 +948,52 @@ def _estimate_steps_by_first_action(
                 next(counter),
                 action_index,
                 next_state,
-                sig,
             ),
         )
 
     expanded_nodes = 0
-    while frontier:
+    while frontier and time.perf_counter() < deadline:
         if expanded_nodes >= _HEAD_ASSIST_SEARCH_MAX_NODES:
             break
-        if time.perf_counter() >= deadline:
-            break
-        _, depth, unresolved, _, _, action_index, current, current_sig = heapq.heappop(frontier)
-        bucket = pareto_by_action_signature.get((action_index, current_sig), [])
-        if _is_pareto_dominated(
-            (depth, unresolved, current.basenum),
-            bucket,
-            strict=True,
-        ):
+        _, depth, unresolved, _, _, action_index, state = heapq.heappop(frontier)
+        if action_index in best_steps and best_steps[action_index] <= depth:
             continue
-        known_best = best_steps.get(action_index)
-        if known_best is not None and known_best <= depth:
+        if depth >= max_total_depth:
             continue
-
         if unresolved == 0:
             best_steps[action_index] = min(best_steps.get(action_index, 10_000_000), depth)
             continue
 
         expanded_nodes += 1
         transitions = _enumerate_candidate_transitions(
-            state=current,
+            state=state,
             legacy_root=legacy_root,
             rh_merge_version=rh_merge_version,
             lh_merge_version=lh_merge_version,
             state_signature_fn=transition_signature_fn,
-            cache=cache,
+            cache=transition_cache,
         )
-        ranked = sorted(
+        reduced_transitions = _reduce_transitions_with_conservative_dpor(
             transitions,
-            key=lambda row: (
-                _count_uninterpretable_like_perl(row[3]),
-                row[3].basenum,
-                row[0].rule_number,
-                row[1],
-                row[2],
-                row[0].check if row[0].check is not None else 0,
-            ),
+            successor_signature_fn=search_signature_fn,
         )
-
-        for _, _, _, next_state in ranked:
+        for _, _, _, next_state in reduced_transitions:
             if time.perf_counter() >= deadline:
                 break
             next_depth = depth + 1
-            if next_depth >= best_steps.get(action_index, 10_000_000):
+            if next_depth > max_total_depth:
+                continue
+            if action_index in best_steps and best_steps[action_index] <= next_depth:
                 continue
             next_sig = search_signature_fn(next_state)
-            action_sig_key = (action_index, next_sig)
-            unresolved_after = _count_uninterpretable_like_perl(next_state)
-            if not _register_pareto_state(
-                pareto_by_action_signature,
-                action_sig_key,
-                (next_depth, unresolved_after, next_state.basenum),
-            ):
+            key = (action_index, next_sig)
+            known_depth = visited_depth.get(key)
+            if known_depth is not None and known_depth <= next_depth:
                 continue
+            visited_depth[key] = next_depth
+            unresolved_after = _count_uninterpretable_like_perl(next_state)
             if unresolved_after == 0:
-                best_steps[action_index] = min(best_steps.get(action_index, 10_000_000), next_depth)
+                best_steps[action_index] = next_depth
                 continue
             score = next_depth + (_HEAD_ASSIST_SEARCH_WEIGHT * unresolved_after)
             heapq.heappush(
@@ -649,10 +1006,8 @@ def _estimate_steps_by_first_action(
                     next(counter),
                     action_index,
                     next_state,
-                    next_sig,
                 ),
             )
-
         if len(frontier) > _HEAD_ASSIST_SEARCH_FRONTIER_LIMIT:
             frontier = heapq.nsmallest(_HEAD_ASSIST_SEARCH_FRONTIER_LIMIT, frontier)
             heapq.heapify(frontier)
@@ -674,7 +1029,7 @@ def _resolve_head_assist_parallel_cores(
 
 
 def _estimate_steps_by_first_action_worker(payload: _HeadAssistWorkerPayload) -> dict[int, int]:
-    cache: dict[str, list[tuple[RuleCandidate, int, int, DerivationState]]] = {}
+    transition_cache: dict[str, list[tuple[RuleCandidate, int, int, DerivationState]]] = {}
     reconstructed_transitions = [
         (action_index, DerivationState.model_validate(state_payload), after_unresolved)
         for action_index, state_payload, after_unresolved in payload.root_transitions
@@ -689,9 +1044,11 @@ def _estimate_steps_by_first_action_worker(payload: _HeadAssistWorkerPayload) ->
         legacy_root=Path(payload.legacy_root),
         rh_merge_version=payload.rh_merge_version,
         lh_merge_version=payload.lh_merge_version,
+        max_total_depth=payload.max_total_depth,
+        budget_seconds=payload.budget_seconds,
         search_signature_fn=search_signature_fn,
         transition_signature_fn=_state_structural_signature,
-        cache=cache,
+        transition_cache=transition_cache,
     )
 
 
@@ -703,7 +1060,9 @@ def _estimate_steps_by_first_action_parallel(
     lh_merge_version: str,
     search_signature_mode: str,
     parallel_cores: int,
-    cache: dict[str, list[tuple[RuleCandidate, int, int, DerivationState]]],
+    max_total_depth: int,
+    budget_seconds: float,
+    transition_cache: dict[str, list[tuple[RuleCandidate, int, int, DerivationState]]],
 ) -> dict[int, int]:
     if len(root_transitions) == 0:
         return {}
@@ -718,9 +1077,11 @@ def _estimate_steps_by_first_action_parallel(
             legacy_root=legacy_root,
             rh_merge_version=rh_merge_version,
             lh_merge_version=lh_merge_version,
+            max_total_depth=max_total_depth,
+            budget_seconds=budget_seconds,
             search_signature_fn=search_signature_fn,
             transition_signature_fn=_state_structural_signature,
-            cache=cache,
+            transition_cache=transition_cache,
         )
 
     chunk_count = min(parallel_cores, len(root_transitions))
@@ -739,9 +1100,11 @@ def _estimate_steps_by_first_action_parallel(
             legacy_root=legacy_root,
             rh_merge_version=rh_merge_version,
             lh_merge_version=lh_merge_version,
+            max_total_depth=max_total_depth,
+            budget_seconds=budget_seconds,
             search_signature_fn=search_signature_fn,
             transition_signature_fn=_state_structural_signature,
-            cache=cache,
+            transition_cache=transition_cache,
         )
 
     payloads = [
@@ -758,6 +1121,8 @@ def _estimate_steps_by_first_action_parallel(
             rh_merge_version=rh_merge_version,
             lh_merge_version=lh_merge_version,
             search_signature_mode=search_signature_mode,
+            max_total_depth=max_total_depth,
+            budget_seconds=budget_seconds,
         )
         for chunk in chunks
     ]
@@ -777,9 +1142,11 @@ def _estimate_steps_by_first_action_parallel(
             legacy_root=legacy_root,
             rh_merge_version=rh_merge_version,
             lh_merge_version=lh_merge_version,
+            max_total_depth=max_total_depth,
+            budget_seconds=budget_seconds,
             search_signature_fn=search_signature_fn,
             transition_signature_fn=_state_structural_signature,
-            cache=cache,
+            transition_cache=transition_cache,
         )
 
     merged: dict[int, int] = {}
@@ -1103,7 +1470,6 @@ def derivation_head_assist(request: DerivationHeadAssistRequest) -> list[HeadAss
         )
 
         transition_rows: list[tuple[int, RuleCandidate, int, int, DerivationState, int, int, bool]] = []
-        root_transitions_for_search: list[tuple[int, DerivationState, int]] = []
         for action_index, (candidate, actual_left, actual_right, next_state) in enumerate(transitions):
             after_unresolved = _count_uninterpretable_like_perl(next_state)
             unresolved_delta = before_unresolved - after_unresolved
@@ -1119,13 +1485,6 @@ def derivation_head_assist(request: DerivationHeadAssistRequest) -> list[HeadAss
                     after_unresolved == 0,
                 )
             )
-            root_transitions_for_search.append(
-                (
-                    action_index,
-                    next_state,
-                    after_unresolved,
-                )
-            )
         transition_rows.sort(
             key=lambda row: (
                 row[5],
@@ -1136,7 +1495,22 @@ def derivation_head_assist(request: DerivationHeadAssistRequest) -> list[HeadAss
                 row[1].check if row[1].check is not None else 0,
             )
         )
+        root_search_limit = max(_HEAD_ASSIST_SEARCH_ROOT_LIMIT, top_k * 3)
+        root_transitions_for_search = [
+            (action_index, next_state, after_unresolved)
+            for (
+                action_index,
+                _candidate,
+                _actual_left,
+                _actual_right,
+                next_state,
+                after_unresolved,
+                _unresolved_delta,
+                _grammatical_after,
+            ) in transition_rows[:root_search_limit]
+        ]
         parallel_cores = _resolve_head_assist_parallel_cores(request.parallel_cores)
+        max_total_depth = _resolve_head_assist_max_total_depth(request.state)
         steps_by_first_action = _estimate_steps_by_first_action_parallel(
             root_transitions=root_transitions_for_search,
             legacy_root=legacy_root,
@@ -1144,9 +1518,10 @@ def derivation_head_assist(request: DerivationHeadAssistRequest) -> list[HeadAss
             lh_merge_version=lh_version,
             search_signature_mode=search_signature_mode,
             parallel_cores=parallel_cores,
-            cache=transition_cache,
+            max_total_depth=max_total_depth,
+            budget_seconds=_HEAD_ASSIST_SEARCH_BUDGET_SECONDS,
+            transition_cache=transition_cache,
         )
-
         suggestions: list[HeadAssistSuggestionResponse] = []
         for (
             action_index,
@@ -1199,6 +1574,82 @@ def derivation_head_assist(request: DerivationHeadAssistRequest) -> list[HeadAss
         for idx, suggestion in enumerate(suggestions[:top_k], start=1):
             suggestion.rank = idx
         return suggestions[:top_k]
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+
+@router.post("/head-assist/diagnose", response_model=DerivationReachabilityDiagnoseResponse)
+def derivation_head_assist_diagnose(
+    request: DerivationReachabilityDiagnoseRequest,
+) -> DerivationReachabilityDiagnoseResponse:
+    legacy_root = (
+        Path(request.legacy_root).expanduser().resolve()
+        if request.legacy_root
+        else _default_legacy_root()
+    )
+    try:
+        profile = resolve_rule_versions(
+            profile=get_grammar_profile(request.state.grammar_id),
+            legacy_root=legacy_root,
+        )
+        rh_version = request.rh_merge_version or profile.rh_merge_version
+        lh_version = request.lh_merge_version or profile.lh_merge_version
+
+        known_sequence = _known_replay_sequence_for_state(request.state)
+        if known_sequence is None:
+            strict_replay = StrictReplayDiagnosticResponse(
+                available=False,
+                reached_grammatical=False,
+                final_unresolved=_count_uninterpretable_like_perl(request.state),
+                trace=[],
+            )
+        else:
+            reached, replay_final_state, trace = _replay_known_sequence_diagnostics(
+                state=request.state,
+                known_sequence=known_sequence,
+                legacy_root=legacy_root,
+                rh_merge_version=rh_version,
+                lh_merge_version=lh_version,
+            )
+            strict_replay = StrictReplayDiagnosticResponse(
+                available=True,
+                reached_grammatical=reached,
+                final_unresolved=_count_uninterpretable_like_perl(replay_final_state),
+                trace=trace,
+            )
+
+        baseline_max_depth = _resolve_baseline_max_depth(
+            request.baseline_max_depth,
+            state=request.state,
+        )
+        baseline_budget_seconds = _resolve_baseline_budget_seconds(
+            request.baseline_budget_seconds
+        )
+        baseline_max_nodes = _resolve_baseline_max_nodes(request.baseline_max_nodes)
+
+        baseline_deadline = time.perf_counter() + baseline_budget_seconds
+        baseline_result = _baseline_find_grammatical_within_depth(
+            state=request.state,
+            max_total_depth=baseline_max_depth,
+            deadline=baseline_deadline,
+            max_nodes=baseline_max_nodes,
+            legacy_root=legacy_root,
+            rh_merge_version=rh_version,
+            lh_merge_version=lh_version,
+        )
+        baseline_complete = BaselineReachabilityDiagnosticResponse(
+            status=baseline_result.status,
+            max_depth=baseline_max_depth,
+            budget_seconds=baseline_budget_seconds,
+            max_nodes=baseline_max_nodes,
+            expanded_nodes=baseline_result.expanded_nodes,
+            steps_to_grammatical=baseline_result.steps_to_grammatical,
+        )
+
+        return DerivationReachabilityDiagnoseResponse(
+            strict_replay=strict_replay,
+            baseline_complete=baseline_complete,
+        )
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
 
