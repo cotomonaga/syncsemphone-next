@@ -2,6 +2,7 @@ import json
 from pathlib import Path
 import re
 import time
+from typing import Optional
 
 from fastapi.testclient import TestClient
 import pytest
@@ -198,6 +199,79 @@ def test_derivation_numeration_tokenize_auto_mode_supplements_tense_for_iru() ->
     assert response.json()["tokens"] == ["うさぎ", "が", "いる", "る"]
 
 
+def test_derivation_numeration_tokenize_auto_mode_supports_other_tense_items() -> None:
+    client = TestClient(app)
+    cases = [
+        ("メアリはかわいい", ["メアリ", "は", "かわい", "い"]),
+        ("メアリはかわいかった", ["メアリ", "は", "かわい", "かった"]),
+        ("ジョンが追いかけた", ["ジョン", "が", "追いかける", "た"]),
+        ("メアリは学生だ", ["メアリ", "は", "学生", "だ"]),
+        ("メアリは学生だった", ["メアリ", "は", "学生", "だった"]),
+        ("メアリは学生です", ["メアリ", "は", "学生", "です"]),
+        ("メアリは学生でした", ["メアリ", "は", "学生", "でした"]),
+    ]
+    for sentence, expected in cases:
+        response = client.post(
+            "/v1/derivation/numeration/tokenize",
+            json={
+                "grammar_id": "imi01",
+                "sentence": sentence,
+                "split_mode": "C",
+                "legacy_root": str(_legacy_root()),
+            },
+        )
+        assert response.status_code == 200
+        assert response.json()["tokens"] == expected
+
+
+def test_derivation_numeration_generate_auto_mode_maps_kakatta_to_tense_lexicon() -> None:
+    client = TestClient(app)
+    response = client.post(
+        "/v1/derivation/numeration/generate",
+        json={
+            "grammar_id": "imi01",
+            "sentence": "メアリはかわいかった",
+            "split_mode": "C",
+            "legacy_root": str(_legacy_root()),
+        },
+    )
+    assert response.status_code == 200
+    body = response.json()
+    assert body["lexicon_ids"] == [103, 22, 4, 253]
+
+
+def test_derivation_numeration_generate_auto_mode_maps_datta_to_tense_lexicon() -> None:
+    client = TestClient(app)
+    response = client.post(
+        "/v1/derivation/numeration/generate",
+        json={
+            "grammar_id": "imi01",
+            "sentence": "メアリは学生だった",
+            "split_mode": "C",
+            "legacy_root": str(_legacy_root()),
+        },
+    )
+    assert response.status_code == 200
+    body = response.json()
+    assert body["lexicon_ids"] == [103, 22, 39, 258]
+
+
+def test_derivation_numeration_generate_auto_mode_maps_deshita_to_tense_lexicon() -> None:
+    client = TestClient(app)
+    response = client.post(
+        "/v1/derivation/numeration/generate",
+        json={
+            "grammar_id": "imi01",
+            "sentence": "メアリは学生でした",
+            "split_mode": "C",
+            "legacy_root": str(_legacy_root()),
+        },
+    )
+    assert response.status_code == 200
+    body = response.json()
+    assert body["lexicon_ids"] == [103, 22, 39, 260]
+
+
 def test_derivation_init_from_sentence_then_reachability_reaches_skateboard_sentence() -> None:
     client = TestClient(app)
     initialized = client.post(
@@ -280,6 +354,116 @@ def test_derivation_reachability_jobs_reaches_usagi_ga_iru_with_auto_tense_suppl
     assert terminal is not None, "reachability job did not finish in time"
     assert terminal["status"] == "reachable"
     assert terminal["completed"] is True
+
+
+@pytest.mark.parametrize(
+    ("tense_label", "grammar_id", "sentence", "expected_tokens", "source_num_relpath"),
+    [
+        (
+            "い",
+            "japanese2",
+            "メアリはかわいい",
+            ["メアリ", "は", "かわい", "い"],
+            "japanese2/set-numeration/05-03-19.num",
+        ),
+        (
+            "かった",
+            "japanese2",
+            "メアリはかわいかった",
+            ["メアリ", "は", "かわい", "かった"],
+            None,
+        ),
+        (
+            "た",
+            "imi03",
+            "ジョンがメアリを追いかけた",
+            ["ジョン", "が", "メアリ", "を", "追いかける", "た"],
+            "imi03/set-numeration/04.num",
+        ),
+        (
+            "だ",
+            "japanese2",
+            "椅子は木製だ",
+            ["椅子", "は", "木製", "だ"],
+            "japanese2/set-numeration/05-03-09.num",
+        ),
+        (
+            "だった",
+            "japanese2",
+            "大学生はバイトだった",
+            ["大学生", "は", "バイト", "だった"],
+            "japanese2/set-numeration/05-04-28cf.num",
+        ),
+        (
+            "です",
+            "japanese2",
+            "メアリは学生です",
+            ["メアリ", "は", "学生", "です"],
+            None,
+        ),
+        (
+            "でした",
+            "japanese2",
+            "メアリは学生でした",
+            ["メアリ", "は", "学生", "でした"],
+            None,
+        ),
+    ],
+)
+def test_derivation_auto_mode_tense_examples_tokenize_and_reachability(
+    tense_label: str,
+    grammar_id: str,
+    sentence: str,
+    expected_tokens: list[str],
+    source_num_relpath: Optional[str],
+) -> None:
+    client = TestClient(app)
+
+    if source_num_relpath is not None:
+        num_first_line = _load_num_file(source_num_relpath).splitlines()[0]
+        assert sentence.split("（")[0] in num_first_line
+
+    tokenized = client.post(
+        "/v1/derivation/numeration/tokenize",
+        json={
+            "grammar_id": grammar_id,
+            "sentence": sentence,
+            "split_mode": "C",
+            "legacy_root": str(_legacy_root()),
+        },
+    )
+    assert tokenized.status_code == 200
+    assert tokenized.json()["tokens"] == expected_tokens
+
+    initialized = client.post(
+        "/v1/derivation/init/from-sentence",
+        json={
+            "grammar_id": grammar_id,
+            "sentence": sentence,
+            "split_mode": "C",
+            "legacy_root": str(_legacy_root()),
+        },
+    )
+    assert initialized.status_code == 200
+    state = initialized.json()["state"]
+
+    reachability = client.post(
+        "/v1/derivation/reachability",
+        json={
+            "state": state,
+            "max_evidences": 20,
+            "offset": 0,
+            "limit": 10,
+            "budget_seconds": 20.0,
+            "max_nodes": 800_000,
+            "max_depth": 20,
+            "legacy_root": str(_legacy_root()),
+        },
+    )
+    assert reachability.status_code == 200
+    body = reachability.json()
+    assert body["status"] == "reachable", f"{tense_label} sentence should be reachable"
+    assert body["completed"] is True
 
 
 def test_derivation_numeration_tokenize_returns_tokens(monkeypatch: pytest.MonkeyPatch) -> None:

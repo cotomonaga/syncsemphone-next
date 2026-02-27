@@ -24,6 +24,7 @@ class MorphTokenizer(Protocol):
 @dataclass(frozen=True)
 class MorphemeAnalysis:
     token: str
+    surface: str
     dictionary_form: str
     pos_major: str
     conjugation_form: str
@@ -54,11 +55,13 @@ class SudachiMorphTokenizer:
         mode = self._resolve_mode(split_mode)
         out: list[MorphemeAnalysis] = []
         for morpheme in self._tokenizer.tokenize(sentence, mode):
+            surface_raw = morpheme.surface()
+            surface = _normalize_token(surface_raw)
             dictionary_form_raw = morpheme.dictionary_form()
             dictionary_form = (
                 dictionary_form_raw
                 if dictionary_form_raw and dictionary_form_raw != "*"
-                else morpheme.surface()
+                else surface_raw
             )
             token = _normalize_token(dictionary_form)
             if token == "":
@@ -69,6 +72,7 @@ class SudachiMorphTokenizer:
             out.append(
                 MorphemeAnalysis(
                     token=token,
+                    surface=surface,
                     dictionary_form=_normalize_token(dictionary_form),
                     pos_major=pos_major,
                     conjugation_form=conjugation_form,
@@ -76,19 +80,80 @@ class SudachiMorphTokenizer:
             )
         return out
 
-    def _infer_tense_supplement(self, row: MorphemeAnalysis) -> str | None:
-        # 「いる」は V 語彙と T 語彙（る）に分ける運用を優先する。
-        if row.dictionary_form == "いる" and row.pos_major == "動詞" and "終止形" in row.conjugation_form:
-            return "る"
-        return None
+    def _adjective_stem(self, row: MorphemeAnalysis) -> str:
+        if row.dictionary_form.endswith("い") and len(row.dictionary_form) > 1:
+            return row.dictionary_form[:-1]
+        if row.surface.endswith("い") and len(row.surface) > 1:
+            return row.surface[:-1]
+        base = row.surface if row.surface != "" else row.token
+        return base
+
+    def _tokens_with_tense_supplements(self, rows: list[MorphemeAnalysis]) -> list[str]:
+        out: list[str] = []
+        i = 0
+        while i < len(rows):
+            row = rows[i]
+            next_row = rows[i + 1] if i + 1 < len(rows) else None
+
+            # 形容詞 + た => 語幹 + かった（例: かわい + かった）
+            if (
+                row.pos_major == "形容詞"
+                and next_row is not None
+                and next_row.pos_major == "助動詞"
+                and next_row.dictionary_form == "た"
+            ):
+                stem = self._adjective_stem(row)
+                if stem != "":
+                    out.append(stem)
+                out.append("かった")
+                i += 2
+                continue
+
+            # 文末形容詞（終止）=> 語幹 + い（例: かわい + い）
+            if row.pos_major == "形容詞" and "終止形" in row.conjugation_form:
+                stem = self._adjective_stem(row)
+                if stem != "" and stem != row.token:
+                    out.append(stem)
+                    out.append("い")
+                    i += 1
+                    continue
+
+            # だ + た => だった
+            if (
+                row.pos_major == "助動詞"
+                and row.dictionary_form == "だ"
+                and next_row is not None
+                and next_row.pos_major == "助動詞"
+                and next_row.dictionary_form == "た"
+            ):
+                out.append("だった")
+                i += 2
+                continue
+
+            # です + た => でした
+            if (
+                row.pos_major == "助動詞"
+                and row.dictionary_form == "です"
+                and next_row is not None
+                and next_row.pos_major == "助動詞"
+                and next_row.dictionary_form == "た"
+            ):
+                out.append("でした")
+                i += 2
+                continue
+
+            out.append(row.token)
+
+            # 「いる」は V 語彙と T 語彙（る）に分ける運用を優先する。
+            if row.dictionary_form == "いる" and row.pos_major == "動詞" and "終止形" in row.conjugation_form:
+                out.append("る")
+
+            i += 1
+
+        return out
 
     def tokenize(self, sentence: str, split_mode: str = "C") -> list[str]:
-        out: list[str] = []
-        for row in self._analyze(sentence, split_mode=split_mode):
-            out.append(row.token)
-            supplement = self._infer_tense_supplement(row)
-            if supplement:
-                out.append(supplement)
+        out = self._tokens_with_tense_supplements(self._analyze(sentence, split_mode=split_mode))
         if not out:
             raise ValueError("Sentence tokenization produced no tokens")
         return out
