@@ -5,7 +5,6 @@ import type {
   FeatureDocEntry,
   GeneratedNumeration,
   GrammarOption,
-  HeadAssistSuggestion,
   HtmlDocResponse,
   LexiconItemLookupItem,
   LexiconItemsPageResponse,
@@ -20,6 +19,11 @@ import type {
   NumerationFileEntry,
   ObservationTreeResponse,
   ProcessExportResponse,
+  ReachabilityEvidence,
+  ReachabilityEvidencePageResponse,
+  ReachabilityJobStartResponse,
+  ReachabilityJobStatusResponse,
+  ReachabilityResponse,
   RuleCompareResponse,
   RuleCandidate,
   RuleDocEntry,
@@ -820,6 +824,9 @@ export default function App() {
   const [numerationLexiconRows, setNumerationLexiconRows] = useState<NumerationLexiconRow[]>([]);
   const [isNumerationLexiconLoading, setIsNumerationLexiconLoading] = useState(false);
   const [numerationLexiconError, setNumerationLexiconError] = useState("");
+  const [numerationLookupItems, setNumerationLookupItems] = useState<LexiconItemLookupItem[]>([]);
+  const [openStep1CandidateSlot, setOpenStep1CandidateSlot] = useState<number | null>(null);
+  const [openStep2CandidateSlot, setOpenStep2CandidateSlot] = useState<number | null>(null);
   const [setNumerationFiles, setSetNumerationFiles] = useState<NumerationFileEntry[]>([]);
   const [savedNumerationFiles, setSavedNumerationFiles] = useState<NumerationFileEntry[]>([]);
   const [selectedSetPath, setSelectedSetPath] = useState("");
@@ -831,8 +838,13 @@ export default function App() {
   const [generated, setGenerated] = useState<GeneratedNumeration | null>(null);
   const [state, setState] = useState<DerivationState | null>(null);
   const [candidates, setCandidates] = useState<RuleCandidate[]>([]);
-  const [headAssistRows, setHeadAssistRows] = useState<HeadAssistSuggestion[]>([]);
-  const [headAssistMessage, setHeadAssistMessage] = useState("");
+  const [reachabilityResult, setReachabilityResult] = useState<ReachabilityResponse | null>(null);
+  const [reachabilityRows, setReachabilityRows] = useState<ReachabilityEvidence[]>([]);
+  const [reachabilityJobId, setReachabilityJobId] = useState("");
+  const [reachabilityMessage, setReachabilityMessage] = useState("");
+  const [reachabilityProgress, setReachabilityProgress] = useState<{ percent: number; phase: string; message: string } | null>(null);
+  const [reachabilityOffset, setReachabilityOffset] = useState(0);
+  const [reachabilityLimit, setReachabilityLimit] = useState(10);
   const [step2ProcessText, setStep2ProcessText] = useState("");
   const [step2UndoStack, setStep2UndoStack] = useState<DerivationState[]>([]);
   const [selectedLeft, setSelectedLeft] = useState<number | null>(null);
@@ -955,6 +967,20 @@ export default function App() {
     () => encodeNumerationTextLikePerl(step1NumerationLexiconSourceText),
     [step1NumerationLexiconSourceText]
   );
+  const tokenSlotEditBySlot = useMemo(() => {
+    const bySlot = new Map<number, TokenSlotEdit>();
+    for (const row of tokenSlotEdits) {
+      bySlot.set(row.slot, row);
+    }
+    return bySlot;
+  }, [tokenSlotEdits]);
+  const numerationLookupMap = useMemo(() => {
+    const byId = new Map<number, LexiconItemLookupItem>();
+    for (const item of numerationLookupItems) {
+      byId.set(item.lexicon_id, item);
+    }
+    return byId;
+  }, [numerationLookupItems]);
   const step2DisplayRows = useMemo(() => buildStep2DisplayRows(state), [state]);
 
   function renderStep2DisplayNode(
@@ -1078,14 +1104,19 @@ export default function App() {
 
   const loadLookupRowsForNumerationText = async (sourceText: string) => {
     const parsedRows = parseNumerationLexiconRows(normalizeNumerationTextForParse(sourceText));
+    const rowIds = parsedRows
+      .map((row) => row.lexiconId)
+      .filter((value): value is number => value !== null);
+    const candidateIds = parsedRows.flatMap((row) => tokenSlotEditBySlot.get(row.slot)?.candidateLexiconIds || []);
     const uniqueIds = Array.from(
       new Set(
-        parsedRows
-          .map((row) => row.lexiconId)
-          .filter((value): value is number => value !== null)
+        [...rowIds, ...candidateIds].filter(
+          (value): value is number => Number.isInteger(value) && Number(value) > 0
+        )
       )
     );
     if (uniqueIds.length === 0) {
+      setNumerationLookupItems([]);
       setNumerationLexiconRows(buildNumerationLexiconRows(parsedRows, new Map()));
       const hasInvalidIds = parsedRows.some((row) => row.lexiconId === null);
       setNumerationLexiconError(
@@ -1110,6 +1141,7 @@ export default function App() {
       for (const item of response.items) {
         lookupMap.set(item.lexicon_id, item);
       }
+      setNumerationLookupItems(response.items);
       setNumerationLexiconRows(buildNumerationLexiconRows(parsedRows, lookupMap));
       if (response.missing_ids.length > 0 && response.found_count < response.requested_count) {
         setNumerationLexiconError(
@@ -1119,6 +1151,7 @@ export default function App() {
         setNumerationLexiconError("");
       }
     } catch (lookupError) {
+      setNumerationLookupItems([]);
       setNumerationLexiconRows(buildNumerationLexiconRows(parsedRows, new Map()));
       setNumerationLexiconError(
         lookupError instanceof Error ? lookupError.message : "語彙IDの参照に失敗しました。"
@@ -1133,6 +1166,7 @@ export default function App() {
   useEffect(() => {
     if (step1NumerationLexiconSourceText.trim() === "") {
       setNumerationLexiconRows([]);
+      setNumerationLookupItems([]);
       setNumerationLexiconError("");
       setIsNumerationLexiconLoading(false);
       return;
@@ -1144,7 +1178,25 @@ export default function App() {
       clearTimeout(timer);
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [grammarId, step1NumerationRows, step1NumerationLexiconSourceText]);
+  }, [grammarId, step1NumerationRows, step1NumerationLexiconSourceText, tokenSlotEdits]);
+
+  useEffect(() => {
+    if (openStep1CandidateSlot === null) {
+      return;
+    }
+    if (!numerationLexiconRows.some((row) => row.slot === openStep1CandidateSlot)) {
+      setOpenStep1CandidateSlot(null);
+    }
+  }, [numerationLexiconRows, openStep1CandidateSlot]);
+
+  useEffect(() => {
+    if (openStep2CandidateSlot === null) {
+      return;
+    }
+    if (!step2DisplayRows.some((row) => row.slot === openStep2CandidateSlot)) {
+      setOpenStep2CandidateSlot(null);
+    }
+  }, [openStep2CandidateSlot, step2DisplayRows]);
 
   async function withLoading(task: () => Promise<void>) {
     setLoading(true);
@@ -1222,6 +1274,7 @@ export default function App() {
           return;
         }
         setStep1BuildPreviewNumerationText(response.numeration_text);
+        syncTokenEdits(response);
         setStep1BuildPreviewError("");
       } catch (previewError) {
         if (step1BuildPreviewRequestSeqRef.current !== requestId) {
@@ -1459,8 +1512,12 @@ export default function App() {
   }, [sentence]);
 
   useEffect(() => {
-    setHeadAssistRows([]);
-    setHeadAssistMessage("");
+    setReachabilityResult(null);
+    setReachabilityRows([]);
+    setReachabilityJobId("");
+    setReachabilityProgress(null);
+    setReachabilityMessage("");
+    setReachabilityOffset(0);
   }, [state]);
 
   useEffect(() => {
@@ -1702,31 +1759,79 @@ export default function App() {
     setNumerationText(buildNumerationText(parsed.memo, parsed.lexicon, parsed.plus, parsed.idx));
   }
 
+  async function composeNumerationFromTokenEdits(
+    nextTokenSlotEdits: TokenSlotEdit[],
+    options?: { reinitializeState?: boolean }
+  ) {
+    const memoText = sentence.trim() === "" ? "manual" : sentence.trim();
+    const response = await apiPost<{ numeration_text: string }>("/v1/derivation/numeration/compose", {
+      memo: memoText,
+      lexicon_ids: nextTokenSlotEdits.map((row) => row.selectedLexiconId),
+      plus_values: nextTokenSlotEdits.map((row) => row.plusValue),
+      idx_values: nextTokenSlotEdits.map((row) => row.idxValue)
+    });
+    setTokenSlotEdits(nextTokenSlotEdits);
+    setNumerationText(response.numeration_text);
+    if (step1EntryMode === "build_lexicon") {
+      setStep1BuildPreviewNumerationText(response.numeration_text);
+    }
+    if (generated) {
+      setGenerated({
+        ...generated,
+        memo: sentence.trim() === "" ? generated.memo : sentence.trim(),
+        lexicon_ids: nextTokenSlotEdits.map((row) => row.selectedLexiconId),
+        token_resolutions: generated.token_resolutions.map((row, i) => ({
+          ...row,
+          lexicon_id: nextTokenSlotEdits[i]?.selectedLexiconId ?? row.lexicon_id
+        })),
+        numeration_text: response.numeration_text
+      });
+    }
+    if (options?.reinitializeState) {
+      const initialized = await apiPost<DerivationState>("/v1/derivation/init", {
+        grammar_id: grammarId,
+        numeration_text: response.numeration_text
+      });
+      applyInitializedState(initialized);
+    }
+  }
+
   async function handleComposeNumerationFromTokenSelection() {
     if (tokenSlotEdits.length === 0) {
       setError("候補再選択の対象がありません。先に Generate .num または Init T0 を実行してください。");
       return;
     }
     await withLoading(async () => {
-      const response = await apiPost<{ numeration_text: string }>("/v1/derivation/numeration/compose", {
-        memo: sentence.trim() === "" ? "manual" : sentence.trim(),
-        lexicon_ids: tokenSlotEdits.map((row) => row.selectedLexiconId),
-        plus_values: tokenSlotEdits.map((row) => row.plusValue),
-        idx_values: tokenSlotEdits.map((row) => row.idxValue)
-      });
-      setNumerationText(response.numeration_text);
-      if (generated) {
-        setGenerated({
-          ...generated,
-          memo: sentence.trim() === "" ? generated.memo : sentence.trim(),
-          lexicon_ids: tokenSlotEdits.map((row) => row.selectedLexiconId),
-          token_resolutions: generated.token_resolutions.map((row, i) => ({
-            ...row,
-            lexicon_id: tokenSlotEdits[i]?.selectedLexiconId ?? row.lexicon_id
-          })),
-          numeration_text: response.numeration_text
-        });
-      }
+      await composeNumerationFromTokenEdits(tokenSlotEdits);
+    });
+  }
+
+  async function handleApplyStep1Candidate(slot: number, candidateId: number) {
+    const row = tokenSlotEditBySlot.get(slot);
+    if (!row || row.selectedLexiconId === candidateId) {
+      return;
+    }
+    const nextTokenSlotEdits = tokenSlotEdits.map((item) =>
+      item.slot === slot ? { ...item, selectedLexiconId: candidateId } : item
+    );
+    await withLoading(async () => {
+      await composeNumerationFromTokenEdits(nextTokenSlotEdits);
+    });
+  }
+
+  async function handleApplyStep2Candidate(slot: number, candidateId: number) {
+    const row = tokenSlotEditBySlot.get(slot);
+    if (!row || row.selectedLexiconId === candidateId) {
+      return;
+    }
+    const nextTokenSlotEdits = tokenSlotEdits.map((item) =>
+      item.slot === slot ? { ...item, selectedLexiconId: candidateId } : item
+    );
+    await withLoading(async () => {
+      await composeNumerationFromTokenEdits(nextTokenSlotEdits, { reinitializeState: true });
+      setReachabilityMessage("語彙候補を差し替えて T0 を再初期化しました。");
+      setRenewMenu("hypothesis");
+      setRenewPanel("target");
     });
   }
 
@@ -1738,24 +1843,101 @@ export default function App() {
     setArrangeRows((prev) => prev.map((row) => (row.slot === slot ? { ...row, ...patch } : row)));
   }
 
+  async function pollReachabilityJob(jobId: string): Promise<ReachabilityJobStatusResponse> {
+    for (;;) {
+      const status = await apiGet<ReachabilityJobStatusResponse>(`/v1/derivation/reachability/jobs/${jobId}`);
+      setReachabilityProgress({
+        percent: status.progress.percent,
+        phase: status.progress.phase,
+        message: status.progress.message
+      });
+      if (["reachable", "unreachable", "unknown", "failed"].includes(status.status)) {
+        return status;
+      }
+      await new Promise((resolve) => setTimeout(resolve, 800));
+    }
+  }
+
+  async function loadReachabilityEvidencePage(jobId: string, offset: number, limit: number) {
+    const page = await apiGet<ReachabilityEvidencePageResponse>(
+      `/v1/derivation/reachability/jobs/${jobId}/evidences?offset=${Math.max(0, offset)}&limit=${Math.max(1, limit)}`
+    );
+    setReachabilityRows(page.evidences);
+    setReachabilityOffset(page.counts.offset);
+    setReachabilityLimit(page.counts.limit);
+    setReachabilityResult((prev) => {
+      if (!prev) {
+        return null;
+      }
+      return {
+        ...prev,
+        counts: page.counts,
+        evidences: page.evidences
+      };
+    });
+  }
+
   async function handleHeadAssist() {
     if (!state) {
       setError("T0 以降の state がありません。先に 初期化 を実行してください。");
       return;
     }
     await withLoading(async () => {
-      const response = await apiPost<HeadAssistSuggestion[]>("/v1/derivation/head-assist", {
+      setReachabilityResult(null);
+      setReachabilityRows([]);
+      setReachabilityProgress({ percent: 0, phase: "queued", message: "ジョブ開始待ち" });
+      const start = await apiPost<ReachabilityJobStartResponse>("/v1/derivation/reachability/jobs", {
         state,
-        top_k: 5
-      }, {
-        timeoutMs: 12000
+        max_evidences: 50,
+        offset: 0,
+        limit: reachabilityLimit,
+        return_process_text: true
       });
-      setHeadAssistRows(response);
-      if (response.length === 0) {
-        setHeadAssistMessage("候補が見つかりませんでした。別の left/right を選択して再試行してください。");
-      } else {
-        setHeadAssistMessage(`候補を ${response.length} 件表示しました。`);
+      setReachabilityJobId(start.job_id);
+      setReachabilityMessage("到達判定ジョブを開始しました。");
+
+      const terminal = await pollReachabilityJob(start.job_id);
+      if (terminal.status === "failed") {
+        setReachabilityMessage(`到達判定に失敗しました: ${terminal.error ?? "unknown error"}`);
+        return;
       }
+
+      setReachabilityResult({
+        status: terminal.status,
+        completed: Boolean(terminal.completed),
+        reason: terminal.reason ?? terminal.status,
+        metrics: terminal.metrics ?? {
+          expanded_nodes: 0,
+          generated_nodes: 0,
+          packed_nodes: 0,
+          max_frontier: 0,
+          elapsed_ms: 0,
+          max_depth_reached: 0,
+          actions_attempted: 0
+        },
+        counts: terminal.counts ?? {
+          count_unit: "derivation_tree",
+          count_basis: "structural_signature_v1",
+          tree_signature_basis: "canonical_tree_v1",
+          count_status: "unknown",
+          goal_count_exact: null,
+          total_exact: null,
+          total_upper_bound_a_pair_only: "1",
+          total_upper_bound_b_pair_rulemax: "1",
+          rule_max_per_pair_bound: 1,
+          rule_max_per_pair_observed: 1,
+          shown_count: 0,
+          offset: 0,
+          limit: reachabilityLimit,
+          shown_ratio_exact_percent: null,
+          coverage_upper_bound_a_percent: 0,
+          coverage_upper_bound_b_percent: 0,
+          has_next: false
+        },
+        evidences: []
+      });
+      await loadReachabilityEvidencePage(start.job_id, 0, reachabilityLimit);
+      setReachabilityMessage(`到達判定: ${terminal.status}`);
     });
   }
 
@@ -1785,7 +1967,7 @@ export default function App() {
       setState(nextState);
       setCandidates([]);
       if (options?.fromAssist) {
-        setHeadAssistMessage(`候補 ${options.rank ?? "-"} を実行しました。`);
+        setReachabilityMessage(`証拠 ${options.rank ?? "-"} の先頭手を実行しました。`);
       }
       setSnapshots((prev) => {
         if (!prev.T1) {
@@ -1800,25 +1982,30 @@ export default function App() {
     await executeStep2Rule(candidate);
   }
 
-  async function handleExecuteHeadAssist(row: HeadAssistSuggestion) {
-    setSelectedLeft(row.left);
-    setSelectedRight(row.right);
+  async function handleExecuteHeadAssist(row: ReachabilityEvidence) {
+    const first = row.rule_sequence[0];
+    if (!first) {
+      setReachabilityMessage("この証拠には実行可能な規則列がありません。");
+      return;
+    }
+    setSelectedLeft(first.left ?? null);
+    setSelectedRight(first.right ?? null);
     await executeStep2Rule(
       {
-        rule_number: row.rule_number,
-        rule_name: row.rule_name,
-        rule_kind: row.rule_kind,
-        left: row.left,
-        right: row.right,
-        check: row.check,
+        rule_number: first.rule_number,
+        rule_name: first.rule_name,
+        rule_kind: first.rule_kind,
+        left: first.left ?? undefined,
+        right: first.right ?? undefined,
+        check: first.check ?? undefined,
       },
-      { fromAssist: true, rank: row.rank, left: row.left, right: row.right }
+      { fromAssist: true, rank: row.rank, left: first.left ?? undefined, right: first.right ?? undefined }
     );
   }
 
   function handleUndoStep2Execute() {
     if (step2UndoStack.length === 0) {
-      setHeadAssistMessage("取り消せる実行がありません。");
+      setReachabilityMessage("取り消せる実行がありません。");
       return;
     }
     const previous = step2UndoStack[step2UndoStack.length - 1];
@@ -1826,7 +2013,21 @@ export default function App() {
     setState(cloneState(previous));
     setCandidates([]);
     setIsStep2CandidatesLoading(false);
-    setHeadAssistMessage("直前の実行を取り消しました。");
+    setReachabilityMessage("直前の実行を取り消しました。");
+  }
+
+  async function handleReachabilityLoadMore() {
+    if (!reachabilityJobId || !reachabilityResult) {
+      return;
+    }
+    const nextOffset = reachabilityOffset + reachabilityLimit;
+    if (!reachabilityResult.counts.has_next) {
+      return;
+    }
+    await withLoading(async () => {
+      await loadReachabilityEvidencePage(reachabilityJobId, nextOffset, reachabilityLimit);
+      setReachabilityMessage("次の証拠を読み込みました。");
+    });
   }
 
   async function handleTree(mode: TreeMode) {
@@ -2191,7 +2392,7 @@ export default function App() {
     if (selectedLeft === selectedRight) {
       setCandidates([]);
       setIsStep2CandidatesLoading(false);
-      setHeadAssistMessage("left と right は別の行を選択してください。");
+      setReachabilityMessage("left と right は別の行を選択してください。");
       return;
     }
     if (
@@ -2233,16 +2434,16 @@ export default function App() {
         }
         setCandidates(response);
         if (response.length === 0) {
-          setHeadAssistMessage("この左右では適用可能な規則がありません。");
+          setReachabilityMessage("この左右では適用可能な規則がありません。");
         } else {
-          setHeadAssistMessage("");
+          setReachabilityMessage("");
         }
       } catch {
         if (requestSeq !== step2AutoCandidatesRequestSeqRef.current) {
           return;
         }
         setCandidates([]);
-        setHeadAssistMessage("適用可能ルールの読込に失敗しました。");
+        setReachabilityMessage("適用可能ルールの読込に失敗しました。");
       } finally {
         if (requestSeq === step2AutoCandidatesRequestSeqRef.current) {
           setIsStep2CandidatesLoading(false);
@@ -2273,6 +2474,16 @@ export default function App() {
             const syValues = row.syncFeatures.filter((feature) => feature.trim() !== "");
             const semanticValues = row.semantics.filter((semantic) => semantic.trim() !== "");
             const idslotRaw = row.idslot.trim();
+            const slotEdit = tokenSlotEditBySlot.get(row.slot);
+            const candidateIds = Array.from(
+              new Set(
+                (slotEdit?.candidateLexiconIds || []).filter(
+                  (candidateId) => Number.isInteger(candidateId) && candidateId > 0
+                )
+              )
+            );
+            const canSwapCandidates = step1EntryMode === "build_lexicon" && candidateIds.length > 1;
+            const selectedCandidateId = slotEdit?.selectedLexiconId ?? row.lexiconId;
             const unresolvedMessage = row.lexiconId === null
               ? `語彙ID ${row.rawLexiconId} は数値ではありません`
               : `語彙ID ${row.rawLexiconId} は辞書にありません`;
@@ -2318,6 +2529,77 @@ export default function App() {
                         );
                       })}
                       {row.phono !== "" && <span className="perl-f6">{row.phono}</span>}
+                    </div>
+                  )}
+                  {canSwapCandidates && (
+                    <div className="numeration-candidate-controls">
+                      <button
+                        type="button"
+                        className="numeration-candidate-toggle"
+                        data-testid={`step1-candidate-toggle-${row.slot}`}
+                        aria-expanded={openStep1CandidateSlot === row.slot}
+                        onClick={() =>
+                          setOpenStep1CandidateSlot((prev) => (prev === row.slot ? null : row.slot))
+                        }
+                      >
+                        候補({candidateIds.length})
+                      </button>
+                      <span className="numeration-candidate-status">
+                        選択中: {selectedCandidateId ?? "-"}
+                      </span>
+                    </div>
+                  )}
+                  {canSwapCandidates && openStep1CandidateSlot === row.slot && (
+                    <div className="numeration-candidate-list" data-testid={`step1-candidate-panel-${row.slot}`}>
+                      {candidateIds.map((candidateId) => {
+                        const candidateItem = numerationLookupMap.get(candidateId);
+                        const candidateSemantics = candidateItem
+                          ? candidateItem.semantics.filter((semantic) => semantic.trim() !== "").slice(0, 2)
+                          : [];
+                        const isSelected = selectedCandidateId === candidateId;
+                        return (
+                          <div
+                            className={`numeration-candidate-item${isSelected ? " selected" : ""}`}
+                            key={`${row.slot}-candidate-${candidateId}`}
+                          >
+                            <div className="numeration-candidate-summary">
+                              <span className="numeration-candidate-id">ID {candidateId}</span>
+                              {candidateItem && (
+                                <>
+                                  <span className="numeration-candidate-cat">{candidateItem.category || "-"}</span>
+                                  <span className="numeration-candidate-entry">{candidateItem.entry}</span>
+                                  {candidateItem.phono !== "" && (
+                                    <span className="numeration-candidate-phono">{candidateItem.phono}</span>
+                                  )}
+                                  {candidateSemantics.map((semantic, semIdx) => (
+                                    <span
+                                      className="numeration-candidate-sem"
+                                      key={`${row.slot}-candidate-${candidateId}-sem-${semIdx}`}
+                                    >
+                                      {semantic}
+                                    </span>
+                                  ))}
+                                </>
+                              )}
+                              {!candidateItem && (
+                                <span className="numeration-legacy-unresolved">
+                                  候補詳細を取得できませんでした。
+                                </span>
+                              )}
+                            </div>
+                            <button
+                              type="button"
+                              className="numeration-candidate-apply"
+                              disabled={loading || isSelected}
+                              onClick={() => {
+                                void handleApplyStep1Candidate(row.slot, candidateId);
+                              }}
+                            >
+                              {isSelected ? "選択中" : "この候補に差し替え"}
+                            </button>
+                          </div>
+                        );
+                      })}
                     </div>
                   )}
                 </div>
@@ -3023,6 +3305,19 @@ export default function App() {
               ) : (
                 <div className="numeration-legacy-list step2-selection-list" data-testid="step2-selection-list">
                   {step2DisplayRows.map((row) => {
+                    const slotEdit = tokenSlotEditBySlot.get(row.slot);
+                    const candidateIds = Array.from(
+                      new Set(
+                        (slotEdit?.candidateLexiconIds || []).filter(
+                          (candidateId) => Number.isInteger(candidateId) && candidateId > 0
+                        )
+                      )
+                    );
+                    const canSwapStep2Candidates =
+                      candidateIds.length > 1 &&
+                      state.history.trim() === "" &&
+                      row.node.children.length === 0;
+                    const selectedCandidateId = slotEdit?.selectedLexiconId ?? null;
                     return (
                       <div className="numeration-legacy-row step2-selection-row" key={`step2-row-${row.slot}`}>
                         <label className="step2-side-select" aria-label={`left-select-${row.slot}`}>
@@ -3058,6 +3353,77 @@ export default function App() {
                         <div className="numeration-legacy-slot">{row.slot}</div>
                         <div className="numeration-legacy-main">
                           {renderStep2DisplayNode(row.node, row.slot, `${row.slot}`, 0)}
+                          {canSwapStep2Candidates && (
+                            <div className="numeration-candidate-controls">
+                              <button
+                                type="button"
+                                className="numeration-candidate-toggle"
+                                data-testid={`step2-candidate-toggle-${row.slot}`}
+                                aria-expanded={openStep2CandidateSlot === row.slot}
+                                onClick={() =>
+                                  setOpenStep2CandidateSlot((prev) => (prev === row.slot ? null : row.slot))
+                                }
+                              >
+                                候補({candidateIds.length})
+                              </button>
+                              <span className="numeration-candidate-status">
+                                選択中: {selectedCandidateId ?? "-"}
+                              </span>
+                            </div>
+                          )}
+                          {canSwapStep2Candidates && openStep2CandidateSlot === row.slot && (
+                            <div className="numeration-candidate-list" data-testid={`step2-candidate-panel-${row.slot}`}>
+                              {candidateIds.map((candidateId) => {
+                                const candidateItem = numerationLookupMap.get(candidateId);
+                                const candidateSemantics = candidateItem
+                                  ? candidateItem.semantics.filter((semantic) => semantic.trim() !== "").slice(0, 2)
+                                  : [];
+                                const isSelected = selectedCandidateId === candidateId;
+                                return (
+                                  <div
+                                    className={`numeration-candidate-item${isSelected ? " selected" : ""}`}
+                                    key={`step2-${row.slot}-candidate-${candidateId}`}
+                                  >
+                                    <div className="numeration-candidate-summary">
+                                      <span className="numeration-candidate-id">ID {candidateId}</span>
+                                      {candidateItem && (
+                                        <>
+                                          <span className="numeration-candidate-cat">{candidateItem.category || "-"}</span>
+                                          <span className="numeration-candidate-entry">{candidateItem.entry}</span>
+                                          {candidateItem.phono !== "" && (
+                                            <span className="numeration-candidate-phono">{candidateItem.phono}</span>
+                                          )}
+                                          {candidateSemantics.map((semantic, semIdx) => (
+                                            <span
+                                              className="numeration-candidate-sem"
+                                              key={`step2-${row.slot}-candidate-${candidateId}-sem-${semIdx}`}
+                                            >
+                                              {semantic}
+                                            </span>
+                                          ))}
+                                        </>
+                                      )}
+                                      {!candidateItem && (
+                                        <span className="numeration-legacy-unresolved">
+                                          候補詳細を取得できませんでした。
+                                        </span>
+                                      )}
+                                    </div>
+                                    <button
+                                      type="button"
+                                      className="numeration-candidate-apply"
+                                      disabled={loading || isSelected}
+                                      onClick={() => {
+                                        void handleApplyStep2Candidate(row.slot, candidateId);
+                                      }}
+                                    >
+                                      {isSelected ? "選択中" : "この候補に差し替え"}
+                                    </button>
+                                  </div>
+                                );
+                              })}
+                            </div>
+                          )}
                         </div>
                       </div>
                     );
@@ -3138,55 +3504,78 @@ export default function App() {
               候補を提案
             </button>
           </div>
-          {headAssistMessage && <p className="hint">{headAssistMessage}</p>}
+          {reachabilityProgress && (
+            <p className="hint">
+              進捗 {reachabilityProgress.percent.toFixed(1)}% / {reachabilityProgress.phase} / {reachabilityProgress.message}
+            </p>
+          )}
+          {reachabilityMessage && <p className="hint">{reachabilityMessage}</p>}
 
-          {headAssistRows.length > 0 && (
-            <table data-testid="head-assist-table">
+          {reachabilityResult && (
+            <div className="hint">
+              判定: {reachabilityResult.status} / completed: {String(reachabilityResult.completed)} / reason: {reachabilityResult.reason}
+              <br />
+              count_status: {reachabilityResult.counts.count_status} / count_unit: {reachabilityResult.counts.count_unit}
+              <br />
+              上界A: {reachabilityResult.counts.total_upper_bound_a_pair_only}（{reachabilityResult.counts.coverage_upper_bound_a_percent.toFixed(3)}%）
+              <br />
+              上界B: {reachabilityResult.counts.total_upper_bound_b_pair_rulemax}（{reachabilityResult.counts.coverage_upper_bound_b_percent.toFixed(3)}%）
+              {reachabilityResult.counts.shown_ratio_exact_percent !== null &&
+                reachabilityResult.counts.shown_ratio_exact_percent !== undefined && (
+                  <>
+                    <br />
+                    exact比率: {reachabilityResult.counts.shown_ratio_exact_percent.toFixed(3)}%
+                  </>
+                )}
+            </div>
+          )}
+
+          {reachabilityRows.length > 0 && (
+            <table data-testid="reachability-table">
               <thead>
                 <tr>
                   <th>rank</th>
-                  <th>pair</th>
-                  <th>rule</th>
-                  <th>最短手数</th>
-                  <th>改善量</th>
-                  <th>適用後</th>
+                  <th>手数</th>
+                  <th>先頭規則</th>
+                  <th>証拠概要</th>
                   <th />
                 </tr>
               </thead>
               <tbody>
-                {headAssistRows.map((row) => (
-                  <tr
-                    key={`assist-${row.rank}-${row.rule_number}-${row.left}-${row.right}-${row.check ?? "none"}`}
-                  >
+                {reachabilityRows.map((row) => {
+                  const first = row.rule_sequence[0];
+                  return (
+                  <tr key={`assist-${row.rank}`}>
                     <td>{row.rank}</td>
+                    <td>{row.steps_to_goal}手</td>
                     <td>
-                      {row.left}/{row.right}
+                      {first
+                        ? `${first.rule_number}:${first.rule_name}${first.rule_kind === "single" && first.check !== null && first.check !== undefined ? ` (check=${first.check})` : ""}`
+                        : "-"}
                     </td>
                     <td>
-                      {row.rule_number}:{row.rule_name}
-                      {row.rule_kind === "single" && row.check !== undefined ? ` (check=${row.check})` : ""}
-                    </td>
-                    <td>
-                      {row.steps_to_grammatical !== undefined && row.steps_to_grammatical !== null
-                        ? `${row.steps_to_grammatical}手`
-                        : "到達手順なし"}
-                    </td>
-                    <td>
-                      {row.unresolved_before}→{row.unresolved_after} (Δ{row.unresolved_delta})
-                    </td>
-                    <td>
-                      basenum {row.basenum_before}→{row.basenum_after}
-                      {row.grammatical_after ? " / grammatical" : row.reachable_grammatical ? " / 到達可能" : " / 未解消あり"}
+                      {first?.left_id && first?.right_id
+                        ? `${first.left_id} / ${first.right_id}`
+                        : first?.left !== null && first?.left !== undefined && first?.right !== null && first?.right !== undefined
+                          ? `${first.left}/${first.right}`
+                          : "n/a"}
                     </td>
                     <td>
                       <button onClick={() => void handleExecuteHeadAssist(row)} disabled={loading}>
-                        この候補を実行
+                        先頭手を実行
                       </button>
                     </td>
                   </tr>
-                ))}
+                );})}
               </tbody>
             </table>
+          )}
+          {reachabilityResult?.counts.has_next && (
+            <div className="row">
+              <button onClick={() => void handleReachabilityLoadMore()} disabled={loading || !reachabilityJobId}>
+                さらに10件表示
+              </button>
+            </div>
           )}
 
           <label className="numeration-legacy-source-label">

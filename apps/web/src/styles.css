@@ -573,6 +573,120 @@ button:disabled {
   padding: 7px 10px 7px;
 }
 
+.numeration-candidate-controls {
+  margin-top: 6px;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.numeration-candidate-toggle {
+  border: 1px solid #8ea3b0;
+  border-radius: 999px;
+  background: #f7fafc;
+  color: #34495a;
+  font-size: 0.72rem;
+  padding: 2px 8px;
+  cursor: pointer;
+}
+
+.numeration-candidate-toggle:hover:not(:disabled) {
+  background: #eef4f8;
+}
+
+.numeration-candidate-toggle:focus-visible {
+  outline: 2px solid #3d5f82;
+  outline-offset: 1px;
+}
+
+.numeration-candidate-status {
+  font-size: 0.72rem;
+  color: #435161;
+}
+
+.numeration-candidate-list {
+  margin-top: 6px;
+  border-top: 1px dashed #9fb2be;
+  padding-top: 6px;
+  display: grid;
+  gap: 4px;
+}
+
+.numeration-candidate-item {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 6px;
+  align-items: center;
+  border: 1px solid #c9d6de;
+  border-radius: 8px;
+  background: #f8fbfd;
+  padding: 4px 6px;
+}
+
+.numeration-candidate-item.selected {
+  border-color: #8fb0c6;
+  background: #eef6fb;
+}
+
+.numeration-candidate-summary {
+  display: inline-flex;
+  align-items: baseline;
+  flex-wrap: wrap;
+  gap: 5px;
+  min-width: 0;
+}
+
+.numeration-candidate-id {
+  font-family: "Menlo", "Monaco", monospace;
+  font-size: 0.72rem;
+  color: #203040;
+}
+
+.numeration-candidate-cat {
+  font-family: "Menlo", "Monaco", monospace;
+  font-size: 0.72rem;
+  font-weight: 700;
+  color: #0d8a28;
+}
+
+.numeration-candidate-entry {
+  font-size: 0.74rem;
+  color: #1d2a35;
+}
+
+.numeration-candidate-phono {
+  font-size: 0.74rem;
+  color: #cc2fa8;
+  font-weight: 700;
+}
+
+.numeration-candidate-sem {
+  font-family: "Menlo", "Monaco", monospace;
+  font-size: 0.71rem;
+  background: #eef0ff;
+  padding: 1px 4px;
+}
+
+.numeration-candidate-apply {
+  border: 1px solid #8ea3b0;
+  border-radius: 6px;
+  background: #ffffff;
+  color: #31465a;
+  font-size: 0.72rem;
+  padding: 3px 8px;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.numeration-candidate-apply:hover:not(:disabled) {
+  background: #f2f7fb;
+}
+
+.numeration-candidate-apply:disabled {
+  opacity: 0.6;
+  cursor: default;
+}
+
 .step2-target-panel {
   margin-top: 8px;
 }

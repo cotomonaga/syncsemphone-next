@@ -181,6 +181,12 @@
 | S1-REG-17 | `/v1/derivation/numeration/generate` の回帰テストで、`かわいかった/学生だった/学生でした` が時制語彙ID（`253/258/260`）へ解決されることを固定する | `apps/api/tests/test_derivation.py` | `pytest` |
 | S1-REG-18 | 7時制の `.num` 例文探索結果（存在/非存在）をテスト表へ固定し、`num` 由来文を優先して自動モード検証に使う | `apps/api/tests/test_derivation.py` | `pytest` |
 | S2-REG-15 | 7時制例文を `init/from-sentence`（自動モード）で初期化後、`reachability` が `reachable` になることを回帰テストで固定する | `apps/api/tests/test_derivation.py` | `pytest` |
+| S1-UI-08 | Step1「numerationの語彙情報参照」で複数候補行に `候補(n)` を表示し、行内展開で候補詳細を確認できるUIを追加する | `apps/web/src/App.tsx`, `apps/web/src/styles.css` | `apps/web/src/__tests__/App.test.tsx` |
+| S1-UI-09 | 行内候補から `この候補に差し替え` を実行した際に `.num` と語彙情報参照を即時更新する（build_lexiconモード） | `apps/web/src/App.tsx` | `apps/web/src/__tests__/App.test.tsx` |
+| S1-REG-19 | Webユニットテストで Step1 行内候補UIの表示と差し替え反映（`Sem-204 -> Sem-308`）を固定する | `apps/web/src/__tests__/App.test.tsx` | `npm test` |
+| S2-UI-03 | Step2「適用対象」ペインで複数候補行に `候補(n)` を表示し、行内展開で候補詳細を確認できるUIを追加する | `apps/web/src/App.tsx` | `apps/web/src/__tests__/App.test.tsx` |
+| S2-UI-04 | Step2行内候補 `この候補に差し替え` で `.num` 再構成→`init` によるT0再初期化を行い、Step2で継続できるようにする | `apps/web/src/App.tsx` | `apps/web/src/__tests__/App.test.tsx` |
+| S2-REG-16 | Webユニットテストで Step2 行内候補差し替え後の表示更新（`Sem-204 -> Sem-308`）を固定する | `apps/web/src/__tests__/App.test.tsx` | `npm test` |
 
 ## 実装メモ（2026-02-27）
 - `S2-VIS-02`: Step2 適用対象ペインを `base[slot][7]` の子ノード再帰表示に対応し、合体後ノード（親＋子）を描画するよう更新。
@@ -211,6 +217,12 @@
 - `S1-MOR-02`: Sudachi活用形後処理を7時制へ拡張し、`い/かった/た/だ/だった/でした/です` を文脈（形容詞終止・形容詞過去・助動詞連接）に応じて補完・正規化する実装へ更新した。
 - `S1-REG-16/S1-REG-17`: API回帰を追加し、`numeration/tokenize` の7系列分割、および `numeration/generate` の `かわいかった/学生だった/学生でした` の時制語彙解決を固定した。
 - `S1-REG-18/S2-REG-15`: 7時制の例文表（既存 `.num` 由来の取得可否を `None` で明示）をテストに固定し、自動モード `init/from-sentence` から `reachability=reachable` を確認する統合回帰を追加した。
+- `S1-UI-08`: Step1「numerationの語彙情報参照」に行内 `候補(n)` 展開UIを追加し、複数候補があるslotのみ候補一覧を表示できるようにした。
+- `S1-UI-09`: 行内候補の `この候補に差し替え` 実行で、`.num`・生成プレビュー・語彙情報参照が即時更新されるよう `composeNumerationFromTokenEdits` 経路を統一した。
+- `S1-REG-19`: Web回帰 `allows replacing a multi-candidate lexicon item in Step1 numeration reference` を追加し、`Sem-204 -> Sem-308` の差し替え反映を固定した。
+- `S2-UI-03`: Step2「適用対象」行にも `候補(n)` 展開UIを追加し、Step1と同じ見た目で候補詳細を確認できるようにした。
+- `S2-UI-04`: Step2行内候補の差し替えを `.num` 再構成 + `init` 再実行に接続し、T0再初期化後に同じStep2画面で継続できるようにした。
+- `S2-REG-16`: Web回帰 `allows replacing a multi-candidate lexicon item in Step2 target panel` を追加し、`Sem-204 -> Sem-308` の反映を固定した。
 
 ## API追加（S1-GRM-02）
 - `GET /v1/reference/grammars/{grammar_id}/rule-sources`

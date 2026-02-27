@@ -343,24 +343,102 @@ describe("App", () => {
           }
         });
       }
-      if (url.endsWith("/v1/derivation/head-assist")) {
+      if (url.endsWith("/v1/derivation/reachability/jobs")) {
         return jsonResponse({
-          body: [
-            {
-              rank: 1,
-              rule_number: 2,
-              rule_name: "LH-Merge",
-              rule_kind: "double",
-              left: 5,
-              right: 6,
-              unresolved_before: 5,
-              unresolved_after: 3,
-              unresolved_delta: 2,
-              grammatical_after: false,
-              basenum_before: 6,
-              basenum_after: 5
+          body: {
+            job_id: "job-1",
+            status: "queued",
+            created_at: 1
+          }
+        });
+      }
+      if (url.endsWith("/v1/derivation/reachability/jobs/job-1")) {
+        return jsonResponse({
+          body: {
+            job_id: "job-1",
+            status: "reachable",
+            created_at: 1,
+            updated_at: 2,
+            progress: { percent: 100, phase: "done", message: "ok" },
+            completed: true,
+            reason: "goal_found",
+            metrics: {
+              expanded_nodes: 12,
+              generated_nodes: 18,
+              packed_nodes: 10,
+              max_frontier: 4,
+              elapsed_ms: 8,
+              max_depth_reached: 2,
+              actions_attempted: 20
+            },
+            counts: {
+              count_unit: "derivation_tree",
+              count_basis: "structural_signature_v1",
+              tree_signature_basis: "canonical_tree_v1",
+              count_status: "upper_bound_only",
+              goal_count_exact: null,
+              total_exact: null,
+              total_upper_bound_a_pair_only: "100",
+              total_upper_bound_b_pair_rulemax: "200",
+              rule_max_per_pair_bound: 4,
+              rule_max_per_pair_observed: 2,
+              shown_count: 1,
+              offset: 0,
+              limit: 10,
+              shown_ratio_exact_percent: null,
+              coverage_upper_bound_a_percent: 1,
+              coverage_upper_bound_b_percent: 0.5,
+              has_next: false
             }
-          ]
+          }
+        });
+      }
+      if (url.includes("/v1/derivation/reachability/jobs/job-1/evidences")) {
+        return jsonResponse({
+          body: {
+            job_id: "job-1",
+            status: "reachable",
+            counts: {
+              count_unit: "derivation_tree",
+              count_basis: "structural_signature_v1",
+              tree_signature_basis: "canonical_tree_v1",
+              count_status: "upper_bound_only",
+              goal_count_exact: null,
+              total_exact: null,
+              total_upper_bound_a_pair_only: "100",
+              total_upper_bound_b_pair_rulemax: "200",
+              rule_max_per_pair_bound: 4,
+              rule_max_per_pair_observed: 2,
+              shown_count: 1,
+              offset: 0,
+              limit: 10,
+              shown_ratio_exact_percent: null,
+              coverage_upper_bound_a_percent: 1,
+              coverage_upper_bound_b_percent: 0.5,
+              has_next: false
+            },
+            evidences: [
+              {
+                rank: 1,
+                steps_to_goal: 3,
+                rule_sequence: [
+                  {
+                    step: 1,
+                    rule_name: "LH-Merge",
+                    rule_number: 2,
+                    rule_kind: "double",
+                    left: 5,
+                    right: 6,
+                    check: null,
+                    left_id: "x5-1",
+                    right_id: "x6-1"
+                  }
+                ],
+                tree_root: {},
+                process_text: "dummy"
+              }
+            ]
+          }
         });
       }
       if (url.endsWith("/v1/derivation/candidates")) {
@@ -415,9 +493,9 @@ describe("App", () => {
     const assistButton = await screen.findByRole("button", { name: "候補を提案" });
     expect(assistButton).toBeEnabled();
     await user.click(assistButton);
-    expect(await screen.findByTestId("head-assist-table")).toHaveTextContent("5/6");
+    expect(await screen.findByTestId("reachability-table")).toHaveTextContent("x5-1 / x6-1");
 
-    await user.click(screen.getByRole("button", { name: "この候補を実行" }));
+    await user.click(screen.getByRole("button", { name: "先頭手を実行" }));
 
     await waitFor(() => {
       expect(screen.getByTestId("current-history")).toHaveTextContent("([x5-1 x6-1] LH-Merge)");
@@ -640,28 +718,102 @@ describe("App", () => {
           setTimeout(() => resolve(jsonResponse({ body: [] })), 500);
         });
       }
-      if (url.endsWith("/v1/derivation/head-assist")) {
-        const payload = init?.body ? JSON.parse(String(init.body)) : {};
-        expect(payload.top_k).toBe(5);
+      if (url.endsWith("/v1/derivation/reachability/jobs")) {
         return jsonResponse({
-          body: [
-            {
-              rank: 1,
-              rule_number: 1,
-              rule_name: "RH-Merge",
-              rule_kind: "double",
-              left: 1,
-              right: 2,
-              unresolved_before: 4,
-              unresolved_after: 3,
-              unresolved_delta: 1,
-              grammatical_after: false,
-              basenum_before: 6,
-              basenum_after: 5,
-              reachable_grammatical: false,
-              steps_to_grammatical: null
+          body: {
+            job_id: "job-2",
+            status: "queued",
+            created_at: 1
+          }
+        });
+      }
+      if (url.endsWith("/v1/derivation/reachability/jobs/job-2")) {
+        return jsonResponse({
+          body: {
+            job_id: "job-2",
+            status: "reachable",
+            created_at: 1,
+            updated_at: 2,
+            progress: { percent: 100, phase: "done", message: "ok" },
+            completed: true,
+            reason: "goal_found",
+            metrics: {
+              expanded_nodes: 9,
+              generated_nodes: 12,
+              packed_nodes: 7,
+              max_frontier: 3,
+              elapsed_ms: 10,
+              max_depth_reached: 2,
+              actions_attempted: 14
+            },
+            counts: {
+              count_unit: "derivation_tree",
+              count_basis: "structural_signature_v1",
+              tree_signature_basis: "canonical_tree_v1",
+              count_status: "upper_bound_only",
+              goal_count_exact: null,
+              total_exact: null,
+              total_upper_bound_a_pair_only: "120",
+              total_upper_bound_b_pair_rulemax: "240",
+              rule_max_per_pair_bound: 4,
+              rule_max_per_pair_observed: 2,
+              shown_count: 1,
+              offset: 0,
+              limit: 10,
+              shown_ratio_exact_percent: null,
+              coverage_upper_bound_a_percent: 1,
+              coverage_upper_bound_b_percent: 0.5,
+              has_next: false
             }
-          ]
+          }
+        });
+      }
+      if (url.includes("/v1/derivation/reachability/jobs/job-2/evidences")) {
+        return jsonResponse({
+          body: {
+            job_id: "job-2",
+            status: "reachable",
+            counts: {
+              count_unit: "derivation_tree",
+              count_basis: "structural_signature_v1",
+              tree_signature_basis: "canonical_tree_v1",
+              count_status: "upper_bound_only",
+              goal_count_exact: null,
+              total_exact: null,
+              total_upper_bound_a_pair_only: "120",
+              total_upper_bound_b_pair_rulemax: "240",
+              rule_max_per_pair_bound: 4,
+              rule_max_per_pair_observed: 2,
+              shown_count: 1,
+              offset: 0,
+              limit: 10,
+              shown_ratio_exact_percent: null,
+              coverage_upper_bound_a_percent: 1,
+              coverage_upper_bound_b_percent: 0.5,
+              has_next: false
+            },
+            evidences: [
+              {
+                rank: 1,
+                steps_to_goal: 4,
+                rule_sequence: [
+                  {
+                    step: 1,
+                    rule_name: "RH-Merge",
+                    rule_number: 1,
+                    rule_kind: "double",
+                    left: 1,
+                    right: 2,
+                    check: null,
+                    left_id: "x1-1",
+                    right_id: "x2-1"
+                  }
+                ],
+                tree_root: {},
+                process_text: "dummy"
+              }
+            ]
+          }
         });
       }
       throw new Error(`unexpected url: ${url}`);
@@ -676,7 +828,7 @@ describe("App", () => {
     const assistButton = await screen.findByRole("button", { name: "候補を提案" });
     expect(assistButton).toBeEnabled();
     await user.click(assistButton);
-    expect(await screen.findByTestId("head-assist-table")).toHaveTextContent("1:RH-Merge");
+    expect(await screen.findByTestId("reachability-table")).toHaveTextContent("1:RH-Merge");
   });
 
   it("toggles More as text and shows checkmark", async () => {
@@ -1440,6 +1592,215 @@ describe("App", () => {
     fireEvent.change(screen.getByLabelText("Sudachi Split Mode"), { target: { value: "A" } });
     await waitFor(() => {
       expect(within(buildPanel!).getByTestId("numeration-lexicon-table")).toHaveTextContent("Sem-201");
+    });
+  });
+
+  it("allows replacing a multi-candidate lexicon item in Step1 numeration reference", async () => {
+    vi.spyOn(globalThis, "fetch").mockImplementation(async (input, init) => {
+      const url = String(input);
+      const common = maybeCommonResponse(url);
+      if (common) {
+        return common;
+      }
+      if (url.endsWith("/v1/derivation/numeration/tokenize")) {
+        return jsonResponse({ body: { tokens: ["うさぎ", "が", "いる", "る"] } });
+      }
+      if (url.endsWith("/v1/derivation/numeration/generate")) {
+        const payload = init?.body ? JSON.parse(String(init.body)) : {};
+        return jsonResponse({
+          body: {
+            memo: payload.sentence || "うさぎがいる",
+            lexicon_ids: [270, 19, 271, 204],
+            token_resolutions: [
+              { token: "うさぎ", lexicon_id: 270, candidate_lexicon_ids: [270] },
+              { token: "が", lexicon_id: 19, candidate_lexicon_ids: [19, 183] },
+              { token: "いる", lexicon_id: 271, candidate_lexicon_ids: [271] },
+              { token: "る", lexicon_id: 204, candidate_lexicon_ids: [204, 308] }
+            ],
+            numeration_text: `${payload.sentence || "うさぎがいる"}\t270\t19\t271\t204\n \t\t\t\t\n \t1\t2\t3\t4`
+          }
+        });
+      }
+      if (url.endsWith("/v1/derivation/numeration/compose")) {
+        const payload = init?.body ? JSON.parse(String(init.body)) : {};
+        const ids = Array.isArray(payload.lexicon_ids) ? payload.lexicon_ids : [];
+        return jsonResponse({
+          body: {
+            numeration_text:
+              `${payload.memo || "うさぎがいる"}\t${ids.join("\t")}\n` +
+              ` \t${Array.from({ length: ids.length }, () => "").join("\t")}\n` +
+              ` \t${ids.map((_: unknown, i: number) => String(i + 1)).join("\t")}`
+          }
+        });
+      }
+      if (url.endsWith("/v1/reference/grammars/imi01/lexicon-items/by-ids")) {
+        const payload = init?.body ? JSON.parse(String(init.body)) : {};
+        const ids = Array.isArray(payload.ids) ? payload.ids : [];
+        return jsonResponse({
+          body: {
+            grammar_id: "imi01",
+            requested_count: ids.length,
+            found_count: ids.length,
+            missing_ids: [],
+            items: ids.map((lexiconId: number) => ({
+              lexicon_id: lexiconId,
+              found: true,
+              entry: `ID-${lexiconId}`,
+              phono: `phono-${lexiconId}`,
+              category: lexiconId === 204 || lexiconId === 308 ? "T" : "N",
+              sync_features: [],
+              idslot: "id",
+              semantics: [`Sem-${lexiconId}`],
+              note: ""
+            }))
+          }
+        });
+      }
+      throw new Error(`unexpected url: ${url}`);
+    });
+
+    const user = userEvent.setup();
+    render(<App />);
+
+    await user.click(await screen.findByRole("button", { name: "この設定で開始" }));
+    const sentenceInput = await screen.findByRole("textbox", { name: "Sentence" });
+    await user.clear(sentenceInput);
+    await user.type(sentenceInput, "うさぎがいる");
+
+    const buildPanel = screen.getByRole("button", { name: "Lexiconから組み立てる" }).closest("section");
+    expect(buildPanel).not.toBeNull();
+
+    await waitFor(() => {
+      expect(within(buildPanel!).getByTestId("numeration-lexicon-table")).toHaveTextContent("Sem-204");
+    });
+
+    await user.click(await within(buildPanel!).findByTestId("step1-candidate-toggle-4"));
+    const candidatePanel = await within(buildPanel!).findByTestId("step1-candidate-panel-4");
+    expect(candidatePanel).toHaveTextContent("ID 308");
+    await user.click(within(candidatePanel).getByRole("button", { name: "この候補に差し替え" }));
+
+    await waitFor(() => {
+      expect(within(buildPanel!).getByTestId("numeration-lexicon-table")).toHaveTextContent("Sem-308");
+    });
+  });
+
+  it("allows replacing a multi-candidate lexicon item in Step2 target panel", async () => {
+    const initRequests: string[] = [];
+    vi.spyOn(globalThis, "fetch").mockImplementation(async (input, init) => {
+      const url = String(input);
+      const common = maybeCommonResponse(url);
+      if (common) {
+        return common;
+      }
+      if (url.endsWith("/v1/derivation/numeration/tokenize")) {
+        return jsonResponse({ body: { tokens: ["うさぎ", "が", "いる", "る"] } });
+      }
+      if (url.endsWith("/v1/derivation/numeration/generate")) {
+        const payload = init?.body ? JSON.parse(String(init.body)) : {};
+        return jsonResponse({
+          body: {
+            memo: payload.sentence || "うさぎがいる",
+            lexicon_ids: [270, 19, 271, 204],
+            token_resolutions: [
+              { token: "うさぎ", lexicon_id: 270, candidate_lexicon_ids: [270] },
+              { token: "が", lexicon_id: 19, candidate_lexicon_ids: [19, 183] },
+              { token: "いる", lexicon_id: 271, candidate_lexicon_ids: [271] },
+              { token: "る", lexicon_id: 204, candidate_lexicon_ids: [204, 308] }
+            ],
+            numeration_text: `${payload.sentence || "うさぎがいる"}\t270\t19\t271\t204\n \t\t\t\t\n \t1\t2\t3\t4`
+          }
+        });
+      }
+      if (url.endsWith("/v1/derivation/numeration/compose")) {
+        const payload = init?.body ? JSON.parse(String(init.body)) : {};
+        const ids = Array.isArray(payload.lexicon_ids) ? payload.lexicon_ids : [];
+        return jsonResponse({
+          body: {
+            numeration_text:
+              `${payload.memo || "うさぎがいる"}\t${ids.join("\t")}\n` +
+              ` \t${Array.from({ length: ids.length }, () => "").join("\t")}\n` +
+              ` \t${ids.map((_: unknown, i: number) => String(i + 1)).join("\t")}`
+          }
+        });
+      }
+      if (url.endsWith("/v1/reference/grammars/imi01/lexicon-items/by-ids")) {
+        const payload = init?.body ? JSON.parse(String(init.body)) : {};
+        const ids = Array.isArray(payload.ids) ? payload.ids : [];
+        return jsonResponse({
+          body: {
+            grammar_id: "imi01",
+            requested_count: ids.length,
+            found_count: ids.length,
+            missing_ids: [],
+            items: ids.map((lexiconId: number) => ({
+              lexicon_id: lexiconId,
+              found: true,
+              entry: `ID-${lexiconId}`,
+              phono: `phono-${lexiconId}`,
+              category: lexiconId === 204 || lexiconId === 308 ? "T" : "N",
+              sync_features: [],
+              idslot: "id",
+              semantics: [`Sem-${lexiconId}`],
+              note: ""
+            }))
+          }
+        });
+      }
+      if (url.endsWith("/v1/derivation/init")) {
+        const payload = init?.body ? JSON.parse(String(init.body)) : {};
+        const numerationText = String(payload.numeration_text || "");
+        initRequests.push(numerationText);
+        const ids = numerationText
+          .split("\n")[0]
+          .split("\t")
+          .slice(1)
+          .map((value) => Number.parseInt(value, 10))
+          .filter((value) => Number.isInteger(value) && value > 0);
+        const tenseLexiconId = ids[3] ?? 204;
+        return jsonResponse({
+          body: {
+            grammar_id: "imi01",
+            memo: "うさぎがいる",
+            newnum: 5,
+            basenum: 4,
+            history: "",
+            base: [
+              null,
+              ["x1-1", "N", [], [], "x1-1", ["Sem-270"], "うさぎ", ["zero", "zero"]],
+              ["x2-1", "J", [], ["0,17,N,,,right,nonhead"], "zero", ["Sem-19"], "が", ["zero", "zero"]],
+              ["x3-1", "V", [], [], "x3-1", ["Sem-271"], "いる", ["zero", "zero"]],
+              ["x4-1", "T", [], ["0,17,V,,,right,nonhead"], "0,24", [`Sem-${tenseLexiconId}`], "る", ["zero", "zero"]]
+            ]
+          }
+        });
+      }
+      if (url.endsWith("/v1/derivation/candidates")) {
+        return jsonResponse({ body: [] });
+      }
+      throw new Error(`unexpected url: ${url}`);
+    });
+
+    const user = userEvent.setup();
+    render(<App />);
+
+    await user.click(await screen.findByRole("button", { name: "この設定で開始" }));
+    const sentenceInput = await screen.findByRole("textbox", { name: "Sentence" });
+    await user.clear(sentenceInput);
+    await user.type(sentenceInput, "うさぎがいる");
+    await user.click(screen.getByRole("button", { name: "Numerationを形成" }));
+
+    expect(await screen.findByRole("heading", { name: "【Step.2】Grammarの適用" })).toBeInTheDocument();
+    const selectionList = await screen.findByTestId("step2-selection-list");
+    expect(selectionList).toHaveTextContent("Sem-204");
+
+    await user.click(await within(selectionList).findByTestId("step2-candidate-toggle-4"));
+    const panel = await within(selectionList).findByTestId("step2-candidate-panel-4");
+    expect(panel).toHaveTextContent("ID 308");
+    await user.click(within(panel).getByRole("button", { name: "この候補に差し替え" }));
+
+    await waitFor(() => {
+      expect(screen.getByTestId("step2-selection-list")).toHaveTextContent("Sem-308");
+      expect(initRequests.some((text) => text.includes("\t308"))).toBe(true);
     });
   });
 
