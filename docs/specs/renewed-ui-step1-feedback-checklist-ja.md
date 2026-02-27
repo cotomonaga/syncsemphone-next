@@ -286,3 +286,8 @@
 - [x] `S2-HDA-32` API経路を `/v1/derivation/reachability*` に統一したまま、UI文言は `候補を提案` を維持して仮説検証導線を保持する。
 - [x] `S2-REG-10` Webユニットテストを非同期ジョブAPI（`/reachability/jobs`）仕様へ更新し、Step2提案UIの回帰を固定する。
 - [x] `S2-REG-11` 全件テスト（`apps/web` unit + `apps/api` pytest + `scripts/test-all.sh`）を実行し、回帰なしを確認する。
+
+## 51. Step1 自動モードの活用形後処理（いる + る）
+- [x] `S1-MOR-01` Lexiconから組み立てる自動モード（Sudachi）で、`いる`（動詞終止形）を検出したときに時制語彙 `る` を補完し、`うさぎがいる` が `うさぎ / が / いる / る` で扱えるようにする。
+- [x] `S1-REG-15` APIテストで `/v1/derivation/numeration/tokenize` が `うさぎがいる -> [うさぎ, が, いる, る]` を返すことを固定する。
+- [x] `S2-REG-14` APIテストで `init/from-sentence(うさぎがいる)` -> `reachability/jobs` が `reachable` になることを固定し、Step2の「候補を提案」ボタン相当の経路を回帰化する。

@@ -183,6 +183,21 @@ def test_derivation_numeration_generate_fallbacks_split_mode_for_skateboard_sent
     assert body["lexicon_ids"] == [60, 19, 103, 23, 61, 168, 187, 203]
 
 
+def test_derivation_numeration_tokenize_auto_mode_supplements_tense_for_iru() -> None:
+    client = TestClient(app)
+    response = client.post(
+        "/v1/derivation/numeration/tokenize",
+        json={
+            "grammar_id": "imi01",
+            "sentence": "うさぎがいる",
+            "split_mode": "C",
+            "legacy_root": str(_legacy_root()),
+        },
+    )
+    assert response.status_code == 200
+    assert response.json()["tokens"] == ["うさぎ", "が", "いる", "る"]
+
+
 def test_derivation_init_from_sentence_then_reachability_reaches_skateboard_sentence() -> None:
     client = TestClient(app)
     initialized = client.post(
@@ -214,6 +229,57 @@ def test_derivation_init_from_sentence_then_reachability_reaches_skateboard_sent
     assert body["status"] == "reachable"
     assert body["completed"] is True
     assert len(body["evidences"]) > 0
+
+
+def test_derivation_reachability_jobs_reaches_usagi_ga_iru_with_auto_tense_supplement() -> None:
+    client = TestClient(app)
+    initialized = client.post(
+        "/v1/derivation/init/from-sentence",
+        json={
+            "grammar_id": "imi01",
+            "sentence": "うさぎがいる",
+            "split_mode": "C",
+            "legacy_root": str(_legacy_root()),
+        },
+    )
+    assert initialized.status_code == 200
+    init_body = initialized.json()
+    numeration = init_body["numeration"]
+    assert numeration["token_resolutions"][-1]["token"] == "る"
+    assert numeration["lexicon_ids"][0:3] == [270, 19, 271]
+    assert len(numeration["lexicon_ids"]) == 4
+    assert numeration["lexicon_ids"][3] in {204, 308}
+
+    started = client.post(
+        "/v1/derivation/reachability/jobs",
+        json={
+            "state": init_body["state"],
+            "max_evidences": 10,
+            "offset": 0,
+            "limit": 10,
+            "budget_seconds": 8.0,
+            "max_nodes": 250_000,
+            "max_depth": 12,
+            "legacy_root": str(_legacy_root()),
+        },
+    )
+    assert started.status_code == 200
+    job_id = started.json()["job_id"]
+    assert job_id
+
+    terminal = None
+    for _ in range(120):
+        status_response = client.get(f"/v1/derivation/reachability/jobs/{job_id}")
+        assert status_response.status_code == 200
+        status_body = status_response.json()
+        if status_body["status"] in {"reachable", "unreachable", "unknown", "failed"}:
+            terminal = status_body
+            break
+        time.sleep(0.05)
+
+    assert terminal is not None, "reachability job did not finish in time"
+    assert terminal["status"] == "reachable"
+    assert terminal["completed"] is True
 
 
 def test_derivation_numeration_tokenize_returns_tokens(monkeypatch: pytest.MonkeyPatch) -> None:

@@ -173,6 +173,9 @@
 | S2-REG-11 | 全件テスト（Web unit / API pytest / `scripts/test-all.sh`）を再実行し、手戻りなしを確認する | `apps/web`, `apps/api`, `scripts/test-all.sh` | 実行ログ |
 | S2-REG-12 | 文入力経路（`/init/from-sentence`）で生成したスケートボード文の state に対し、`/reachability` が `reachable` を返す回帰テストを追加する | `apps/api/tests/test_derivation.py` | `pytest` |
 | S2-REG-13 | Playwright実機で `Step1 -> Numerationを形成 -> Step2 候補を提案` を実行し、スケートボード文で `reachable` 判定が表示されることを確認する | `output/playwright`（実機確認） | Playwright |
+| S1-MOR-01 | Sudachi自動分割で `いる`（動詞終止形）を検出した場合に時制語彙 `る` を補完し、Step1自動モードで `うさぎ / が / いる / る` を扱えるようにする | `packages/domain/src/domain/numeration/generator.py` | `apps/api/tests/test_derivation.py` |
+| S1-REG-15 | `/v1/derivation/numeration/tokenize` の回帰テストで、`うさぎがいる` の自動モード分割が `うさぎ, が, いる, る` になることを固定する | `apps/api/tests/test_derivation.py` | `pytest` |
+| S2-REG-14 | `init/from-sentence(うさぎがいる)` から `reachability/jobs` を実行し、Step2「候補を提案」相当経路で `reachable` 到達を固定する | `apps/api/tests/test_derivation.py` | `pytest` |
 
 ## 実装メモ（2026-02-27）
 - `S2-VIS-02`: Step2 適用対象ペインを `base[slot][7]` の子ノード再帰表示に対応し、合体後ノード（親＋子）を描画するよう更新。
@@ -197,6 +200,9 @@
 - `S2-REG-11`: `apps/web` unit（20件）、`apps/api` pytest（86件）、`./scripts/test-all.sh`（domain+api）を実行し、全件通過を確認した。
 - `S2-REG-12`: API回帰 `test_derivation_init_from_sentence_then_reachability_reaches_skateboard_sentence` を追加し、文入力経路でもスケートボード文の到達成功を固定した。
 - `S2-REG-13`: Playwright実機で Step1 からスケートボード文を形成し、Step2 の `候補を提案` 実行で `到達判定: reachable` 表示になることを確認した。
+- `S1-MOR-01`: `domain.numeration.generator` に活用形後処理を追加し、Sudachi自動分割で `いる`（動詞終止形）を検出した場合に時制語彙 `る` を補完するようにした。
+- `S1-REG-15`: API回帰 `test_derivation_numeration_tokenize_auto_mode_supplements_tense_for_iru` を追加し、`うさぎがいる -> [うさぎ, が, いる, る]` を固定した。
+- `S2-REG-14`: API回帰 `test_derivation_reachability_jobs_reaches_usagi_ga_iru_with_auto_tense_supplement` を追加し、Step2「候補を提案」相当の jobs 経路で `reachable` 到達を固定した。
 
 ## API追加（S1-GRM-02）
 - `GET /v1/reference/grammars/{grammar_id}/rule-sources`

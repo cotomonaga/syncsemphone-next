@@ -21,6 +21,14 @@ class MorphTokenizer(Protocol):
         raise NotImplementedError
 
 
+@dataclass(frozen=True)
+class MorphemeAnalysis:
+    token: str
+    dictionary_form: str
+    pos_major: str
+    conjugation_form: str
+
+
 class SudachiMorphTokenizer:
     def __init__(self, dictionary: str = "core") -> None:
         try:
@@ -36,17 +44,51 @@ class SudachiMorphTokenizer:
             "C": self._tokenizer.SplitMode.C,
         }
 
-    def tokenize(self, sentence: str, split_mode: str = "C") -> list[str]:
+    def _resolve_mode(self, split_mode: str) -> object:
         mode = self._split_mode.get(split_mode.upper())
         if mode is None:
             raise ValueError(f"Unsupported split_mode: {split_mode}. Use A/B/C.")
-        out: list[str] = []
+        return mode
+
+    def _analyze(self, sentence: str, split_mode: str = "C") -> list[MorphemeAnalysis]:
+        mode = self._resolve_mode(split_mode)
+        out: list[MorphemeAnalysis] = []
         for morpheme in self._tokenizer.tokenize(sentence, mode):
-            dictionary_form = morpheme.dictionary_form()
-            surface = dictionary_form if dictionary_form and dictionary_form != "*" else morpheme.surface()
-            normalized = _normalize_token(surface)
-            if normalized != "":
-                out.append(normalized)
+            dictionary_form_raw = morpheme.dictionary_form()
+            dictionary_form = (
+                dictionary_form_raw
+                if dictionary_form_raw and dictionary_form_raw != "*"
+                else morpheme.surface()
+            )
+            token = _normalize_token(dictionary_form)
+            if token == "":
+                continue
+            pos = morpheme.part_of_speech()
+            pos_major = pos[0] if len(pos) > 0 else ""
+            conjugation_form = pos[5] if len(pos) > 5 else ""
+            out.append(
+                MorphemeAnalysis(
+                    token=token,
+                    dictionary_form=_normalize_token(dictionary_form),
+                    pos_major=pos_major,
+                    conjugation_form=conjugation_form,
+                )
+            )
+        return out
+
+    def _infer_tense_supplement(self, row: MorphemeAnalysis) -> str | None:
+        # 「いる」は V 語彙と T 語彙（る）に分ける運用を優先する。
+        if row.dictionary_form == "いる" and row.pos_major == "動詞" and "終止形" in row.conjugation_form:
+            return "る"
+        return None
+
+    def tokenize(self, sentence: str, split_mode: str = "C") -> list[str]:
+        out: list[str] = []
+        for row in self._analyze(sentence, split_mode=split_mode):
+            out.append(row.token)
+            supplement = self._infer_tense_supplement(row)
+            if supplement:
+                out.append(supplement)
         if not out:
             raise ValueError("Sentence tokenization produced no tokens")
         return out
