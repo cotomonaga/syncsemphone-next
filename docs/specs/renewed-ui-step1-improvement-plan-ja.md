@@ -156,6 +156,8 @@
 | S2-HDA-25 | Perl既知7手を Python で逐次リプレイし、各手の候補存在・遷移結果・未解釈数を照合する検証モードを追加する | `apps/api/app/api/v1/derivation.py`, `apps/api/tests/test_derivation.py` | `pytest` |
 | S2-HDA-26 | DPOR/TTを無効化した深さ制限完全探索（baseline）を追加し、深さ7で既知手順を再発見できるか検証する | `apps/api/app/api/v1/derivation.py`, `apps/api/tests/test_derivation.py` | `pytest` |
 | S2-REG-09 | `未到達` と `不明(予算切れ)` の返却条件をテストで固定し、判定誤用を防止する | `apps/api/tests/test_derivation.py` | `pytest` |
+| DOC-HPSG-EXP-17 | 切り分けレポート9.2の結果表現を `found=False` から `不明（探索未完了）` に修正し、二値誤判定を回避する | `docs/specs/layer1-layer2-nonconvergence-report-ja.md` | 文書レビュー |
+| DOC-HPSG-EXP-18 | 切り分けレポート9.3の判定を「3確定」から「不明（完走前打切り）」へ改訂し、状態爆発の下界試算（順序爆発）を追記する | `docs/specs/layer1-layer2-nonconvergence-report-ja.md` | 文書レビュー |
 
 ## 実装メモ（2026-02-27）
 - `S2-VIS-02`: Step2 適用対象ペインを `base[slot][7]` の子ノード再帰表示に対応し、合体後ノード（親＋子）を描画するよう更新。
@@ -172,8 +174,9 @@
 - `DOC-HPSG-EXP-16`: 第一層/第二層とも現時点で到達性未解決である事実を、根拠付きレポートへ整理。
 - `S2-HDA-25/S2-HDA-26/S2-REG-09`: 未解決要因を4仮説で分解し、`7手リプレイ -> 最小完全探索` の順で切り分ける方針を追加。
 - `S2-HDA-25`: 診断API `/v1/derivation/head-assist/diagnose` を追加し、既知7手リプレイ（候補存在・未解釈数推移・basenum推移）を自動照合可能にした。
-- `S2-HDA-26`: 同診断APIに DPOR/TT 無効の depth制限 baseline 探索を追加し、`imi01/1606324760.num` で単純IDDFS（深さ7）を実測。`2,000,004` ノード時点でも depth=4 探索中で再発見不可となり、判定を「深さ・遷移集合定義問題（判定3）」へ確定した。
+- `S2-HDA-26`: 同診断APIに DPOR/TT 無効の depth制限 baseline 探索を追加し、`imi01/1606324760.num` で単純IDDFS（深さ7）を実測。`2,000,004` ノード時点でも depth=4 探索中で打切りとなり、結論を「不明（探索未完了）」へ修正した。
 - `S2-REG-09`: baseline の三値判定（`reachable` / `unreachable` / `unknown`）を API テストで固定し、`unknown` と `unreachable` の混同を防止した。
+- `DOC-HPSG-EXP-17/DOC-HPSG-EXP-18`: 9.2/9.3 の文言を厳密化し、`found=False` 断定を廃止。状態爆発の客観値として順序爆発下界（`203,212,800`・`323,237,769`）を追記した。
 
 ## API追加（S1-GRM-02）
 - `GET /v1/reference/grammars/{grammar_id}/rule-sources`
