@@ -242,3 +242,9 @@
 - [x] `S1-LYT-07` Renewed UI の横幅制限を解除し、ビューポート幅に追従するレイアウトへ修正する。
 - [x] `S1-REG-13` Playwright E2E（既存全件）にレイアウト健全性アサーションを追加し、各ステップ遷移中も横幅・overflow崩れを検知できるようにする。
 - [x] `S1-REG-14` Step1主要UI（観察文/分割結果/Sudachiモード/語彙参照）が可視かつ十分幅で表示されることをE2E回帰テストで固定する。
+
+## 43. 第一層レポートの追加レビュー反映（完全性強化）
+- [x] `DOC-HPSG-EXP-13` 未到達判定の前提として、深さ上限の根拠（`basenum` 単調減少時は `B0-1`、非単調遷移混在時は「深さk以内」限定）を明記する。
+- [x] `DOC-HPSG-EXP-14` IDDFS + transposition の完全性条件として、深さ情報付きTTと再展開（reopen）必須、深さ情報なし `visited` 禁止を明記する。
+- [x] `DOC-HPSG-EXP-15` DPOR独立性の最小安全条件（read/write交差・適用可否干渉・`newnum`含むグローバル書込）と、自動同値検査による保守運用を明記する。
+  - 成果物: [reachability-first-layer-search-methods-ja.md](/Users/tomonaga/Documents/syncsemphoneIMI/syncsemphone-next/docs/specs/reachability-first-layer-search-methods-ja.md)

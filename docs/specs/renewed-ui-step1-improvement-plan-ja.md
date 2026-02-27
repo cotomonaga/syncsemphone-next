@@ -143,6 +143,9 @@
 | DOC-HPSG-EXP-10 | 外部レビュー（独立性依存・dominance危険・IDA*条件）を反映し、第一層結論の妥当性を再評価する | `docs/specs/reachability-first-layer-search-methods-ja.md` | 文書レビュー |
 | DOC-HPSG-EXP-11 | 結論を「DPOR-aware IDA*単独主軸」から「判定コア/提案エンジン分離」へ改訂する | `docs/specs/reachability-first-layer-search-methods-ja.md` | 文書レビュー |
 | DOC-HPSG-EXP-12 | 判定コアは dominance を使わない方針と三値判定（到達あり/未到達証明/不明）を明文化する | `docs/specs/reachability-first-layer-search-methods-ja.md` | 文書レビュー |
+| DOC-HPSG-EXP-13 | 未到達判定の前提として、深さ上限の根拠（`basenum` 単調減少なら `B0-1`、非単調遷移混在なら「深さk以内」限定）を明文化する | `docs/specs/reachability-first-layer-search-methods-ja.md` | 文書レビュー |
+| DOC-HPSG-EXP-14 | IDDFS + transposition の完全性条件（深さ情報付きTT、より深い反復でのreopen必須、深さ情報なしvisited禁止）を明記する | `docs/specs/reachability-first-layer-search-methods-ja.md` | 文書レビュー |
+| DOC-HPSG-EXP-15 | DPOR独立性の最小安全条件（read/write交差、適用可否干渉、`newnum`含むグローバル書込）と自動同値検査の運用を明記する | `docs/specs/reachability-first-layer-search-methods-ja.md` | 文書レビュー |
 | S1-LYT-06 | Playwright（1920x1080）で Renewed UI が横幅いっぱいに広がらない症状を再現し、原因を特定する（`.page max-width:1240px`） | `apps/web/src/styles.css`, `output/playwright/layout-step0-1920x1080.png` | Playwright実測 |
 | S1-LYT-07 | Renewed UI の横幅制限を解除し、ビューポート幅追従レイアウトへ修正する | `apps/web/src/styles.css` | Playwright + E2E |
 | S1-REG-13 | Playwright E2E 全件にレイアウト健全性（ページ幅/overflow）アサーションを追加する | `apps/web/e2e/hypothesis-loop.spec.ts` | `npm run test:e2e` |
@@ -155,6 +158,9 @@
 - `S1-LYT-06`: Playwright（1920x1080）で Step0/Step1 を再現し、画面が横いっぱいに広がらない症状を確認（`output/playwright/layout-step0-1920x1080.png`, `output/playwright/layout-step1-current-full.png`）。
 - `S1-LYT-07`: `.page` の `max-width` 制限を解除し、`renewed` 画面をビューポート幅に追従させる修正を実施。
 - `S1-REG-13/S1-REG-14`: E2E既存2本へ共通レイアウト健全性アサーションとStep1表示健全性アサーションを追加。
+- `DOC-HPSG-EXP-13`: 第一層判定コアの未到達判定条件を、`basenum` 単調減少時と非単調遷移混在時で分けて明文化。
+- `DOC-HPSG-EXP-14`: IDDFS+TTの落とし穴（深さ情報なしvisited）を禁止事項として明記し、深さ情報付きTT+reopen必須を追記。
+- `DOC-HPSG-EXP-15`: DPOR独立性の保守条件に `newnum` を含むグローバル書込を追加し、候補ペアの `a→b / b→a` 自動同値検査運用を追記。
 
 ## API追加（S1-GRM-02）
 - `GET /v1/reference/grammars/{grammar_id}/rule-sources`
