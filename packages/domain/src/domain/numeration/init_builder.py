@@ -17,7 +17,10 @@ def _to_int(value: str, default: int = 0) -> int:
         return default
 
 
-def _append_plus_feature(grammar_id: str, plus_value: str, sy_features: list[str]) -> None:
+def _append_plus_feature(grammar_id: str, plus_value: str, sy_features: list[str | None]) -> None:
+    # imi01/imi02 の plus_to_numeration は空実装で、空値は push されない。
+    if grammar_id in {"imi01", "imi02"} and plus_value.strip() == "":
+        return
     if grammar_id == "imi03" and plus_value == "target":
         sy_features.append("3,53,target,id")
         return
@@ -57,12 +60,15 @@ def build_initial_derivation_state(
                 sync_features.append(feature)
 
         lexical_id = f"β{newnum}" if beta else f"x{idx_value}-1"
-        sy_features = [feature.replace("id", lexical_id) for feature in sync_features]
+        sy_raw = [feature.replace("id", lexical_id) for feature in sync_features]
+        sy_features: list[str | None] = [None, *sy_raw] if len(sy_raw) > 0 else []
         _append_plus_feature(
             grammar_id=grammar_id, plus_value=rows.plus_slot(slot), sy_features=sy_features
         )
 
-        predicates: list[list[str]] = []
+        predicates: list[list[str] | None] = []
+        if len(entry.predicates) > 0:
+            predicates.append(None)
         for i_part, s_part, p_part in entry.predicates:
             predicates.append(
                 [
@@ -72,15 +78,19 @@ def build_initial_derivation_state(
                 ]
             )
 
+        sem_values = [feature.replace("id", lexical_id) for feature in entry.semantics]
+        if len(sem_values) > 0:
+            sem_values = [None, *sem_values]
+
         base_item = [
             lexical_id,  # id
             entry.category,  # ca
             predicates,  # pr
             sy_features,  # sy
             entry.idslot.replace("id", lexical_id),  # sl
-            [feature.replace("id", lexical_id) for feature in entry.semantics],  # se
+            sem_values,  # se
             entry.phono,  # ph
-            "",  # wo
+            None,  # wo
             "",  # nb
         ]
         base.append(base_item)

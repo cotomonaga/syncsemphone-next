@@ -1,0 +1,40 @@
+- generic [ref=e3]:
+  - banner [ref=e4]:
+    - heading "SYNCSEMPHONE NEXT" [level=1] [ref=e5]
+    - generic [ref=e6]:
+      - button "Legacy UI" [ref=e7] [cursor=pointer]
+      - button "Renewed UI" [ref=e8] [cursor=pointer]
+  - generic [ref=e9]:
+    - complementary [ref=e10]:
+      - heading "Menu" [level=2] [ref=e11]
+      - button "仮説検証ステップ" [ref=e12] [cursor=pointer]
+      - button "素性とルールの確認" [ref=e13] [cursor=pointer]
+      - button "語彙の編集" [ref=e14] [cursor=pointer]
+    - generic [ref=e15]:
+      - generic [ref=e16]:
+        - button "【Step.0】LexiconとGrammarの選択" [ref=e17] [cursor=pointer]
+        - button "【Step.1】 Numerationの作成" [ref=e18] [cursor=pointer]
+        - button "Step 2 Numeration" [ref=e19] [cursor=pointer]
+        - button "Step 3 Target/Rule" [ref=e20] [cursor=pointer]
+        - button "Step 4 観察" [ref=e21] [cursor=pointer]
+        - button "Step 5 保存/再開" [ref=e22] [cursor=pointer]
+      - main [ref=e23]:
+        - generic [ref=e39]:
+          - heading "【Step.1】 Numerationの作成" [level=2] [ref=e40]
+          - paragraph [ref=e41]: "適用中のGrammar: IMI 共同研究用・日本語文法片 01 (imi01)"
+          - paragraph [ref=e42]: "このステップのゴールは `.num`（Numeration）を作成することです。入口は「例文選択」 「numファイルをアップロード」「Lexiconから組み立て」の3つです。"
+          - group "Step1 Entry Mode" [ref=e43]:
+            - button "例文から選ぶ" [ref=e44] [cursor=pointer]
+            - button "numファイルをアップロード" [active] [ref=e45] [cursor=pointer]
+            - button "Lexiconから組み立てる" [ref=e46] [cursor=pointer]
+          - generic [ref=e69]:
+            - generic [ref=e70]:
+              - button "Step1 Upload File" [ref=e71]
+              - button "numファイルを選択" [ref=e72] [cursor=pointer]
+            - generic [ref=e73]:
+              - text: .num テキスト入力（アップロード）
+              - textbox "Step1 Upload Numeration" [ref=e74]
+            - paragraph [ref=e75]: numテキストが空です。
+            - paragraph [ref=e76]: "`Numerationを作成` を押すと、入力した `.num` を作業中Numerationへ反映します。"
+          - button "Numerationを作成" [disabled] [ref=e67]
+          - paragraph [ref=e68]: 「Lexiconから組み立てる」では形態素解析（Sudachi）/手動分割を使って語彙候補を解決し、Numerationを作成します。

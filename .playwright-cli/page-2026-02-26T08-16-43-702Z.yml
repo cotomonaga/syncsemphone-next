@@ -1,0 +1,37 @@
+- generic [ref=e3]:
+  - banner [ref=e4]:
+    - heading "SYNCSEMPHONE NEXT" [level=1] [ref=e5]
+    - generic [ref=e6]:
+      - button "Legacy UI" [ref=e7] [cursor=pointer]
+      - button "Renewed UI" [ref=e8] [cursor=pointer]
+  - generic [ref=e9]:
+    - complementary [ref=e10]:
+      - heading "Menu" [level=2] [ref=e11]
+      - button "仮説検証ステップ" [ref=e12] [cursor=pointer]
+      - button "素性とルールの確認" [ref=e13] [cursor=pointer]
+      - button "語彙の編集" [ref=e14] [cursor=pointer]
+    - generic [ref=e15]:
+      - generic [ref=e16]:
+        - button "【Step.0】LexiconとGrammarの選択" [active] [ref=e17] [cursor=pointer]
+        - button "【Step.1】 Numerationの作成" [ref=e18] [cursor=pointer]
+        - button "Step 2 Numeration" [ref=e19] [cursor=pointer]
+        - button "Step 3 Target/Rule" [ref=e20] [cursor=pointer]
+        - button "Step 4 観察" [ref=e21] [cursor=pointer]
+        - button "Step 5 保存/再開" [ref=e22] [cursor=pointer]
+      - main [ref=e23]:
+        - generic [ref=e24]:
+          - heading "0. Lexicon / Grammar の選択" [level=2] [ref=e25]
+          - paragraph [ref=e26]: Step0では、観察に使う語彙と規則セットを選びます。確認ボタンで中身を見てから開始できます。
+          - generic [ref=e27]:
+            - generic [ref=e28]: Lexicon / Grammar（共通選択）
+            - generic [ref=e29]:
+              - generic [ref=e30]:
+                - combobox "Step0 Grammar" [ref=e31]:
+                  - option "IMI 共同研究用・日本語文法片 01 (imi01)" [selected]
+                  - option "IMI 共同研究用・日本語文法片 02 (imi02)"
+                  - option "IMI 共同研究用・日本語文法片 03 (imi03)"
+                - button "More toggle" [ref=e33] [cursor=pointer]: More
+              - generic [ref=e34]:
+                - button "Lexicon内容確認" [ref=e35] [cursor=pointer]
+                - button "Grammar内容確認" [ref=e36] [cursor=pointer]
+          - button "この設定で開始" [ref=e38] [cursor=pointer]

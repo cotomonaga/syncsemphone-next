@@ -1,11 +1,24 @@
 import json
 from pathlib import Path
+import re
+import time
 
 from fastapi.testclient import TestClient
 import pytest
 
+from app.api.v1.derivation import (
+    _HEAD_ASSIST_DEFAULT_PARALLEL_CORES,
+    _HEAD_ASSIST_SEARCH_BUDGET_SECONDS,
+    _resolve_head_assist_parallel_cores,
+    _state_packed_signature,
+    _state_structural_signature,
+)
 from app.main import app
 from domain.grammar.rule_catalog import get_rule_number_by_name
+from domain.derivation.candidates import list_merge_candidates
+from domain.derivation.execute import execute_double_merge, execute_single_merge
+from domain.grammar.profiles import get_grammar_profile, resolve_rule_versions
+from domain.numeration.init_builder import build_initial_derivation_state
 
 
 def _legacy_root() -> Path:
@@ -14,6 +27,14 @@ def _legacy_root() -> Path:
 
 def _load_num_file(relative_path: str) -> str:
     return (_legacy_root() / relative_path).read_text(encoding="utf-8")
+
+
+_UNINTERPRETABLE_PATTERN = re.compile(r",[0-9]+")
+
+
+def _is_grammatical_state(state: dict) -> bool:
+    raw = json.dumps(state["base"], ensure_ascii=False, separators=(",", ":"))
+    return len(_UNINTERPRETABLE_PATTERN.findall(raw)) == 0
 
 
 def _synthetic_pickup_state() -> dict:
@@ -172,6 +193,41 @@ def test_derivation_numeration_tokenize_returns_tokens(monkeypatch: pytest.Monke
     assert response.json()["tokens"] == ["ジョ", "ン", "が"]
 
 
+def test_derivation_numeration_tokenize_variants_by_split_mode(monkeypatch: pytest.MonkeyPatch) -> None:
+    class FakeTokenizer:
+        def tokenize(self, _sentence: str, split_mode: str = "C") -> list[str]:
+            if split_mode == "A":
+                return ["白", "い", "ギター", "の", "箱"]
+            if split_mode == "B":
+                return ["白い", "ギター", "の", "箱"]
+            return ["白い", "ギター", "の", "箱", "（補助）"]
+
+    monkeypatch.setattr(
+        "app.api.v1.derivation.SudachiMorphTokenizer",
+        lambda dictionary="core": FakeTokenizer(),
+    )
+
+    client = TestClient(app)
+    sentence = "白いギターの箱"
+    responses = []
+    for split_mode in ("A", "B", "C"):
+        response = client.post(
+            "/v1/derivation/numeration/tokenize",
+            json={
+                "grammar_id": "imi01",
+                "sentence": sentence,
+                "split_mode": split_mode,
+                "legacy_root": str(_legacy_root()),
+            },
+        )
+        assert response.status_code == 200
+        responses.append(response.json()["tokens"])
+
+    assert responses[0] != responses[1]
+    assert responses[0] != responses[2]
+    assert responses[1] != responses[2]
+
+
 def test_derivation_candidates_hypothesis_loop_pairs() -> None:
     client = TestClient(app)
     init_payload = {
@@ -233,6 +289,418 @@ def test_derivation_candidates_hypothesis_loop_pairs() -> None:
     assert [row["rule_name"] for row in swap_04_nj.json()] == ["RH-Merge"]
 
 
+def test_derivation_head_assist_returns_ranked_shortest_path_candidates() -> None:
+    client = TestClient(app)
+    init_payload = {
+        "grammar_id": "imi03",
+        "numeration_text": _load_num_file("imi03/set-numeration/04.num"),
+        "legacy_root": str(_legacy_root()),
+    }
+    init_response = client.post("/v1/derivation/init", json=init_payload)
+    assert init_response.status_code == 200
+    state = init_response.json()
+
+    response = client.post(
+        "/v1/derivation/head-assist",
+        json={
+            "state": state,
+            "top_k": 12,
+            "legacy_root": str(_legacy_root()),
+        },
+    )
+    assert response.status_code == 200
+    body = response.json()
+    assert len(body) > 0
+    assert len(body) <= 5
+    assert body[0]["rank"] == 1
+    assert any(row["left"] == 5 and row["right"] == 6 for row in body)
+    assert any(row["reachable_grammatical"] for row in body)
+
+    ranking_keys = [
+        (
+            0 if row["reachable_grammatical"] else 1,
+            row["steps_to_grammatical"] if row["steps_to_grammatical"] is not None else 10000,
+            row["unresolved_after"],
+            row["basenum_after"],
+            -row["unresolved_delta"],
+            row["rule_number"],
+            row["left"],
+            row["right"],
+            row["check"] if row["check"] is not None else 0,
+        )
+        for row in body
+    ]
+    assert ranking_keys == sorted(ranking_keys)
+
+
+def test_head_assist_parallel_core_policy_default_and_override() -> None:
+    assert _resolve_head_assist_parallel_cores(None, cpu_count_override=8) == _HEAD_ASSIST_DEFAULT_PARALLEL_CORES
+    assert _resolve_head_assist_parallel_cores(4, cpu_count_override=8) == 4
+    assert _resolve_head_assist_parallel_cores(4, cpu_count_override=2) == 2
+    assert _resolve_head_assist_parallel_cores(0, cpu_count_override=8) == 1
+
+
+def test_derivation_head_assist_accepts_parallel_core_override() -> None:
+    client = TestClient(app)
+    init_payload = {
+        "grammar_id": "imi03",
+        "numeration_text": _load_num_file("imi03/set-numeration/04.num"),
+        "legacy_root": str(_legacy_root()),
+    }
+    init_response = client.post("/v1/derivation/init", json=init_payload)
+    assert init_response.status_code == 200
+    state = init_response.json()
+
+    response = client.post(
+        "/v1/derivation/head-assist",
+        json={
+            "state": state,
+            "top_k": 5,
+            "parallel_cores": 4,
+            "legacy_root": str(_legacy_root()),
+        },
+    )
+    assert response.status_code == 200
+    assert isinstance(response.json(), list)
+
+
+def test_derivation_head_assist_accepts_structural_signature_mode() -> None:
+    client = TestClient(app)
+    init_payload = {
+        "grammar_id": "imi03",
+        "numeration_text": _load_num_file("imi03/set-numeration/04.num"),
+        "legacy_root": str(_legacy_root()),
+    }
+    init_response = client.post("/v1/derivation/init", json=init_payload)
+    assert init_response.status_code == 200
+    state = init_response.json()
+
+    response = client.post(
+        "/v1/derivation/head-assist",
+        json={
+            "state": state,
+            "top_k": 5,
+            "search_signature_mode": "structural",
+            "legacy_root": str(_legacy_root()),
+        },
+    )
+    assert response.status_code == 200
+    body = response.json()
+    assert isinstance(body, list)
+    assert len(body) > 0
+
+
+def test_derivation_head_assist_rejects_unknown_signature_mode() -> None:
+    client = TestClient(app)
+    init_payload = {
+        "grammar_id": "imi03",
+        "numeration_text": _load_num_file("imi03/set-numeration/04.num"),
+        "legacy_root": str(_legacy_root()),
+    }
+    init_response = client.post("/v1/derivation/init", json=init_payload)
+    assert init_response.status_code == 200
+    state = init_response.json()
+
+    response = client.post(
+        "/v1/derivation/head-assist",
+        json={
+            "state": state,
+            "top_k": 5,
+            "search_signature_mode": "invalid-mode",
+            "legacy_root": str(_legacy_root()),
+        },
+    )
+    assert response.status_code == 400
+    assert "search_signature_mode" in response.json()["detail"]
+
+
+def test_head_assist_structural_signature_ignores_history_field() -> None:
+    legacy_root = _legacy_root()
+    state = build_initial_derivation_state(
+        grammar_id="imi03",
+        numeration_text=_load_num_file("imi03/set-numeration/04.num"),
+        legacy_root=legacy_root,
+    )
+    altered = state.model_copy(deep=True)
+    altered.history = "([x1-1 x2-1] RH-Merge) "
+
+    assert state.history != altered.history
+    assert _state_structural_signature(state) == _state_structural_signature(altered)
+    assert _state_packed_signature(state) == _state_packed_signature(altered)
+
+
+def test_head_assist_packed_signature_reduces_level2_unique_states_vs_structural() -> None:
+    legacy_root = _legacy_root()
+    state = build_initial_derivation_state(
+        grammar_id="imi03",
+        numeration_text=_load_num_file("imi03/set-numeration/04.num"),
+        legacy_root=legacy_root,
+    )
+    profile = resolve_rule_versions(
+        profile=get_grammar_profile("imi03"),
+        legacy_root=legacy_root,
+    )
+
+    def enumerate_next(st: object) -> list[object]:
+        next_states: list[object] = []
+        seen_actions: set[tuple[int, str, str, int, int, int]] = set()
+        for left in range(1, st.basenum + 1):
+            for right in range(1, st.basenum + 1):
+                if left == right:
+                    continue
+                candidates = list_merge_candidates(
+                    state=st,
+                    left=left,
+                    right=right,
+                    legacy_root=legacy_root,
+                    rh_merge_version=profile.rh_merge_version,
+                    lh_merge_version=profile.lh_merge_version,
+                )
+                for candidate in candidates:
+                    actual_left = candidate.left if candidate.left is not None else left
+                    actual_right = candidate.right if candidate.right is not None else right
+                    action_key = (
+                        candidate.rule_number,
+                        candidate.rule_name,
+                        candidate.rule_kind,
+                        actual_left,
+                        actual_right,
+                        candidate.check if candidate.check is not None else -1,
+                    )
+                    if action_key in seen_actions:
+                        continue
+                    seen_actions.add(action_key)
+                    try:
+                        if candidate.rule_kind == "single":
+                            if candidate.check is None:
+                                continue
+                            ns = execute_single_merge(
+                                state=st,
+                                rule_name=candidate.rule_name,
+                                check=candidate.check,
+                            )
+                        else:
+                            rule_version = (
+                                profile.rh_merge_version
+                                if candidate.rule_name == "RH-Merge"
+                                else (
+                                    profile.lh_merge_version
+                                    if candidate.rule_name == "LH-Merge"
+                                    else "03"
+                                )
+                            )
+                            ns = execute_double_merge(
+                                state=st,
+                                rule_name=candidate.rule_name,
+                                left=actual_left,
+                                right=actual_right,
+                                rule_version=rule_version,
+                            )
+                    except ValueError:
+                        continue
+                    next_states.append(ns)
+        return next_states
+
+    level1 = enumerate_next(state)
+    level2: list[object] = []
+    for row in level1:
+        level2.extend(enumerate_next(row))
+
+    structural_unique = len({_state_structural_signature(row) for row in level2})
+    packed_unique = len({_state_packed_signature(row) for row in level2})
+    assert packed_unique < structural_unique
+
+
+def test_derivation_head_assist_guides_to_grammatical_when_followed() -> None:
+    client = TestClient(app)
+    init_payload = {
+        "grammar_id": "imi03",
+        "numeration_text": _load_num_file("imi03/set-numeration/04.num"),
+        "legacy_root": str(_legacy_root()),
+    }
+    init_response = client.post("/v1/derivation/init", json=init_payload)
+    assert init_response.status_code == 200
+    state = init_response.json()
+
+    assert not _is_grammatical_state(state)
+
+    reached = False
+    max_steps = 24
+    for _ in range(max_steps):
+        assist = client.post(
+            "/v1/derivation/head-assist",
+            json={
+                "state": state,
+                "top_k": 5,
+                "legacy_root": str(_legacy_root()),
+            },
+        )
+        assert assist.status_code == 200
+        suggestions = assist.json()
+        if not suggestions:
+            break
+
+        choice = suggestions[0]
+        execute_payload = {
+            "state": state,
+            "rule_name": choice["rule_name"],
+            "legacy_root": str(_legacy_root()),
+        }
+        if choice["rule_kind"] == "single":
+            execute_payload["check"] = choice["check"]
+        else:
+            execute_payload["left"] = choice["left"]
+            execute_payload["right"] = choice["right"]
+
+        executed = client.post("/v1/derivation/execute", json=execute_payload)
+        assert executed.status_code == 200
+        state = executed.json()
+        if _is_grammatical_state(state):
+            reached = True
+            break
+
+    assert reached, "head-assist提案を順に実行しても grammatical に到達しませんでした"
+
+
+def test_derivation_head_assist_finds_path_for_john_mary_sentence_from_generated_num() -> None:
+    client = TestClient(app)
+    initialized = client.post(
+        "/v1/derivation/init/from-sentence",
+        json={
+            "grammar_id": "imi03",
+            "sentence": "ジョンがメアリを追いかけた",
+            "split_mode": "C",
+            "legacy_root": str(_legacy_root()),
+        },
+    )
+    assert initialized.status_code == 200
+    state = initialized.json()["state"]
+
+    assert not _is_grammatical_state(state)
+
+    reached = False
+    for _ in range(16):
+        assist = client.post(
+            "/v1/derivation/head-assist",
+            json={
+                "state": state,
+                "top_k": 5,
+                "legacy_root": str(_legacy_root()),
+            },
+        )
+        assert assist.status_code == 200
+        suggestions = assist.json()
+        assert suggestions, "候補が空のため到達手順を継続できませんでした"
+        assert any(row["reachable_grammatical"] for row in suggestions)
+
+        top = suggestions[0]
+        assert top["steps_to_grammatical"] is not None
+        execute_payload = {
+            "state": state,
+            "rule_name": top["rule_name"],
+            "legacy_root": str(_legacy_root()),
+        }
+        if top["rule_kind"] == "single":
+            execute_payload["check"] = top["check"]
+        else:
+            execute_payload["left"] = top["left"]
+            execute_payload["right"] = top["right"]
+
+        executed = client.post("/v1/derivation/execute", json=execute_payload)
+        assert executed.status_code == 200
+        state = executed.json()
+        if _is_grammatical_state(state):
+            reached = True
+            break
+
+    assert reached, "ジョンがメアリを追いかけた の生成Numerationで grammatical に到達しませんでした"
+
+
+def test_derivation_head_assist_returns_within_budget_for_imi01_default_state() -> None:
+    client = TestClient(app)
+    generated = client.post(
+        "/v1/derivation/numeration/generate",
+        json={
+            "grammar_id": "imi01",
+            "sentence": "ジョンが本を読んだ",
+            "split_mode": "C",
+            "legacy_root": str(_legacy_root()),
+        },
+    )
+    assert generated.status_code == 200
+    numeration_text = generated.json()["numeration_text"]
+
+    initialized = client.post(
+        "/v1/derivation/init",
+        json={
+            "grammar_id": "imi01",
+            "numeration_text": numeration_text,
+            "legacy_root": str(_legacy_root()),
+        },
+    )
+    assert initialized.status_code == 200
+    state = initialized.json()
+
+    started = time.perf_counter()
+    assist = client.post(
+        "/v1/derivation/head-assist",
+        json={
+            "state": state,
+            "top_k": 5,
+            "legacy_root": str(_legacy_root()),
+        },
+    )
+    elapsed = time.perf_counter() - started
+    assert assist.status_code == 200
+    assert elapsed <= (_HEAD_ASSIST_SEARCH_BUDGET_SECONDS + 1.5)
+    assert isinstance(assist.json(), list)
+
+
+def test_derivation_process_export_formats_like_perl_target_output() -> None:
+    client = TestClient(app)
+    legacy_root = _legacy_root()
+    init = client.post(
+        "/v1/derivation/init",
+        json={
+            "grammar_id": "imi01",
+            "numeration_text": _load_num_file("imi01/set-numeration/00.num"),
+            "legacy_root": str(legacy_root),
+        },
+    )
+    assert init.status_code == 200
+    state = init.json()
+
+    # Perl同様に id を見ながら 3 手を適用:
+    # ([x1-1 x2-1] RH-Merge) ([x2-1 x3-1] LH-Merge) ([x2-1 x4-1] RH-Merge)
+    for rule_name in ("RH-Merge", "LH-Merge", "RH-Merge"):
+        execute = client.post(
+            "/v1/derivation/execute",
+            json={
+                "state": state,
+                "rule_name": rule_name,
+                "left": 1,
+                "right": 2,
+                "legacy_root": str(legacy_root),
+            },
+        )
+        assert execute.status_code == 200
+        state = execute.json()
+
+    exported = client.post("/v1/derivation/process/export", json={"state": state})
+    assert exported.status_code == 200
+    process_text = exported.json()["process_text"]
+    lines = process_text.splitlines()
+
+    assert lines[0] == "imi01"
+    assert lines[1] == "白いギターの箱"
+    assert lines[2] == "6"
+    assert lines[3] == "1"
+    assert lines[4] == "([x1-1 x2-1] RH-Merge) ([x2-1 x3-1] LH-Merge) ([x2-1 x4-1] RH-Merge) "
+    assert lines[5].startswith("[null,[\"x4-1\",\"N\"")
+    assert "α<sub>5</sub>:x2-1" in lines[5]
+    assert ", " not in lines[5]  # Perl JSON->encode 相当のコンパクト表記
+
+
 def test_derivation_execute_and_resume_roundtrip() -> None:
     client = TestClient(app)
     init_payload = {
@@ -287,7 +755,51 @@ def test_derivation_execute_and_resume_roundtrip() -> None:
         assert restored["newnum"] == state["newnum"]
         assert restored["basenum"] == state["basenum"]
         assert restored["history"] == state["history"]
-        assert restored["base"] == state["base"]
+    assert restored["base"] == state["base"]
+
+
+def test_derivation_execute_lh_merge_outputs_perl_history_and_merged_children() -> None:
+    client = TestClient(app)
+    state = {
+        "grammar_id": "imi01",
+        "memo": "ジョンが",
+        "newnum": 3,
+        "basenum": 2,
+        "history": "",
+        "base": [
+            None,
+            ["x1-1", "N", [], [], "x1-1", ["Name:ジョン"], "ジョン", ["zero", "zero"]],
+            [
+                "x2-1",
+                "J",
+                [],
+                ["0,17,N,,,right,nonhead", "3,17,V,,,left,nonhead", "4,11,ga"],
+                "zero",
+                [],
+                "が",
+                ["zero", "zero"],
+            ],
+        ],
+    }
+
+    execute = client.post(
+        "/v1/derivation/execute",
+        json={
+            "state": state,
+            "rule_name": "LH-Merge",
+            "left": 1,
+            "right": 2,
+            "rule_version": "03",
+        },
+    )
+    assert execute.status_code == 200
+    body = execute.json()
+    assert body["history"] == "([x1-1 x2-1] LH-Merge) "
+    assert body["basenum"] == 1
+    assert body["base"][1][0] == "x1-1"
+    assert isinstance(body["base"][1][7], list)
+    assert body["base"][1][7][0][0] == "x1-1"
+    assert body["base"][1][7][1][0] == "x2-1"
 
 
 def test_derivation_execute_accepts_rule_number() -> None:

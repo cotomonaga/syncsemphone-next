@@ -12,6 +12,7 @@
 1. macOS でローカル実行できること
 2. `syncsemphone-next` の依存がインストール済みであること
 3. Playwright MCP が有効であること
+4. `.num` ファイルアップロードは Playwright MCP のファイルピッカー制約で自動検証しない。Chrome で手動実行する。
 
 ## 2. サーバ起動
 リポジトリルート（`syncsemphone-next`）を前提に、以下を別プロセスで起動します。
@@ -45,12 +46,12 @@ curl http://127.0.0.1:8000/v1/healthz
 ## 4. 手動リプレイ手順
 
 ### 4.1 観察文から初期化
-1. `Manual Tokens` に `ジョン が 本 を 読む -ta` を入力
-2. `Generate .num` をクリック
-3. `Init T0` をクリック
+1. `Sentence` に `ジョン が 本 を 読む -ta` を入力
+2. `Numerationを作成` をクリック
+3. `文から T0 を初期化（Numeration自動生成）` をクリック
 
 期待:
-1. `Numeration Preview` が `(not generated)` から変化する
+1. `.num` が生成され `Numeration Preview` が `(未生成)` から変化する
 2. `basenum/newnum` が `-` から数値表示に変化する
 
 ### 4.2 派生実行
@@ -93,6 +94,46 @@ curl http://127.0.0.1:8000/v1/healthz
 1. 観察文ループ（Generate->Init->execute->tree/tree_cat/lf/sr->resume）: 成功
 2. `T0/T1` 切替で `tree` 表示差分が出ること: 成功
 3. `A/B` 保存表示が更新されること: 成功
+
+## 8. Perl原本 Step2 練習ログ（S2-HDA-01）
+`http://127.0.0.1:8000/v1/legacy/perl/syncsemphone.cgi?grammar=3&mode=numeration_select` を Playwright で直接操作し、次を確認した。
+
+1. `04.num`（`[ジョンがメアリを追いかけた]`）選択 -> `numeration` -> `ok` で Step2 へ遷移できる。
+2. `left/right` を選んで `rule` を押すと、該当ペアの適用可能規則（例: `RH-Merge`, `LH-Merge`）が列挙される。
+3. `Apply` 後に履歴が追記され、未解釈素性（赤字）が残る場合は「grammaticalではありません」が継続表示される。
+4. 規則選択によっては未解釈素性が減るが残留し、分岐次第で詰む経路があるため、`left/right` の選び方支援が有効である。
+
+## 9. 成功例/失敗例差分と「スケートボードで」統合手順（S2-ANL-01, S2-ANL-02）
+対象:
+- 成功例: 「ジョンがメアリを追いかけた」
+- 失敗例: 「ジョンがメアリをスケートボードで追いかけた」
+
+差分の要点:
+1. 失敗例では語彙 `x5-1 N(スケートボード)` と `x6-1 Z(で)` が追加される。
+2. `x6-1` は `+V(left)(nonhead)` を持つため、動詞句に接続して解消する1手が余分に必要になる。
+3. つまり、成功例の骨格（主語句・目的語句・述語句の統合）に加えて、「道具句（スケートボードで）」を述語へ統合する手順を明示的に挿入する必要がある。
+
+Perl原本で確認した `grammatical` 到達手順（imi01 / 1606324760.num）:
+1. `([x7-1 x8-1] LH-Merge)` で述語幹と時制を統合
+2. `([x5-1 x6-1] RH-Merge)` で「スケートボードで」を形成
+3. `([x1-1 x2-1] LH-Merge)` で主語句を形成
+4. `([x3-1 x4-1] LH-Merge)` で目的語句を形成
+5. `([x3-1 x7-1] RH-Merge)` で目的語句を述語に統合（Theme 解決）
+6. `([x6-1 x7-1] RH-Merge)` で道具句を述語に統合（Instrument 解決）
+7. `([x1-1 x7-1] RH-Merge)` で主語句を述語に統合（Agent 解決）
+
+確認結果:
+1. 7手適用後、Perl画面で「解釈不可能素性がなくなったので、この表示は grammatical です。」を確認。
+2. 下部 process テキスト先頭行の履歴も同一:
+   `([x7-1 x8-1] LH-Merge) ([x5-1 x6-1] RH-Merge) ([x1-1 x2-1] LH-Merge) ([x3-1 x4-1] LH-Merge) ([x3-1 x7-1] RH-Merge) ([x6-1 x7-1] RH-Merge) ([x1-1 x7-1] RH-Merge)`
+
+## 7. 付記: `.num` ファイルアップロードの運用
+Playwright MCP は `.num` アップロードを安定的に扱えないため、次の操作は Chrome で手動確認する。
+
+1. Step1 の「numファイルを選ぶ」を選択
+2. `numファイルをアップロード` を押して OS の選択ダイアログを開く
+3. `.num テキスト入力（アップロード）` に反映される
+4. 必要なら `Numerationを作成` を実行する
 
 ## 6. 失敗時の確認ポイント
 1. `Load Candidates` が無効のままなら `Init T0` が未実行

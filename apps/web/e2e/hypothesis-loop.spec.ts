@@ -1,29 +1,60 @@
-import { expect, test } from "@playwright/test";
+import { expect, test, type Page } from "@playwright/test";
+
+async function expectRenewedLayoutHealthy(page: Page) {
+  await expect(page.locator(".page")).toBeVisible();
+  const metrics = await page.evaluate(() => {
+    const pageEl = document.querySelector(".page");
+    const pageRect = pageEl?.getBoundingClientRect();
+    return {
+      viewportWidth: window.innerWidth,
+      pageWidth: pageRect?.width ?? 0,
+      overflowX: document.documentElement.scrollWidth - window.innerWidth
+    };
+  });
+  expect(metrics.pageWidth).toBeGreaterThanOrEqual(metrics.viewportWidth - 80);
+  expect(metrics.overflowX).toBeLessThanOrEqual(1);
+}
+
+async function expectStep1LayoutHealthy(page: Page) {
+  await expect(page.getByRole("heading", { name: "【Step.1】Numerationの形成" })).toBeVisible();
+  await expect(page.getByRole("textbox", { name: "Sentence" })).toBeVisible();
+  await expect(page.getByLabel("Sudachi Split Mode")).toBeVisible();
+  await expect(page.getByTestId("token-chip-row")).toBeVisible();
+  const panelMetrics = await page.evaluate(() => {
+    const panel = document.querySelector("[data-panel='sentence']");
+    const rect = panel?.getBoundingClientRect();
+    return {
+      viewportWidth: window.innerWidth,
+      panelWidth: rect?.width ?? 0
+    };
+  });
+  expect(panelMetrics.panelWidth).toBeGreaterThan(panelMetrics.viewportWidth * 0.55);
+}
 
 test("hypothesis loop via sentence input and observation", async ({ page }) => {
   await page.goto("/");
+  await expectRenewedLayoutHealthy(page);
 
-  await expect(page.getByRole("heading", { name: "Hypothesis Loop Workbench" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "SYNCSEMPHONE NEXT" })).toBeVisible();
+  await page.getByRole("button", { name: "この設定で開始" }).click();
+  await expectStep1LayoutHealthy(page);
 
-  await page.getByLabel("Manual Tokens").fill("ジョン が 本 を 読む -ta");
-  await page.getByRole("button", { name: ".num を生成（T0は作らない）" }).click();
+  await page.getByRole("textbox", { name: "Sentence" }).fill("ジョンがメアリを追いかけた");
+  await page.getByRole("button", { name: "Numerationを形成" }).click();
   await expect(page.getByTestId("numeration-text")).not.toContainText("(未生成)");
-  await page.getByRole("button", { name: "文から T0 を初期化（.num 生成あり）" }).click();
+  await expect(page.getByRole("heading", { name: "【Step.2】Grammarの適用" })).toBeVisible();
 
   await expect(page.getByText(/basenum\/newnum:/)).toContainText(/\d+\/\d+/);
 
-  await page.getByRole("button", { name: "Step 3 Target/Rule" }).click();
-  await page.getByLabel("left").fill("1");
-  await page.getByLabel("right").fill("2");
-  await page.getByRole("button", { name: "Load Candidates" }).click();
-
-  const executeButton = page.getByRole("button", { name: "Execute" }).first();
-  await expect(executeButton).toBeVisible();
+  const firstRuleRow = page.locator("[data-testid='candidate-table'] tbody tr").first();
+  const executeButton = firstRuleRow.getByRole("button", { name: "実行" });
+  await expect(executeButton).toBeEnabled({ timeout: 30000 });
   await executeButton.click();
 
   await expect(page.getByTestId("current-history")).toContainText("Merge");
 
-  await page.getByRole("button", { name: "Step 4 観察" }).click();
+  await page.getByRole("button", { name: "【Step.3】観察" }).click();
+  await expectRenewedLayoutHealthy(page);
   await page.getByRole("button", { name: /^tree$/ }).click();
   await page.getByRole("button", { name: /^tree_cat$/ }).click();
   await page.getByRole("button", { name: "lf" }).click();
@@ -34,7 +65,7 @@ test("hypothesis loop via sentence input and observation", async ({ page }) => {
   await expect(page.getByTestId("lf-output")).not.toHaveText("", { timeout: 30000 });
   await expect(page.getByTestId("sr-output")).not.toHaveText("", { timeout: 30000 });
 
-  await page.getByRole("button", { name: "Step 5 保存/再開" }).click();
+  await page.getByRole("button", { name: "【Step.4】保存/再開" }).click();
   await page.getByRole("button", { name: "Export resume" }).click();
   await expect(page.getByLabel("resume-text")).not.toHaveValue("");
 
@@ -49,22 +80,26 @@ test("hypothesis loop via sentence input and observation", async ({ page }) => {
 
 test("snapshot and resume consistency for observation loop", async ({ page }) => {
   await page.goto("/");
+  await expectRenewedLayoutHealthy(page);
+  await page.getByRole("button", { name: "この設定で開始" }).click();
+  await expectStep1LayoutHealthy(page);
 
-  await page.getByLabel("Manual Tokens").fill("ジョン が 本 を 読む -ta");
-  await page.getByRole("button", { name: "文から T0 を初期化（.num 生成あり）" }).click();
+  await page.getByRole("textbox", { name: "Sentence" }).fill("ジョンがメアリを追いかけた");
+  await page.getByRole("button", { name: "Numerationを形成" }).click();
+  await expect(page.getByRole("heading", { name: "【Step.2】Grammarの適用" })).toBeVisible();
   await expect(page.getByTestId("current-history")).toContainText("(empty)");
 
-  await page.getByRole("button", { name: "Step 5 保存/再開" }).click();
+  await page.getByRole("button", { name: "【Step.4】保存/再開" }).click();
   await page.getByRole("button", { name: "Save T0" }).click();
 
-  await page.getByRole("button", { name: "Step 3 Target/Rule" }).click();
-  await page.getByLabel("left").fill("5");
-  await page.getByLabel("right").fill("6");
-  await page.getByRole("button", { name: "Load Candidates" }).click();
-  await page.getByRole("button", { name: "Execute" }).first().click();
+  await page.getByRole("button", { name: "【Step.2】Grammarの適用" }).click();
+  const firstRuleRow = page.locator("[data-testid='candidate-table'] tbody tr").first();
+  const executeButton = firstRuleRow.getByRole("button", { name: "実行" });
+  await expect(executeButton).toBeEnabled({ timeout: 30000 });
+  await executeButton.click();
   await expect(page.getByTestId("current-history")).toContainText("Merge");
 
-  await page.getByRole("button", { name: "Step 5 保存/再開" }).click();
+  await page.getByRole("button", { name: "【Step.4】保存/再開" }).click();
   await page.getByRole("button", { name: "Save T1" }).click();
   await page.getByRole("button", { name: "Save T2" }).click();
 
@@ -78,18 +113,19 @@ test("snapshot and resume consistency for observation loop", async ({ page }) =>
   await expect(page.getByText(/A history:/)).toContainText("B history:");
   await expect(page.getByText(/A history:/)).toContainText("Merge");
 
-  await page.getByRole("button", { name: "Step 4 観察" }).click();
+  await page.getByRole("button", { name: "【Step.3】観察" }).click();
+  await expectRenewedLayoutHealthy(page);
   const treeOutput = page.getByTestId("tree-output");
   await page.getByRole("button", { name: /^tree$/ }).click();
   await expect(treeOutput).not.toHaveText("", { timeout: 30000 });
   const treeBeforeResume = await treeOutput.textContent();
   expect(treeBeforeResume).toBeTruthy();
 
-  await page.getByRole("button", { name: "Step 5 保存/再開" }).click();
+  await page.getByRole("button", { name: "【Step.4】保存/再開" }).click();
   await page.getByRole("button", { name: "Export resume" }).click();
   await expect(page.getByLabel("resume-text")).not.toHaveValue("");
   await page.getByRole("button", { name: "Import resume" }).click();
-  await page.getByRole("button", { name: "Step 4 観察" }).click();
+  await page.getByRole("button", { name: "【Step.3】観察" }).click();
   await page.getByRole("button", { name: /^tree$/ }).click();
   await expect(treeOutput).not.toHaveText("", { timeout: 30000 });
   const treeAfterResume = await treeOutput.textContent();

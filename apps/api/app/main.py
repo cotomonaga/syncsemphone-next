@@ -14,9 +14,14 @@ from app.api.v1.semantics import router as semantics_router
 app = FastAPI(title="syncsemphone-next API", version="0.1.0")
 cors_origins_env = os.getenv("SYNCSEMPHONE_CORS_ORIGINS", "http://127.0.0.1:5173,http://localhost:5173")
 cors_origins = [origin.strip() for origin in cors_origins_env.split(",") if origin.strip()]
+cors_origin_regex = os.getenv(
+    "SYNCSEMPHONE_CORS_ORIGIN_REGEX",
+    r"^https?://(127\.0\.0\.1|localhost)(:\d+)?$",
+)
 app.add_middleware(
     CORSMiddleware,
     allow_origins=cors_origins,
+    allow_origin_regex=cors_origin_regex,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],

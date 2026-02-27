@@ -4,17 +4,23 @@ import type {
   DerivationState,
   FeatureDocEntry,
   GeneratedNumeration,
-  GrammarRuleSourceEntry,
-  GrammarRuleSourceResponse,
   GrammarOption,
+  HeadAssistSuggestion,
   HtmlDocResponse,
+  LexiconItemLookupItem,
+  LexiconItemsPageResponse,
   LexiconCommitResponse,
+  LexiconItemsLookupResponse,
   LexiconExportResponse,
+  LexiconSummaryResponse,
   LexiconImportResponse,
   LexiconValidateResponse,
   LfResponse,
+  MergeRuleEntry,
   NumerationFileEntry,
   ObservationTreeResponse,
+  ProcessExportResponse,
+  RuleCompareResponse,
   RuleCandidate,
   RuleDocEntry,
   SrResponse
@@ -25,15 +31,20 @@ type BranchSlot = "A" | "B";
 type TreeMode = "tree" | "tree_cat";
 type UiMode = "legacy" | "renewed";
 type TokenInputMode = "manual" | "auto";
-type Step1HelpKey = "generate_num" | "init_from_sentence" | "init_from_num";
+type Step1EntryMode = "example_sentence" | "upload_num" | "build_lexicon";
+type ReferenceDocTab = "feature" | "rule";
 type RenewMenu = "hypothesis" | "reference" | "lexicon";
 type RenewPanel =
+  | "setup"
   | "sentence"
   | "numeration"
   | "target"
   | "observation"
   | "resume"
-  | "reference"
+  | "grammarInspect"
+  | "lexiconInspect"
+  | "ruleCompare"
+  | "referenceDocs"
   | "lexicon";
 
 type TokenSlotEdit = {
@@ -93,17 +104,22 @@ const RENEW_MENUS: Array<{
     key: "hypothesis",
     label: "仮説検証ステップ",
     steps: [
-      { key: "sentence", label: "Step 1 入力" },
-      { key: "numeration", label: "Step 2 Numeration" },
-      { key: "target", label: "Step 3 Target/Rule" },
-      { key: "observation", label: "Step 4 観察" },
-      { key: "resume", label: "Step 5 保存/再開" }
+      { key: "setup", label: "【Step.0】LexiconとGrammarの選択" },
+      { key: "sentence", label: "【Step.1】Numerationの形成" },
+      { key: "target", label: "【Step.2】Grammarの適用" },
+      { key: "observation", label: "【Step.3】観察" },
+      { key: "resume", label: "【Step.4】保存/再開" },
+      { key: "numeration", label: "補助：Numeration編集" }
     ]
   },
   {
     key: "reference",
     label: "素性とルールの確認",
-    steps: [{ key: "reference", label: "Feature/Rule 参照" }]
+    steps: [
+      { key: "grammarInspect", label: "文法規則の内容確認" },
+      { key: "lexiconInspect", label: "語彙の内容確認" },
+      { key: "referenceDocs", label: "資料参照" }
+    ]
   },
   {
     key: "lexicon",
@@ -125,7 +141,8 @@ function parseNumerationText(text: string): {
   plus: string[];
   idx: string[];
 } {
-  const lines = text.split(/\r?\n/);
+  const normalized = text.replace(/\\t/g, "\t");
+  const lines = normalized.split(/\r?\n/);
   const row1 = (lines[0] || "").split("\t");
   const row2 = (lines[1] || "").split("\t");
   const row3 = (lines[2] || "").split("\t");
@@ -142,11 +159,452 @@ function parseNumerationText(text: string): {
   };
 }
 
+function normalizeNumerationTextForParse(text: string): string {
+  return text.replace(/\\t/g, "\t");
+}
+
+function encodeNumerationTextLikePerl(text: string): string {
+  return text.replace(/\t/g, "\\t");
+}
+
+type NumerationLexiconRow = {
+  slot: number;
+  rawLexiconId: string;
+  lexiconId: number | null;
+  plus: string;
+  idx: string;
+  found: boolean | null;
+  entry: string;
+  phono: string;
+  category: string;
+  syncFeatures: string[];
+  idslot: string;
+  semantics: string[];
+  note: string;
+};
+
+type Step2DisplayNode = {
+  xLabel: string;
+  category: string;
+  syncFeatures: string[];
+  idslot: string;
+  semantics: string[];
+  phono: string;
+  unresolvedMessage: string | null;
+  children: Step2DisplayNode[];
+};
+
+type Step2DisplayRow = {
+  slot: number;
+  node: Step2DisplayNode;
+};
+
+function parseNumerationLexiconRows(text: string): Pick<NumerationLexiconRow, "slot" | "rawLexiconId" | "lexiconId" | "plus" | "idx">[] {
+  const lines = normalizeNumerationTextForParse(text).replace(/\r\n/g, "\n").split("\n");
+  const row1 = (lines[0] || "").split("\t");
+  const row2 = (lines[1] || "").split("\t");
+  const row3 = (lines[2] || "").split("\t");
+  const parsedRows = [];
+  for (let i = 0; i < 30; i += 1) {
+    const raw = (row1[i + 1] ?? "").trim();
+    if (raw === "") {
+      continue;
+    }
+    const parsedId = Number(raw);
+    parsedRows.push({
+      slot: i + 1,
+      rawLexiconId: raw,
+      lexiconId: Number.isInteger(parsedId) && parsedId > 0 ? parsedId : null,
+      plus: (row2[i + 1] ?? "").trim(),
+      idx: (row3[i + 1] ?? "").trim()
+    });
+  }
+  return parsedRows;
+}
+
+function buildStep2DisplayNode(item: unknown, fallbackLabel: string): Step2DisplayNode {
+  if (!Array.isArray(item)) {
+    return {
+      xLabel: fallbackLabel,
+      category: "-",
+      syncFeatures: [],
+      idslot: "",
+      semantics: [],
+      phono: "",
+      unresolvedMessage: "この行の語彙情報を表示できません。",
+      children: []
+    };
+  }
+
+  const xLabelRaw = String(item[0] ?? "").trim();
+  const xLabel = xLabelRaw === "" ? fallbackLabel : xLabelRaw;
+  const children: Step2DisplayNode[] = [];
+  const rawChildren = item[7];
+  if (Array.isArray(rawChildren)) {
+    for (let idx = 0; idx < rawChildren.length; idx += 1) {
+      const child = rawChildren[idx];
+      if (child === "zero") {
+        continue;
+      }
+      children.push(buildStep2DisplayNode(child, `${xLabel}-d${idx + 1}`));
+    }
+  }
+
+  return {
+    xLabel,
+    category: String(item[1] ?? "").trim(),
+    syncFeatures: Array.isArray(item[3])
+      ? item[3].map((value) => (value == null ? "" : String(value)))
+      : [],
+    idslot: String(item[4] ?? ""),
+    semantics: Array.isArray(item[5])
+      ? item[5].map((value) => (value == null ? "" : String(value)))
+      : [],
+    phono: String(item[6] ?? ""),
+    unresolvedMessage: null,
+    children
+  };
+}
+
+function buildStep2DisplayRows(state: DerivationState | null): Step2DisplayRow[] {
+  if (!state || !Array.isArray(state.base)) {
+    return [];
+  }
+  const rows: Step2DisplayRow[] = [];
+  for (let slot = 1; slot <= state.basenum; slot += 1) {
+    const item = (state.base as unknown[])[slot];
+    rows.push({
+      slot,
+      node: buildStep2DisplayNode(item, `x${slot}-1`)
+    });
+  }
+  return rows;
+}
+
+type EncodedFeatureSegment = {
+  text: string;
+  tone: "base" | "annotation" | "plain";
+  subscript?: boolean;
+};
+
+type EncodedFeatureRender = {
+  isFeature: boolean;
+  segments: EncodedFeatureSegment[];
+};
+
+function parseEncodedFeatureLikePerl(value: string): EncodedFeatureRender {
+  if (value === "0=R=0") {
+    return { isFeature: true, segments: [{ text: "+R", tone: "base" }] };
+  }
+  if (value === "0=da=0") {
+    return { isFeature: true, segments: [{ text: "da", tone: "base" }] };
+  }
+  if (!/,[0-9]/.test(value)) {
+    return { isFeature: false, segments: [{ text: value, tone: "plain" }] };
+  }
+  const parts = value.split(",");
+  const code = parts[1] ?? "";
+  const p2 = parts[2] ?? "";
+  const p3 = parts[3] ?? "";
+  const p4 = parts[4] ?? "";
+  const p5 = parts[5] ?? "";
+  const p6 = parts[6] ?? "";
+
+  if (code === "17") {
+    const segments: EncodedFeatureSegment[] = [{ text: `+${p2}${p3}`, tone: "base" }];
+    if (p4 !== "") {
+      segments.push({ text: `[${p4}]`, tone: "annotation" });
+    }
+    if (p5 !== "") {
+      segments.push({ text: `(${p5})`, tone: "annotation" });
+    }
+    if (p6 !== "") {
+      segments.push({ text: `(${p6})`, tone: "annotation" });
+    }
+    return { isFeature: true, segments };
+  }
+  if (code === "34") {
+    const segments: EncodedFeatureSegment[] = [
+      { text: "★", tone: "base" },
+      { text: `${p2}${p3}`, tone: "annotation", subscript: true }
+    ];
+    if (p4 !== "") {
+      segments.push({ text: `[${p4}]`, tone: "annotation" });
+    }
+    if (p5 !== "") {
+      segments.push({ text: `(${p5})`, tone: "annotation" });
+    }
+    return { isFeature: true, segments };
+  }
+  if (code === "25" || code === "33") {
+    return {
+      isFeature: true,
+      segments: [
+        { text: "★", tone: "base" },
+        { text: p2, tone: "base", subscript: true }
+      ]
+    };
+  }
+  if (code === "26" || code === "27") {
+    const suffix = code === "26" ? `[${p2}]` : `<${p2}>`;
+    return {
+      isFeature: true,
+      segments: [
+        { text: "★", tone: "base" },
+        { text: suffix, tone: "base", subscript: true }
+      ]
+    };
+  }
+  if (code === "70" || code === "71") {
+    const suffix = code === "70" ? p2 : `<${p2}>`;
+    return {
+      isFeature: true,
+      segments: [
+        { text: "●", tone: "base" },
+        { text: suffix, tone: "base", subscript: true }
+      ]
+    };
+  }
+  return {
+    isFeature: true,
+    segments: [{ text: formatEncodedFeatureLikePerl(value), tone: "base" }]
+  };
+}
+
+function renderEncodedFeatureLikePerl(value: string, keyPrefix: string): JSX.Element {
+  const parsed = parseEncodedFeatureLikePerl(value);
+  if (!parsed.isFeature) {
+    return <>{parsed.segments[0]?.text || value}</>;
+  }
+  return (
+    <span className="numeration-feature">
+      {parsed.segments.map((segment, idx) => {
+        const className =
+          segment.tone === "annotation"
+            ? "numeration-feature-orange"
+            : "numeration-feature-red";
+        if (segment.subscript) {
+          return (
+            <sub className={className} key={`${keyPrefix}-${idx}`}>
+              {segment.text}
+            </sub>
+          );
+        }
+        return (
+          <span className={className} key={`${keyPrefix}-${idx}`}>
+            {segment.text}
+          </span>
+        );
+      })}
+    </span>
+  );
+}
+
+function isEncodedFeature(value: string): boolean {
+  return /,[0-9]/.test(value) || value === "0=R=0" || value === "0=da=0";
+}
+
+function formatEncodedFeatureLikePerl(value: string): string {
+  if (value === "0=R=0") {
+    return "+R";
+  }
+  if (value === "0=da=0") {
+    return "da";
+  }
+  if (!/,[0-9]/.test(value)) {
+    return value;
+  }
+  const parts = value.split(",");
+  const bucket = parts[0] ?? "";
+  const code = parts[1] ?? "";
+  const p2 = parts[2] ?? "";
+  const p3 = parts[3] ?? "";
+  const p4 = parts[4] ?? "";
+  const p5 = parts[5] ?? "";
+  const p6 = parts[6] ?? "";
+
+  switch (code) {
+    case "1":
+      return `+${p2}`;
+    case "2":
+      return p2;
+    case "3":
+      return `++${p2}`;
+    case "5":
+      return `+${p2}`;
+    case "6":
+      return `+${p2}/${p3}`;
+    case "7":
+      return `-${p2}(${p3})`;
+    case "8":
+      return `+${p2}[${p3}]`;
+    case "9":
+      return `+${p2}[${p3}]${p4 ? `_${p4}` : ""}`;
+    case "10":
+      return `+${p2}${p3 ? `_${p3}` : ""}`;
+    case "11":
+      return `${p2}(★)`;
+    case "12":
+      return `${p2}(+${p3})`;
+    case "13":
+      return "suffix";
+    case "14":
+      return "SUFFIX";
+    case "15":
+      return "prefix";
+    case "16":
+      return "PREFIX";
+    case "17": {
+      let text = `+${p2}${p3}`;
+      if (p4 !== "") {
+        text += `[${p4}]`;
+      }
+      if (p5 !== "") {
+        text += `(${p5})`;
+      }
+      if (p6 !== "") {
+        text += `(${p6})`;
+      }
+      return text;
+    }
+    case "21":
+      return "○";
+    case "22":
+      return "●";
+    case "23":
+      return "☆";
+    case "24":
+      return "★";
+    case "25":
+      return `★${p2}`;
+    case "26":
+      return `★[${p2}]`;
+    case "27":
+      return `★<${p2}>`;
+    case "28":
+      return `●<<${p2}>>`;
+    case "29":
+      return `★${p2},[${p3}]`;
+    case "30":
+      return `α(★<${p2}>);`;
+    case "31":
+      return `★<${p2}>,[${p3}]`;
+    case "32":
+      return "▲";
+    case "33":
+      return `★${p2}`;
+    case "34": {
+      let text = `★${p2}${p3}`;
+      if (p4 !== "") {
+        text += `[${p4}]`;
+      }
+      if (p5 !== "") {
+        text += `(${p5})`;
+      }
+      return text;
+    }
+    case "51":
+      return `<${p2}, ☆>`;
+    case "52":
+      return `<${p2}, ★>`;
+    case "53":
+      return `<${p2}, ${p3}>`;
+    case "54":
+      return bucket === "3"
+        ? "<★[Predication], partitioning>"
+        : bucket === "2"
+          ? "<★[Rel], partitioning>"
+          : "<★, partitioning>";
+    case "56":
+      return `<${p2}, partitioning>`;
+    case "58":
+      return `<${p2}, ●>`;
+    case "59":
+      return `<${p2},<${p3},{<${p4}, __>}>>`;
+    case "60":
+      return `<${p2},<○,{<${p4}, __>}>>`;
+    case "61":
+      return `<${p2},<●,{<${p4}, __>}>>`;
+    case "62":
+      return `<${p2},<☆,{<${p4}, __>}>>`;
+    case "63":
+      return `<${p2},<★,{<${p4}, __>}>>`;
+    case "64":
+      return `<${p2},<★${p5},{<${p4}, __>}>>`;
+    case "70":
+      return `●${p2}`;
+    case "71":
+      return `●<${p2}>`;
+    case "101":
+      return "Kind";
+    case "102":
+      return "Bind";
+    case "103":
+      return p3 === "" ? `β${p2}＝■` : `β${p2}＝${p3}(${p4})`;
+    case "106":
+      return "pickup";
+    case "107":
+      return "move";
+    default:
+      return value;
+  }
+}
+
+function formatSemanticLikePerl(value: string): string {
+  const pos = value.indexOf(":");
+  if (pos < 0) {
+    return isEncodedFeature(value) ? formatEncodedFeatureLikePerl(value) : value;
+  }
+  const attribute = value.slice(0, pos).trim();
+  const semanticValue = value.slice(pos + 1).trim();
+  const formatted = isEncodedFeature(semanticValue)
+    ? formatEncodedFeatureLikePerl(semanticValue)
+    : semanticValue;
+  return `${attribute}: ${formatted}`;
+}
+
+function resolveIdSlotLikePerl(idslot: string, xLabel: string): string {
+  if (idslot === "id") {
+    return xLabel;
+  }
+  if (idslot === "zero" || idslot === "rel") {
+    return "";
+  }
+  const trimmed = idslot.trim();
+  if (trimmed === "") {
+    return "";
+  }
+  if (isEncodedFeature(trimmed)) {
+    return formatEncodedFeatureLikePerl(trimmed);
+  }
+  return trimmed;
+}
+
 function buildNumerationText(memo: string, lexicon: string[], plus: string[], idx: string[]): string {
   const line1 = [memo, ...lexicon.slice(0, 30)];
   const line2 = [" ", ...plus.slice(0, 30)];
   const line3 = [" ", ...idx.slice(0, 30)];
   return `${line1.join("\t")}\n${line2.join("\t")}\n${line3.join("\t")}`;
+}
+
+function validateNumerationTabFormat(text: string): string | null {
+  const normalized = normalizeNumerationTextForParse(text);
+  if (normalized.trim() === "") {
+    return "numテキストが空です。";
+  }
+  const lines = normalized.replace(/\r\n/g, "\n").split("\n");
+  if (lines.length < 3) {
+    return "numは3行（memo/plus/idx）必要です。";
+  }
+  const firstThree = lines.slice(0, 3);
+  const columnCounts = firstThree.map((line) => line.split("\t").length);
+  if (columnCounts.some((count) => count < 2)) {
+    return "各行はタブ区切りで2列以上必要です。";
+  }
+  if (!(columnCounts[0] === columnCounts[1] && columnCounts[1] === columnCounts[2])) {
+    return "3行の列数（タブ区切り）が一致していません。";
+  }
+  return null;
 }
 
 function deriveStatus(state: DerivationState | null): "grammatical" | "ungrammatical" | "-" {
@@ -155,6 +613,23 @@ function deriveStatus(state: DerivationState | null): "grammatical" | "ungrammat
   }
   const body = JSON.stringify(state.base);
   return /,[0-9]/.test(body) ? "ungrammatical" : "grammatical";
+}
+
+function buildFallbackProcessText(state: DerivationState): string {
+  const base = Array.from({ length: state.basenum + 1 }, (_, index) => {
+    if (index === 0) {
+      return null;
+    }
+    return (state.base as unknown[])[index] ?? null;
+  });
+  return [
+    state.grammar_id,
+    state.memo,
+    String(state.newnum),
+    String(state.basenum),
+    state.history,
+    JSON.stringify(base),
+  ].join("\n");
 }
 
 function formatGrammarOption(option: GrammarOption): string {
@@ -175,17 +650,9 @@ const TOKEN_CHIP_COLORS = [
   "#f6ddff"
 ];
 
-const STEP1_HELP_CONTENT: Record<Step1HelpKey, string> = {
-  generate_num:
-    "観察文を分割して語彙候補を解決し、.num テキストだけを更新します。T0 はまだ作りません。",
-  init_from_sentence:
-    "観察文から .num を生成した直後に、その .num を使って T0（規則適用前の初期状態）を作ります。最初の派生観察を始める標準操作です。",
-  init_from_num:
-    "すでに用意済みの .num テキストを使って T0（規則適用前の初期状態）を作ります。語彙選択や .num 編集の再利用時に使います。"
-};
-
-const T0_BRIEF_DESCRIPTION =
-  "T0 は規則適用前の最初の派生状態です。Step3 の候補探索や規則実行は、この T0 を起点に進みます。";
+const LEXICON_INSPECT_PAGE_SIZE = 20;
+const STEP0_START_DESCRIPTION =
+  "Step0では、観察に使う語彙と規則セットを選びます。確認ボタンで中身を見てから開始できます。";
 
 const LEGACY_PERL_BASE_URL = (
   import.meta.env.VITE_API_BASE_URL?.trim() || "http://127.0.0.1:8000"
@@ -320,71 +787,39 @@ function buildTreeRenderModel(csvText: string): { model: TreeRenderModel; dotTex
   };
 }
 
-function renderBaseItem(item: unknown, depth = 0): JSX.Element {
-  if (!Array.isArray(item)) {
-    return <div className="mono">{String(item)}</div>;
-  }
-
-  const lexicalId = String(item[0] ?? "");
-  const category = String(item[1] ?? "");
-  const predicates = Array.isArray(item[2]) ? (item[2] as unknown[]) : [];
-  const syntax = Array.isArray(item[3]) ? (item[3] as unknown[]) : [];
-  const idslot = String(item[4] ?? "");
-  const semantics = Array.isArray(item[5]) ? (item[5] as unknown[]) : [];
-  const phono = String(item[6] ?? "");
-  const daughters = Array.isArray(item[7]) ? (item[7] as unknown[]) : [];
-  const note = String(item[8] ?? "");
-
-  return (
-    <div style={{ marginLeft: depth * 14 }}>
-      <div className="mono">
-        [{lexicalId}] ca={category} ph={phono} sl={idslot}
-      </div>
-      {syntax.length > 0 && <div className="mono">sy: {syntax.map((v) => String(v)).join(" | ")}</div>}
-      {semantics.length > 0 && (
-        <div className="mono">se: {semantics.map((v) => String(v)).join(" | ")}</div>
-      )}
-      {predicates.length > 0 && (
-        <div className="mono">pr: {predicates.map((v) => JSON.stringify(v)).join(" | ")}</div>
-      )}
-      {note !== "" && <div className="mono">nb: {note}</div>}
-      {daughters.length > 0 && (
-        <div>
-          {daughters.map((daughter, index) => (
-            <div key={`${lexicalId}-${depth}-${index}`}>
-              {daughter === "zero" ? (
-                <div className="mono" style={{ marginLeft: (depth + 1) * 14 }}>
-                  trace: zero
-                </div>
-              ) : (
-                renderBaseItem(daughter, depth + 1)
-              )}
-            </div>
-          ))}
-        </div>
-      )}
-    </div>
-  );
-}
-
 export default function App() {
   const [uiMode, setUiMode] = useState<UiMode>("renewed");
   const [legacyFrameReloadTick, setLegacyFrameReloadTick] = useState(0);
   const [renewMenu, setRenewMenu] = useState<RenewMenu>("hypothesis");
-  const [renewPanel, setRenewPanel] = useState<RenewPanel>("sentence");
+  const [renewPanel, setRenewPanel] = useState<RenewPanel>("setup");
 
   const [grammarOptions, setGrammarOptions] = useState<GrammarOption[]>(DEFAULT_GRAMMARS);
-  const [grammarId, setGrammarId] = useState("imi03");
+  const [grammarId, setGrammarId] = useState("imi01");
+  const [setupGrammarId, setSetupGrammarId] = useState("imi01");
+  const [showMoreGrammarOptions, setShowMoreGrammarOptions] = useState(false);
+  const [workflowStarted, setWorkflowStarted] = useState(false);
   const [sentence, setSentence] = useState("ジョンが本を読んだ");
-  const [tokenInputMode, setTokenInputMode] = useState<TokenInputMode>("manual");
-  const [manualTokensInput, setManualTokensInput] = useState("ジョン が 本 を 読んだ");
+  const [step1EntryMode, setStep1EntryMode] = useState<Step1EntryMode>("build_lexicon");
+  const [step1ExampleNumerationPath, setStep1ExampleNumerationPath] = useState("");
+  const [step1ExampleNumerationMemo, setStep1ExampleNumerationMemo] = useState("");
+  const [tokenInputMode, setTokenInputMode] = useState<TokenInputMode>("auto");
   const [splitMode, setSplitMode] = useState("C");
   const [autoPreviewTokens, setAutoPreviewTokens] = useState<string[]>([]);
   const [autoPreviewLoading, setAutoPreviewLoading] = useState(false);
-  const [openStep1Help, setOpenStep1Help] = useState<Step1HelpKey | null>(null);
+  const [manualTokenInput, setManualTokenInput] = useState("ジョンが本を読んだ");
+  const [manualTokens, setManualTokens] = useState<string[]>(["ジョンが本を読んだ"]);
+  const [isEditingManualTokens, setIsEditingManualTokens] = useState(false);
 
   const [uploadNumerationText, setUploadNumerationText] = useState("");
+  const [step1ExampleNumerationText, setStep1ExampleNumerationText] = useState("");
+  const [step1BuildPreviewNumerationText, setStep1BuildPreviewNumerationText] = useState("");
+  const [step1BuildPreviewError, setStep1BuildPreviewError] = useState("");
+  const [isStep1BuildPreviewLoading, setIsStep1BuildPreviewLoading] = useState(false);
+  const [step1UploadFileName, setStep1UploadFileName] = useState("");
   const [numerationText, setNumerationText] = useState("");
+  const [numerationLexiconRows, setNumerationLexiconRows] = useState<NumerationLexiconRow[]>([]);
+  const [isNumerationLexiconLoading, setIsNumerationLexiconLoading] = useState(false);
+  const [numerationLexiconError, setNumerationLexiconError] = useState("");
   const [setNumerationFiles, setSetNumerationFiles] = useState<NumerationFileEntry[]>([]);
   const [savedNumerationFiles, setSavedNumerationFiles] = useState<NumerationFileEntry[]>([]);
   const [selectedSetPath, setSelectedSetPath] = useState("");
@@ -396,10 +831,13 @@ export default function App() {
   const [generated, setGenerated] = useState<GeneratedNumeration | null>(null);
   const [state, setState] = useState<DerivationState | null>(null);
   const [candidates, setCandidates] = useState<RuleCandidate[]>([]);
-  const [left, setLeft] = useState("1");
-  const [right, setRight] = useState("2");
+  const [headAssistRows, setHeadAssistRows] = useState<HeadAssistSuggestion[]>([]);
+  const [headAssistMessage, setHeadAssistMessage] = useState("");
+  const [step2ProcessText, setStep2ProcessText] = useState("");
+  const [step2UndoStack, setStep2UndoStack] = useState<DerivationState[]>([]);
   const [selectedLeft, setSelectedLeft] = useState<number | null>(null);
   const [selectedRight, setSelectedRight] = useState<number | null>(null);
+  const [isStep2CandidatesLoading, setIsStep2CandidatesLoading] = useState(false);
 
   const [treeCsv, setTreeCsv] = useState("");
   const [treeCatCsv, setTreeCatCsv] = useState("");
@@ -417,12 +855,16 @@ export default function App() {
   const [ruleDocs, setRuleDocs] = useState<RuleDocEntry[]>([]);
   const [selectedRuleDoc, setSelectedRuleDoc] = useState("");
   const [ruleDocHtml, setRuleDocHtml] = useState("");
+  const [referenceDocTab, setReferenceDocTab] = useState<ReferenceDocTab>("feature");
   const [referenceDocsLoadedGrammarId, setReferenceDocsLoadedGrammarId] = useState("");
-  const [grammarRuleSources, setGrammarRuleSources] = useState<GrammarRuleSourceEntry[]>([]);
-  const [selectedGrammarRuleNumber, setSelectedGrammarRuleNumber] = useState<number | null>(null);
-  const [grammarRuleSourceText, setGrammarRuleSourceText] = useState("");
-  const [grammarRuleSourceFileName, setGrammarRuleSourceFileName] = useState("");
-  const [grammarRuleSourceMessage, setGrammarRuleSourceMessage] = useState("");
+  const [inspectLexiconSummary, setInspectLexiconSummary] = useState<LexiconSummaryResponse | null>(null);
+  const [inspectLexiconItems, setInspectLexiconItems] = useState<LexiconItemsPageResponse | null>(null);
+  const [inspectLexiconPage, setInspectLexiconPage] = useState(1);
+  const [inspectLexiconCategoryFilter, setInspectLexiconCategoryFilter] = useState<string | null>(null);
+  const [inspectMergeRules, setInspectMergeRules] = useState<MergeRuleEntry[]>([]);
+  const [inspectRuleCompare, setInspectRuleCompare] = useState<RuleCompareResponse | null>(null);
+  const [inspectCompareRuleNumber, setInspectCompareRuleNumber] = useState<number | null>(null);
+  const [inspectMergeRulesLoadedGrammarId, setInspectMergeRulesLoadedGrammarId] = useState("");
 
   const [resumeText, setResumeText] = useState("");
   const [lexiconFormat, setLexiconFormat] = useState<"yaml" | "csv">("yaml");
@@ -450,10 +892,13 @@ export default function App() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const referenceSectionRef = useRef<HTMLElement | null>(null);
-  const step1ActionRowRef = useRef<HTMLDivElement | null>(null);
+  const step1UploadFileInputRef = useRef<HTMLInputElement | null>(null);
   const autoPreviewRequestSeqRef = useRef(0);
-
-  const manualTokens = useMemo(() => parseManualTokens(manualTokensInput), [manualTokensInput]);
+  const numLookupRequestSeqRef = useRef(0);
+  const step1BuildPreviewRequestSeqRef = useRef(0);
+  const step2AutoCandidatesRequestSeqRef = useRef(0);
+  const step2AutoCandidatesRequestKeyRef = useRef("");
+  const step2ProcessRequestSeqRef = useRef(0);
   const grammarStatus = useMemo(() => deriveStatus(state), [state]);
   const activeGrammarOption = useMemo(
     () => grammarOptions.find((option) => option.grammar_id === grammarId),
@@ -465,11 +910,241 @@ export default function App() {
     }
     return manualTokens ?? [];
   }, [autoPreviewTokens, manualTokens, tokenInputMode]);
-  const selectedGrammarRule = useMemo(
-    () =>
-      grammarRuleSources.find((row) => row.rule_number === selectedGrammarRuleNumber) || null,
-    [grammarRuleSources, selectedGrammarRuleNumber]
+  const primaryGrammarOptions = useMemo(() => {
+    const preferredOrder = ["imi01", "imi02", "imi03"];
+    const byId = new Map(grammarOptions.map((option) => [option.grammar_id, option]));
+    const preferred = preferredOrder
+      .map((grammarKey) => byId.get(grammarKey))
+      .filter((option): option is GrammarOption => Boolean(option));
+    if (preferred.length === 3) {
+      return preferred;
+    }
+    return grammarOptions.slice(0, 3);
+  }, [grammarOptions]);
+  const shownStep0GrammarOptions = useMemo(() => {
+    if (showMoreGrammarOptions) {
+      return grammarOptions;
+    }
+    return primaryGrammarOptions;
+  }, [grammarOptions, primaryGrammarOptions, showMoreGrammarOptions]);
+  const activeSetupGrammarOption = useMemo(
+    () => grammarOptions.find((option) => option.grammar_id === setupGrammarId) || null,
+    [grammarOptions, setupGrammarId]
   );
+  const step1UploadFormatError = useMemo(
+    () => validateNumerationTabFormat(uploadNumerationText),
+    [uploadNumerationText]
+  );
+  const step1NumerationLexiconSourceText = useMemo(() => {
+    if (step1EntryMode === "upload_num") {
+      return uploadNumerationText;
+    }
+    if (step1EntryMode === "example_sentence") {
+      return step1ExampleNumerationText;
+    }
+    if (step1EntryMode === "build_lexicon") {
+      return step1BuildPreviewNumerationText;
+    }
+    return "";
+  }, [step1BuildPreviewNumerationText, step1EntryMode, step1ExampleNumerationText, uploadNumerationText]);
+  const step1NumerationRows = useMemo(
+    () => parseNumerationLexiconRows(normalizeNumerationTextForParse(step1NumerationLexiconSourceText)),
+    [step1NumerationLexiconSourceText]
+  );
+  const step1NumerationLexiconSourceTextForDisplay = useMemo(
+    () => encodeNumerationTextLikePerl(step1NumerationLexiconSourceText),
+    [step1NumerationLexiconSourceText]
+  );
+  const step2DisplayRows = useMemo(() => buildStep2DisplayRows(state), [state]);
+
+  function renderStep2DisplayNode(
+    node: Step2DisplayNode,
+    rowSlot: number,
+    keyPath: string,
+    depth: number
+  ): JSX.Element {
+    const syValues = node.syncFeatures.filter((feature) => feature.trim() !== "");
+    const semanticValues = node.semantics.filter((semantic) => semantic.trim() !== "");
+    const idslotRaw = node.idslot.trim();
+
+    return (
+      <>
+        {node.unresolvedMessage ? (
+          <div
+            className={depth === 0
+              ? "numeration-legacy-topline step2-parent-topline"
+              : "numeration-legacy-topline step2-child-topline"}
+            style={depth > 0 ? { paddingLeft: `${depth * 20}px` } : undefined}
+          >
+            <span className="perl-f0">{node.xLabel}</span>
+            <span className="perl-f1">-</span>
+            <span className="numeration-legacy-unresolved">{node.unresolvedMessage}</span>
+          </div>
+        ) : (
+          <div
+            className={depth === 0
+              ? "numeration-legacy-topline step2-parent-topline"
+              : "numeration-legacy-topline step2-child-topline"}
+            style={depth > 0 ? { paddingLeft: `${depth * 20}px` } : undefined}
+          >
+            <span className="perl-f0">{node.xLabel}</span>
+            <span className="perl-f1">{node.category || "-"}</span>
+            {syValues.map((feature, featureIdx) => (
+              <span className="perl-f3" key={`${keyPath}-sy-${featureIdx}`}>
+                {renderEncodedFeatureLikePerl(feature, `${rowSlot}-step2-${keyPath}-sy-${featureIdx}`)}
+              </span>
+            ))}
+            {idslotRaw === "id" && <span className="perl-f4">{node.xLabel}</span>}
+            {idslotRaw !== "" && idslotRaw !== "id" && idslotRaw !== "zero" && idslotRaw !== "rel" && (
+              <span className="perl-f4">
+                {isEncodedFeature(idslotRaw)
+                  ? renderEncodedFeatureLikePerl(idslotRaw, `${rowSlot}-step2-${keyPath}-sl`)
+                  : idslotRaw}
+              </span>
+            )}
+            {semanticValues.map((semantic, semIdx) => {
+              const pos = semantic.indexOf(":");
+              const attribute = pos >= 0 ? semantic.slice(0, pos).trim() : "";
+              const rawValue = pos >= 0 ? semantic.slice(pos + 1).trim() : semantic.trim();
+              return (
+                <span className="perl-f5" key={`${keyPath}-se-${semIdx}`}>
+                  {attribute !== "" ? `${attribute}: ` : ""}
+                  {isEncodedFeature(rawValue)
+                    ? renderEncodedFeatureLikePerl(rawValue, `${rowSlot}-step2-${keyPath}-se-${semIdx}`)
+                    : rawValue}
+                </span>
+              );
+            })}
+            {node.phono !== "" && <span className="perl-f6">{node.phono}</span>}
+          </div>
+        )}
+        {node.children.map((child, childIndex) => (
+          <div className="step2-child-block" key={`${keyPath}-child-${childIndex}`}>
+            {renderStep2DisplayNode(child, rowSlot, `${keyPath}-${childIndex}`, depth + 1)}
+          </div>
+        ))}
+      </>
+    );
+  }
+
+  function buildNumerationLexiconRows(
+    parsedRows: Pick<
+      NumerationLexiconRow,
+      "slot" | "rawLexiconId" | "lexiconId" | "plus" | "idx"
+    >[],
+    lookupMap: Map<number, LexiconItemLookupItem>
+  ): NumerationLexiconRow[] {
+    return parsedRows.map((row) => {
+      if (row.lexiconId === null) {
+        return {
+          ...row,
+          found: null,
+          entry: "",
+          phono: "",
+          category: "",
+          syncFeatures: [],
+          idslot: "",
+          semantics: [],
+          note: ""
+        };
+      }
+      const lookup = lookupMap.get(row.lexiconId);
+      if (!lookup) {
+        return {
+          ...row,
+          found: null,
+          entry: "",
+          phono: "",
+          category: "",
+          syncFeatures: [],
+          idslot: "",
+          semantics: [],
+          note: ""
+        };
+      }
+      return {
+        ...row,
+        found: lookup.found,
+        entry: lookup.entry,
+        phono: lookup.phono,
+        category: lookup.category,
+        syncFeatures: lookup.sync_features,
+        idslot: lookup.idslot,
+        semantics: lookup.semantics,
+        note: lookup.note
+      };
+    });
+  }
+
+  const loadLookupRowsForNumerationText = async (sourceText: string) => {
+    const parsedRows = parseNumerationLexiconRows(normalizeNumerationTextForParse(sourceText));
+    const uniqueIds = Array.from(
+      new Set(
+        parsedRows
+          .map((row) => row.lexiconId)
+          .filter((value): value is number => value !== null)
+      )
+    );
+    if (uniqueIds.length === 0) {
+      setNumerationLexiconRows(buildNumerationLexiconRows(parsedRows, new Map()));
+      const hasInvalidIds = parsedRows.some((row) => row.lexiconId === null);
+      setNumerationLexiconError(
+        hasInvalidIds ? "語彙IDが数値ではありません（対象行は補足表示）。" : ""
+      );
+      return;
+    }
+
+    const requestId = numLookupRequestSeqRef.current + 1;
+    numLookupRequestSeqRef.current = requestId;
+    setIsNumerationLexiconLoading(true);
+    setNumerationLexiconError("");
+    try {
+      const response = await apiPost<LexiconItemsLookupResponse>(
+        `/v1/reference/grammars/${grammarId}/lexicon-items/by-ids`,
+        { ids: uniqueIds }
+      );
+      if (numLookupRequestSeqRef.current !== requestId) {
+        return;
+      }
+      const lookupMap = new Map<number, LexiconItemLookupItem>();
+      for (const item of response.items) {
+        lookupMap.set(item.lexicon_id, item);
+      }
+      setNumerationLexiconRows(buildNumerationLexiconRows(parsedRows, lookupMap));
+      if (response.missing_ids.length > 0 && response.found_count < response.requested_count) {
+        setNumerationLexiconError(
+          `語彙ID が見つかりませんでした: ${response.missing_ids.join(", ")}`
+        );
+      } else {
+        setNumerationLexiconError("");
+      }
+    } catch (lookupError) {
+      setNumerationLexiconRows(buildNumerationLexiconRows(parsedRows, new Map()));
+      setNumerationLexiconError(
+        lookupError instanceof Error ? lookupError.message : "語彙IDの参照に失敗しました。"
+      );
+    } finally {
+      if (numLookupRequestSeqRef.current === requestId) {
+        setIsNumerationLexiconLoading(false);
+      }
+    }
+  };
+
+  useEffect(() => {
+    if (step1NumerationLexiconSourceText.trim() === "") {
+      setNumerationLexiconRows([]);
+      setNumerationLexiconError("");
+      setIsNumerationLexiconLoading(false);
+      return;
+    }
+    const timer = setTimeout(() => {
+      void loadLookupRowsForNumerationText(step1NumerationLexiconSourceText);
+    }, 250);
+    return () => {
+      clearTimeout(timer);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [grammarId, step1NumerationRows, step1NumerationLexiconSourceText]);
 
   async function withLoading(task: () => Promise<void>) {
     setLoading(true);
@@ -516,6 +1191,95 @@ export default function App() {
     }
   }
 
+  useEffect(() => {
+    if (step1EntryMode !== "build_lexicon") {
+      setStep1BuildPreviewNumerationText("");
+      setStep1BuildPreviewError("");
+      setIsStep1BuildPreviewLoading(false);
+      return;
+    }
+    if (sentence.trim() === "") {
+      setStep1BuildPreviewNumerationText("");
+      setStep1BuildPreviewError("");
+      setIsStep1BuildPreviewLoading(false);
+      return;
+    }
+
+    const requestId = step1BuildPreviewRequestSeqRef.current + 1;
+    step1BuildPreviewRequestSeqRef.current = requestId;
+    setIsStep1BuildPreviewLoading(true);
+
+    const tokensForRequest = tokenInputMode === "manual" ? resolveManualTokensForSubmit() : undefined;
+    void (async () => {
+      try {
+        const response = await apiPost<GeneratedNumeration>("/v1/derivation/numeration/generate", {
+          grammar_id: grammarId,
+          sentence,
+          tokens: tokensForRequest,
+          split_mode: splitMode
+        });
+        if (step1BuildPreviewRequestSeqRef.current !== requestId) {
+          return;
+        }
+        setStep1BuildPreviewNumerationText(response.numeration_text);
+        setStep1BuildPreviewError("");
+      } catch (previewError) {
+        if (step1BuildPreviewRequestSeqRef.current !== requestId) {
+          return;
+        }
+        setStep1BuildPreviewNumerationText("");
+        setStep1BuildPreviewError(
+          previewError instanceof Error ? previewError.message : "語彙候補の計算に失敗しました。"
+        );
+      } finally {
+        if (step1BuildPreviewRequestSeqRef.current === requestId) {
+          setIsStep1BuildPreviewLoading(false);
+        }
+      }
+    })();
+  }, [grammarId, manualTokenInput, manualTokens, sentence, splitMode, step1EntryMode, tokenInputMode]);
+
+  function parseManualTokenInput(input: string): string[] {
+    const trimmed = input.trim();
+    if (trimmed === "") {
+      return [];
+    }
+    return parseManualTokens(trimmed) || [];
+  }
+
+  function resolveManualTokensForSubmit(): string[] | undefined {
+    if (tokenInputMode !== "manual") {
+      return undefined;
+    }
+    const parsed = parseManualTokenInput(manualTokenInput);
+    if (parsed.length > 0) {
+      return parsed;
+    }
+    const rawSentence = sentence.trim();
+    return rawSentence === "" ? undefined : [rawSentence];
+  }
+
+  function startManualTokenEdit() {
+    if (tokenInputMode !== "manual") {
+      return;
+    }
+    setIsEditingManualTokens(true);
+    setManualTokenInput(manualTokens.join(", "));
+  }
+
+  function commitManualTokenEdit() {
+    const candidate = parseManualTokenInput(manualTokenInput);
+    if (candidate.length > 0) {
+      setManualTokens(candidate);
+      setManualTokenInput(candidate.join(", "));
+    } else {
+      const rawSentence = sentence.trim();
+      setManualTokens(rawSentence === "" ? [] : [rawSentence]);
+      setManualTokenInput(rawSentence);
+    }
+    setIsEditingManualTokens(false);
+  }
+
   function syncTokenEdits(response: GeneratedNumeration) {
     const edits: TokenSlotEdit[] = response.token_resolutions.map((row, index) => ({
       slot: index + 1,
@@ -543,15 +1307,229 @@ export default function App() {
     });
   }
 
-  async function handleGenerate() {
-    const tokensForRequest = tokenInputMode === "manual" ? manualTokens : undefined;
+  async function handleOpenLexiconInspect(
+    grammarKey: string,
+    page = 1,
+    categoryFilter: string | null = inspectLexiconCategoryFilter
+  ) {
+    const targetPage = Math.max(1, page);
     await withLoading(async () => {
-      const response = await apiPost<GeneratedNumeration>("/v1/derivation/numeration/generate", {
-        grammar_id: grammarId,
-        sentence,
-        tokens: tokensForRequest,
-        split_mode: splitMode
-      });
+      const categoryQuery =
+        categoryFilter && categoryFilter.trim() !== ""
+          ? `&category=${encodeURIComponent(categoryFilter)}`
+          : "";
+      const [summary, pageResponse] = await Promise.all([
+        apiGet<LexiconSummaryResponse>(`/v1/reference/grammars/${grammarKey}/lexicon-summary`),
+        apiGet<LexiconItemsPageResponse>(
+          `/v1/reference/grammars/${grammarKey}/lexicon-items?page=${targetPage}&page_size=${LEXICON_INSPECT_PAGE_SIZE}${categoryQuery}`
+        )
+      ]);
+      setInspectLexiconSummary(summary);
+      setInspectLexiconItems(pageResponse);
+      setInspectLexiconPage(pageResponse.page);
+      setInspectLexiconCategoryFilter(pageResponse.category_filter || null);
+      setRenewMenu("reference");
+      setRenewPanel("lexiconInspect");
+      setUiMode("renewed");
+    });
+  }
+
+  async function handleOpenGrammarInspect(grammarKey: string) {
+    await withLoading(async () => {
+      const rows = await apiGet<MergeRuleEntry[]>(`/v1/reference/grammars/${grammarKey}/merge-rules`);
+      setInspectMergeRules(rows);
+      setInspectMergeRulesLoadedGrammarId(grammarKey);
+      setInspectRuleCompare(null);
+      const firstRule = rows[0];
+      if (firstRule) {
+        setInspectCompareRuleNumber(firstRule.rule_number);
+      }
+      setRenewMenu("reference");
+      setRenewPanel("grammarInspect");
+      setUiMode("renewed");
+    });
+  }
+
+  async function handleOpenRuleCompare(grammarKey: string, ruleNumber: number) {
+    await withLoading(async () => {
+      const compare = await apiGet<RuleCompareResponse>(
+        `/v1/reference/grammars/${grammarKey}/rule-compare/${ruleNumber}`
+      );
+      setInspectRuleCompare(compare);
+      setInspectCompareRuleNumber(ruleNumber);
+      setRenewMenu("reference");
+      setRenewPanel("ruleCompare");
+      setUiMode("renewed");
+    });
+  }
+
+  function handleStartHypothesisLoop() {
+    setGrammarId(setupGrammarId);
+    setReferenceDocsLoadedGrammarId("");
+    setInspectMergeRulesLoadedGrammarId("");
+    setWorkflowStarted(true);
+    setRenewMenu("hypothesis");
+    setRenewPanel("sentence");
+    void handleLoadNumerationFiles("set", setupGrammarId);
+    void handleLoadNumerationFiles("saved", setupGrammarId);
+  }
+
+  function handleSelectStep1EntryMode(mode: Step1EntryMode) {
+    if (mode === "build_lexicon" && step1EntryMode === "example_sentence") {
+      if (step1ExampleNumerationMemo.trim() !== "") {
+        setSentence(step1ExampleNumerationMemo);
+      }
+    }
+    setStep1EntryMode(mode);
+    if (mode === "example_sentence") {
+      setStep1ExampleNumerationText("");
+      setNumerationLexiconRows([]);
+      setNumerationLexiconError("");
+      if (setNumerationFiles.length === 0) {
+        setStep1ExampleNumerationPath("");
+      } else if (
+        step1ExampleNumerationPath === "" ||
+        setNumerationFiles.findIndex((row) => row.path === step1ExampleNumerationPath) < 0
+      ) {
+        setStep1ExampleNumerationPath(setNumerationFiles[0].path);
+      }
+    }
+    if (mode === "upload_num") {
+      setNumerationLexiconRows([]);
+      setNumerationLexiconError("");
+    }
+    if (mode === "build_lexicon") {
+      setTokenInputMode("auto");
+      const rawSentence = sentence.trim();
+      setManualTokens(rawSentence === "" ? [] : [rawSentence]);
+      setManualTokenInput(rawSentence);
+      setIsEditingManualTokens(false);
+    }
+  }
+
+  function handleChangeStep1ExampleNumerationPath(value: string) {
+    setStep1ExampleNumerationPath(value);
+    setStep1ExampleNumerationText("");
+    setNumerationLexiconRows([]);
+    setNumerationLexiconError("");
+  }
+
+  async function handleLoadStep1ExampleNumerationByPath(path: string) {
+    if (path.trim() === "") {
+      setStep1ExampleNumerationText("");
+      return;
+    }
+    try {
+      const response = await apiPost<{ path: string; numeration_text: string; memo: string }>(
+        "/v1/derivation/numeration/load",
+        {
+          grammar_id: grammarId,
+          path
+        }
+      );
+      setStep1ExampleNumerationText(response.numeration_text);
+      setSentence(response.memo || sentence);
+      setStep1ExampleNumerationMemo(response.memo || response.numeration_text?.split("\t")?.[0] || "");
+      setNumerationLexiconError("");
+    } catch {
+      setStep1ExampleNumerationText("");
+      setStep1ExampleNumerationMemo("");
+      setNumerationLexiconError("選択した .num を読み込めませんでした。");
+    }
+  }
+
+  async function handleStep1UploadFile(file: File | null) {
+    if (!file) {
+      return;
+    }
+    try {
+      const text = await file.text();
+      setUploadNumerationText(text);
+      setStep1UploadFileName(file.name);
+    } catch {
+      setError("numファイルの読み込みに失敗しました。");
+    }
+  }
+
+  useEffect(() => {
+    const rawSentence = sentence.trim();
+    setManualTokens(rawSentence === "" ? [] : [rawSentence]);
+    setManualTokenInput(rawSentence);
+    setIsEditingManualTokens(false);
+  }, [sentence]);
+
+  useEffect(() => {
+    setHeadAssistRows([]);
+    setHeadAssistMessage("");
+  }, [state]);
+
+  useEffect(() => {
+    if (!state) {
+      setStep2ProcessText("");
+      return;
+    }
+    const requestSeq = step2ProcessRequestSeqRef.current + 1;
+    step2ProcessRequestSeqRef.current = requestSeq;
+
+    void (async () => {
+      try {
+        const response = await apiPost<ProcessExportResponse>("/v1/derivation/process/export", {
+          state
+        });
+        if (requestSeq !== step2ProcessRequestSeqRef.current) {
+          return;
+        }
+        setStep2ProcessText(response.process_text);
+      } catch {
+        if (requestSeq !== step2ProcessRequestSeqRef.current) {
+          return;
+        }
+        setStep2ProcessText(buildFallbackProcessText(state));
+      }
+    })();
+  }, [state]);
+
+  function handleOpenStep1UploadPicker() {
+    if (!step1UploadFileInputRef.current) {
+      return;
+    }
+    step1UploadFileInputRef.current.value = "";
+    step1UploadFileInputRef.current.click();
+  }
+
+  function applyInitializedState(nextState: DerivationState) {
+    setState(nextState);
+    setStep2UndoStack([]);
+    setSnapshots({ T0: cloneState(nextState), T1: null, T2: null });
+    setCandidates([]);
+    setIsStep2CandidatesLoading(false);
+    setTreeCsv("");
+    setTreeCatCsv("");
+    setTreeSourceCsv("");
+    setTreeDot("");
+    setTreeGraph(null);
+    setLfRows([]);
+    setSrRows([]);
+    setArrangeRows([]);
+    setSelectedLeft(null);
+    setSelectedRight(null);
+  }
+
+  async function requestGenerateNumeration(
+    useManualTokens = tokenInputMode === "manual"
+  ): Promise<GeneratedNumeration> {
+    const tokensForRequest = useManualTokens ? resolveManualTokensForSubmit() : undefined;
+    return apiPost<GeneratedNumeration>("/v1/derivation/numeration/generate", {
+      grammar_id: grammarId,
+      sentence,
+      tokens: tokensForRequest,
+      split_mode: splitMode
+    });
+  }
+
+  async function handleGenerate(useManualTokens = tokenInputMode === "manual") {
+    await withLoading(async () => {
+      const response = await requestGenerateNumeration(useManualTokens);
       setGenerated(response);
       setNumerationText(response.numeration_text);
       syncTokenEdits(response);
@@ -559,8 +1537,49 @@ export default function App() {
     });
   }
 
+  async function handleCreateStep1Numeration() {
+    if (step1EntryMode === "upload_num") {
+      if (step1UploadFormatError) {
+        setError(`num形式エラー: ${step1UploadFormatError}`);
+        return;
+      }
+    }
+    await withLoading(async () => {
+      let formedNumerationText = "";
+      if (step1EntryMode === "upload_num") {
+        if (uploadNumerationText.trim() === "") {
+          throw new Error("numファイルを読み込んでください。");
+        }
+        formedNumerationText = uploadNumerationText;
+        setGenerated(null);
+      } else if (step1EntryMode === "example_sentence") {
+        if (step1ExampleNumerationText.trim() === "") {
+          throw new Error("例文から .num を選択してください。");
+        }
+        formedNumerationText = step1ExampleNumerationText;
+        setGenerated(null);
+      } else {
+        const generatedNumeration = await requestGenerateNumeration();
+        setGenerated(generatedNumeration);
+        syncTokenEdits(generatedNumeration);
+        formedNumerationText = generatedNumeration.numeration_text;
+      }
+
+      setNumerationText(formedNumerationText);
+      setArrangeRows([]);
+
+      const initialized = await apiPost<DerivationState>("/v1/derivation/init", {
+        grammar_id: grammarId,
+        numeration_text: formedNumerationText
+      });
+      applyInitializedState(initialized);
+      setRenewMenu("hypothesis");
+      setRenewPanel("target");
+    });
+  }
+
   async function handleInitFromSentence() {
-    const tokensForRequest = tokenInputMode === "manual" ? manualTokens : undefined;
+    const tokensForRequest = tokenInputMode === "manual" ? resolveManualTokensForSubmit() : undefined;
     await withLoading(async () => {
       const response = await apiPost<{ numeration: GeneratedNumeration; state: DerivationState }>(
         "/v1/derivation/init/from-sentence",
@@ -574,19 +1593,9 @@ export default function App() {
       setGenerated(response.numeration);
       setNumerationText(response.numeration.numeration_text);
       syncTokenEdits(response.numeration);
-      setState(response.state);
-      setSnapshots({ T0: cloneState(response.state), T1: null, T2: null });
-      setCandidates([]);
-      setTreeCsv("");
-      setTreeCatCsv("");
-      setTreeSourceCsv("");
-      setTreeDot("");
-      setTreeGraph(null);
-      setLfRows([]);
-      setSrRows([]);
-      setArrangeRows([]);
-      setSelectedLeft(null);
-      setSelectedRight(null);
+      applyInitializedState(response.state);
+      setRenewMenu("hypothesis");
+      setRenewPanel("target");
     });
   }
 
@@ -600,25 +1609,16 @@ export default function App() {
         grammar_id: grammarId,
         numeration_text: numerationText
       });
-      setState(response);
-      setSnapshots({ T0: cloneState(response), T1: null, T2: null });
-      setCandidates([]);
-      setTreeCsv("");
-      setTreeCatCsv("");
-      setTreeSourceCsv("");
-      setTreeDot("");
-      setTreeGraph(null);
-      setLfRows([]);
-      setSrRows([]);
-      setSelectedLeft(null);
-      setSelectedRight(null);
+      applyInitializedState(response);
+      setRenewMenu("hypothesis");
+      setRenewPanel("target");
     });
   }
 
-  async function handleLoadNumerationFiles(source: "set" | "saved") {
+  async function handleLoadNumerationFiles(source: "set" | "saved", targetGrammarId = grammarId) {
     await withLoading(async () => {
       const rows = await apiGet<NumerationFileEntry[]>(
-        `/v1/derivation/numeration/files?grammar_id=${grammarId}&source=${source}`
+        `/v1/derivation/numeration/files?grammar_id=${targetGrammarId}&source=${source}`
       );
       if (source === "set") {
         setSetNumerationFiles(rows);
@@ -738,35 +1738,35 @@ export default function App() {
     setArrangeRows((prev) => prev.map((row) => (row.slot === slot ? { ...row, ...patch } : row)));
   }
 
-  async function handleCandidates() {
+  async function handleHeadAssist() {
     if (!state) {
       setError("T0 以降の state がありません。先に 初期化 を実行してください。");
       return;
     }
-
-    const leftValue = selectedLeft ?? Number(left);
-    const rightValue = selectedRight ?? Number(right);
-    if (!Number.isInteger(leftValue) || !Number.isInteger(rightValue)) {
-      setError("left/right は整数で指定してください。");
-      return;
-    }
-
     await withLoading(async () => {
-      const response = await apiPost<RuleCandidate[]>("/v1/derivation/candidates", {
+      const response = await apiPost<HeadAssistSuggestion[]>("/v1/derivation/head-assist", {
         state,
-        left: leftValue,
-        right: rightValue
+        top_k: 5
+      }, {
+        timeoutMs: 12000
       });
-      setCandidates(response);
-      setLeft(String(leftValue));
-      setRight(String(rightValue));
+      setHeadAssistRows(response);
+      if (response.length === 0) {
+        setHeadAssistMessage("候補が見つかりませんでした。別の left/right を選択して再試行してください。");
+      } else {
+        setHeadAssistMessage(`候補を ${response.length} 件表示しました。`);
+      }
     });
   }
 
-  async function handleExecuteCandidate(candidate: RuleCandidate) {
+  async function executeStep2Rule(
+    candidate: RuleCandidate,
+    options?: { fromAssist?: boolean; rank?: number; left?: number; right?: number }
+  ) {
     if (!state) {
       return;
     }
+    const currentState = cloneState(state);
     await withLoading(async () => {
       const payload: Record<string, unknown> = {
         state,
@@ -775,12 +1775,18 @@ export default function App() {
       if (candidate.rule_kind === "single") {
         payload.check = candidate.check;
       } else {
-        payload.left = candidate.left;
-        payload.right = candidate.right;
+        payload.left = options?.left ?? candidate.left;
+        payload.right = options?.right ?? candidate.right;
       }
       const nextState = await apiPost<DerivationState>("/v1/derivation/execute", payload);
+      if (currentState) {
+        setStep2UndoStack((prev) => [...prev, currentState]);
+      }
       setState(nextState);
       setCandidates([]);
+      if (options?.fromAssist) {
+        setHeadAssistMessage(`候補 ${options.rank ?? "-"} を実行しました。`);
+      }
       setSnapshots((prev) => {
         if (!prev.T1) {
           return { ...prev, T1: cloneState(nextState) };
@@ -788,6 +1794,39 @@ export default function App() {
         return { ...prev, T2: cloneState(nextState) };
       });
     });
+  }
+
+  async function handleExecuteCandidate(candidate: RuleCandidate) {
+    await executeStep2Rule(candidate);
+  }
+
+  async function handleExecuteHeadAssist(row: HeadAssistSuggestion) {
+    setSelectedLeft(row.left);
+    setSelectedRight(row.right);
+    await executeStep2Rule(
+      {
+        rule_number: row.rule_number,
+        rule_name: row.rule_name,
+        rule_kind: row.rule_kind,
+        left: row.left,
+        right: row.right,
+        check: row.check,
+      },
+      { fromAssist: true, rank: row.rank, left: row.left, right: row.right }
+    );
+  }
+
+  function handleUndoStep2Execute() {
+    if (step2UndoStack.length === 0) {
+      setHeadAssistMessage("取り消せる実行がありません。");
+      return;
+    }
+    const previous = step2UndoStack[step2UndoStack.length - 1];
+    setStep2UndoStack((prev) => prev.slice(0, -1));
+    setState(cloneState(previous));
+    setCandidates([]);
+    setIsStep2CandidatesLoading(false);
+    setHeadAssistMessage("直前の実行を取り消しました。");
   }
 
   async function handleTree(mode: TreeMode) {
@@ -866,10 +1905,6 @@ export default function App() {
     });
   }
 
-  async function handleLoadFeatureDocs() {
-    await handleLoadReferenceDocs();
-  }
-
   async function handleOpenFeatureDoc(fileName: string) {
     if (fileName.trim() === "") {
       return;
@@ -880,10 +1915,6 @@ export default function App() {
     });
   }
 
-  async function handleLoadRuleDocs() {
-    await handleLoadReferenceDocs();
-  }
-
   async function handleOpenRuleDoc(fileName: string) {
     if (fileName.trim() === "") {
       return;
@@ -891,61 +1922,6 @@ export default function App() {
     await withLoading(async () => {
       const doc = await apiGet<HtmlDocResponse>(`/v1/reference/rules/doc/${fileName}`);
       setRuleDocHtml(doc.html_text);
-    });
-  }
-
-  async function handleLoadGrammarRuleSources() {
-    await withLoading(async () => {
-      const rows = await apiGet<GrammarRuleSourceEntry[]>(
-        `/v1/reference/grammars/${grammarId}/rule-sources`
-      );
-      setGrammarRuleSources(rows);
-      setGrammarRuleSourceMessage(
-        rows.length > 0
-          ? `ルール一覧を読み込みました（${rows.length}件）`
-          : "ルール一覧は空です。"
-      );
-      if (rows.length > 0) {
-        const first = rows[0];
-        setSelectedGrammarRuleNumber(first.rule_number);
-        const response = await apiGet<GrammarRuleSourceResponse>(
-          `/v1/reference/grammars/${grammarId}/rule-sources/${first.rule_number}`
-        );
-        setGrammarRuleSourceText(response.source_text);
-        setGrammarRuleSourceFileName(response.file_name);
-      } else {
-        setSelectedGrammarRuleNumber(null);
-        setGrammarRuleSourceText("");
-        setGrammarRuleSourceFileName("");
-      }
-    });
-  }
-
-  async function handleOpenGrammarRuleSource(ruleNumber: number) {
-    await withLoading(async () => {
-      const response = await apiGet<GrammarRuleSourceResponse>(
-        `/v1/reference/grammars/${grammarId}/rule-sources/${ruleNumber}`
-      );
-      setSelectedGrammarRuleNumber(ruleNumber);
-      setGrammarRuleSourceText(response.source_text);
-      setGrammarRuleSourceFileName(response.file_name);
-      setGrammarRuleSourceMessage("");
-    });
-  }
-
-  async function handleSaveGrammarRuleSource() {
-    if (!selectedGrammarRuleNumber) {
-      setError("保存対象のルールを選択してください。");
-      return;
-    }
-    await withLoading(async () => {
-      const response = await apiPost<GrammarRuleSourceResponse>(
-        `/v1/reference/grammars/${grammarId}/rule-sources/${selectedGrammarRuleNumber}`,
-        { source_text: grammarRuleSourceText }
-      );
-      setGrammarRuleSourceFileName(response.file_name);
-      setGrammarRuleSourceText(response.source_text);
-      setGrammarRuleSourceMessage(`保存しました: ${response.file_name}`);
     });
   }
 
@@ -1075,12 +2051,11 @@ export default function App() {
     }
   }
 
-  async function jumpToGrammarEditor() {
+  async function jumpToReferenceDocs() {
     setUiMode("renewed");
     setRenewMenu("reference");
-    setRenewPanel("reference");
+    setRenewPanel("referenceDocs");
     await handleLoadReferenceDocs();
-    await handleLoadGrammarRuleSources();
     window.requestAnimationFrame(() => {
       referenceSectionRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
     });
@@ -1092,7 +2067,7 @@ export default function App() {
   }, []);
 
   useEffect(() => {
-    if (renewPanel !== "reference") {
+    if (renewPanel !== "referenceDocs") {
       return;
     }
     if (referenceDocsLoadedGrammarId === grammarId && featureDocs.length > 0 && ruleDocs.length > 0) {
@@ -1103,50 +2078,271 @@ export default function App() {
   }, [renewPanel, grammarId]);
 
   useEffect(() => {
-    void refreshAutoTokenPreview();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [tokenInputMode, splitMode, sentence, grammarId]);
-
-  useEffect(() => {
-    if (!openStep1Help) {
+    if (renewPanel !== "grammarInspect" || uiMode !== "renewed") {
       return;
     }
-    const onMouseDown = (event: MouseEvent) => {
-      const host = step1ActionRowRef.current;
-      if (!host) {
-        return;
+    if (inspectMergeRulesLoadedGrammarId === setupGrammarId && inspectMergeRules.length > 0) {
+      return;
+    }
+    void handleOpenGrammarInspect(setupGrammarId);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [renewPanel, setupGrammarId, uiMode, inspectMergeRulesLoadedGrammarId, inspectMergeRules.length]);
+
+  useEffect(() => {
+    if (grammarOptions.length === 0) {
+      return;
+    }
+    const optionIds = new Set(grammarOptions.map((option) => option.grammar_id));
+    if (!optionIds.has(grammarId)) {
+      setGrammarId(grammarOptions[0].grammar_id);
+    }
+    if (!optionIds.has(setupGrammarId)) {
+      setSetupGrammarId(grammarOptions[0].grammar_id);
+    }
+  }, [grammarId, grammarOptions, setupGrammarId]);
+
+  useEffect(() => {
+    void refreshAutoTokenPreview();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [grammarId, sentence, splitMode, tokenInputMode, workflowStarted]);
+
+  useEffect(() => {
+    if (step1EntryMode !== "example_sentence") {
+      return;
+    }
+    if (setNumerationFiles.length === 0) {
+      void handleLoadNumerationFiles("set", grammarId);
+      return;
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [step1EntryMode, grammarId, setNumerationFiles.length]);
+
+  useEffect(() => {
+    if (step1EntryMode !== "example_sentence") {
+      return;
+    }
+    if (setNumerationFiles.length === 0) {
+      setStep1ExampleNumerationPath("");
+      setStep1ExampleNumerationText("");
+      return;
+    }
+    if (!setNumerationFiles.some((entry) => entry.path === step1ExampleNumerationPath)) {
+      setStep1ExampleNumerationPath(setNumerationFiles[0].path);
+      return;
+    }
+    if (step1ExampleNumerationPath === "") {
+      setStep1ExampleNumerationPath(setNumerationFiles[0].path);
+      return;
+    }
+    void handleLoadStep1ExampleNumerationByPath(step1ExampleNumerationPath);
+  }, [grammarId, setNumerationFiles, step1ExampleNumerationPath, step1EntryMode]);
+
+  useEffect(() => {
+    step2AutoCandidatesRequestKeyRef.current = "";
+    setCandidates([]);
+    setIsStep2CandidatesLoading(false);
+  }, [state?.basenum, state?.history, state?.newnum]);
+
+  useEffect(() => {
+    if (!state) {
+      if (selectedLeft !== null) {
+        setSelectedLeft(null);
       }
-      if (host.contains(event.target as Node)) {
-        return;
+      if (selectedRight !== null) {
+        setSelectedRight(null);
       }
-      setOpenStep1Help(null);
-    };
-    const onKeyDown = (event: KeyboardEvent) => {
-      if (event.key === "Escape") {
-        setOpenStep1Help(null);
+      return;
+    }
+    if (step2DisplayRows.length === 0) {
+      if (selectedLeft !== null) {
+        setSelectedLeft(null);
       }
-    };
-    window.addEventListener("mousedown", onMouseDown);
-    window.addEventListener("keydown", onKeyDown);
-    return () => {
-      window.removeEventListener("mousedown", onMouseDown);
-      window.removeEventListener("keydown", onKeyDown);
-    };
-  }, [openStep1Help]);
+      if (selectedRight !== null) {
+        setSelectedRight(null);
+      }
+      return;
+    }
+    const availableSlots = step2DisplayRows.map((row) => row.slot);
+    const availableSet = new Set(availableSlots);
+    let nextLeft = selectedLeft;
+    if (nextLeft === null || !availableSet.has(nextLeft)) {
+      nextLeft = availableSlots[0] ?? null;
+    }
+    let nextRight = selectedRight;
+    const rightInvalid =
+      nextRight === null || !availableSet.has(nextRight) || (nextLeft !== null && nextRight === nextLeft);
+    if (rightInvalid) {
+      nextRight = availableSlots.find((slot) => slot !== nextLeft) ?? null;
+    }
+    if (nextLeft !== selectedLeft) {
+      setSelectedLeft(nextLeft);
+    }
+    if (nextRight !== selectedRight) {
+      setSelectedRight(nextRight);
+    }
+  }, [selectedLeft, selectedRight, state, step2DisplayRows]);
+
+  useEffect(() => {
+    if (!state || selectedLeft === null || selectedRight === null) {
+      setIsStep2CandidatesLoading(false);
+      setCandidates([]);
+      return;
+    }
+    if (selectedLeft === selectedRight) {
+      setCandidates([]);
+      setIsStep2CandidatesLoading(false);
+      setHeadAssistMessage("left と right は別の行を選択してください。");
+      return;
+    }
+    if (
+      selectedLeft < 1 ||
+      selectedRight < 1 ||
+      selectedLeft > state.basenum ||
+      selectedRight > state.basenum
+    ) {
+      setCandidates([]);
+      setIsStep2CandidatesLoading(false);
+      return;
+    }
+
+    const requestKey = [
+      state.newnum,
+      state.basenum,
+      state.history,
+      selectedLeft,
+      selectedRight
+    ].join("|");
+    if (step2AutoCandidatesRequestKeyRef.current === requestKey) {
+      return;
+    }
+    step2AutoCandidatesRequestKeyRef.current = requestKey;
+
+    const requestSeq = step2AutoCandidatesRequestSeqRef.current + 1;
+    step2AutoCandidatesRequestSeqRef.current = requestSeq;
+
+    setIsStep2CandidatesLoading(true);
+    void (async () => {
+      try {
+        const response = await apiPost<RuleCandidate[]>("/v1/derivation/candidates", {
+          state,
+          left: selectedLeft,
+          right: selectedRight
+        });
+        if (requestSeq !== step2AutoCandidatesRequestSeqRef.current) {
+          return;
+        }
+        setCandidates(response);
+        if (response.length === 0) {
+          setHeadAssistMessage("この左右では適用可能な規則がありません。");
+        } else {
+          setHeadAssistMessage("");
+        }
+      } catch {
+        if (requestSeq !== step2AutoCandidatesRequestSeqRef.current) {
+          return;
+        }
+        setCandidates([]);
+        setHeadAssistMessage("適用可能ルールの読込に失敗しました。");
+      } finally {
+        if (requestSeq === step2AutoCandidatesRequestSeqRef.current) {
+          setIsStep2CandidatesLoading(false);
+        }
+      }
+    })();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedLeft, selectedRight, state]);
 
   const activeRenewMenu =
     RENEW_MENUS.find((entry) => entry.key === renewMenu) || RENEW_MENUS[0];
   const legacyPerlIframeSrc = `${LEGACY_PERL_BASE_URL}/v1/legacy/perl/index-IMI.cgi?reload=${legacyFrameReloadTick}`;
 
+  const numerationLexiconPanel = (
+    <div className="numeration-lexicon-panel legacy-numeration-panel">
+      <h3>numerationの語彙情報参照</h3>
+      <p className="hint">
+        Perl実行表示に合わせて、slot・統語素性・意味素性・音韻を確認できます。
+      </p>
+      {isNumerationLexiconLoading && <p className="hint">語彙情報を参照中…</p>}
+      {numerationLexiconError && <p className="step1-upload-error">{numerationLexiconError}</p>}
+      {numerationLexiconRows.length === 0 ? (
+        <p className="hint">対象の語彙IDがありません。</p>
+      ) : (
+        <div className="numeration-legacy-list" data-testid="numeration-lexicon-table">
+          {numerationLexiconRows.map((row) => {
+            const xLabel = `x${row.slot}-1`;
+            const syValues = row.syncFeatures.filter((feature) => feature.trim() !== "");
+            const semanticValues = row.semantics.filter((semantic) => semantic.trim() !== "");
+            const idslotRaw = row.idslot.trim();
+            const unresolvedMessage = row.lexiconId === null
+              ? `語彙ID ${row.rawLexiconId} は数値ではありません`
+              : `語彙ID ${row.rawLexiconId} は辞書にありません`;
+
+            return (
+              <div className="numeration-legacy-row" key={`${row.slot}-${row.rawLexiconId}`}>
+                <div className="numeration-legacy-slot">{row.slot}</div>
+                <div className="numeration-legacy-main">
+                  {row.found === false || row.lexiconId === null ? (
+                    <div className="numeration-legacy-topline">
+                      <span className="perl-f0">{xLabel}</span>
+                      <span className="perl-f1">-</span>
+                      <span className="numeration-legacy-unresolved">{unresolvedMessage}</span>
+                    </div>
+                  ) : (
+                    <div className="numeration-legacy-topline">
+                      <span className="perl-f0">{xLabel}</span>
+                      <span className="perl-f1">{row.category || "-"}</span>
+                      {syValues.map((feature, featureIdx) => (
+                        <span className="perl-f3" key={`${row.slot}-sy-${featureIdx}`}>
+                          {renderEncodedFeatureLikePerl(feature, `${row.slot}-sy-${featureIdx}`)}
+                        </span>
+                      ))}
+                      {idslotRaw === "id" && <span className="perl-f4">{xLabel}</span>}
+                      {idslotRaw !== "" && idslotRaw !== "id" && idslotRaw !== "zero" && idslotRaw !== "rel" && (
+                        <span className="perl-f4">
+                          {isEncodedFeature(idslotRaw)
+                            ? renderEncodedFeatureLikePerl(idslotRaw, `${row.slot}-sl`)
+                            : idslotRaw}
+                        </span>
+                      )}
+                      {semanticValues.map((semantic, semIdx) => {
+                        const pos = semantic.indexOf(":");
+                        const attribute = pos >= 0 ? semantic.slice(0, pos).trim() : "";
+                        const rawValue = pos >= 0 ? semantic.slice(pos + 1).trim() : semantic.trim();
+                        return (
+                          <span className="perl-f5" key={`${row.slot}-se-${semIdx}`}>
+                            {attribute !== "" ? `${attribute}: ` : ""}
+                            {isEncodedFeature(rawValue)
+                              ? renderEncodedFeatureLikePerl(rawValue, `${row.slot}-se-${semIdx}`)
+                              : rawValue}
+                          </span>
+                        );
+                      })}
+                      {row.phono !== "" && <span className="perl-f6">{row.phono}</span>}
+                    </div>
+                  )}
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      )}
+      <label className="numeration-legacy-source-label">
+        numeration (.num)
+        <textarea
+          aria-label="Numeration Lexicon Source"
+          className="numeration-legacy-source"
+          rows={3}
+          value={step1NumerationLexiconSourceTextForDisplay}
+          readOnly
+        />
+      </label>
+    </div>
+  );
+
   return (
     <div className={uiMode === "legacy" ? "page legacy-mode" : "page renewed-mode"}>
       <header className="hero">
-        <p className="eyebrow">SYNCSEMPHONE NEXT</p>
-        <h1>Hypothesis Loop Workbench</h1>
-        <p>
-          Perl版の仮説検証導線（numeration編集・target選択・rule適用・tree/tree_cat・LF/SR・resume）を
-          Python版で再現します。
-        </p>
+        <h1>SYNCSEMPHONE NEXT</h1>
         {uiMode === "legacy" && (
           <div className="legacy-titlebar">
             <div className="legacy-title-main">統語意味論デモプログラム</div>
@@ -1223,200 +2419,394 @@ export default function App() {
             className={uiMode === "renewed" ? "grid renewed-grid" : "grid legacy-grid"}
             data-active-panel={renewPanel}
           >
-        <section className="card" data-panel="sentence">
-          <h2>1. 入力と初期化</h2>
-          <p className="hint step1-t0-note">{T0_BRIEF_DESCRIPTION}</p>
-          <div className="step1-stack">
-            <div className="grammar-field">
-              <div className="grammar-label">文法</div>
-              <div className="row grammar-controls">
-                <select
-                  aria-label="Grammar"
-                  value={grammarId}
-                  onChange={(event) => {
-                    setGrammarId(event.target.value);
-                    setReferenceDocsLoadedGrammarId("");
-                    setAutoPreviewTokens([]);
-                    setGrammarRuleSources([]);
-                    setSelectedGrammarRuleNumber(null);
-                    setGrammarRuleSourceText("");
-                    setGrammarRuleSourceFileName("");
-                    setGrammarRuleSourceMessage("");
-                  }}
-                >
-                  {grammarOptions.map((option) => (
-                    <option key={option.grammar_id} value={option.grammar_id}>
-                      {formatGrammarOption(option)}
-                    </option>
-                  ))}
-                </select>
-                <button onClick={handleLoadAllGrammars} disabled={loading}>
-                  文法一覧を更新
-                </button>
-                <button
+        <section className="card" data-panel="setup">
+          <h2>0. Lexicon / Grammar の選択</h2>
+          <p className="hint step0-description">{STEP0_START_DESCRIPTION}</p>
+          <div className="step0-field">
+            <div className="grammar-label">Lexicon / Grammar（共通選択）</div>
+            <div className="row grammar-controls step0-controls">
+              <div className="step0-select-block">
+                <div className="step0-select-row">
+                  <select
+                    aria-label="Step0 Grammar"
+                    value={setupGrammarId}
+                    onChange={(event) => setSetupGrammarId(event.target.value)}
+                  >
+                    {shownStep0GrammarOptions.map((option) => (
+                      <option key={`step0-grammar-${option.grammar_id}`} value={option.grammar_id}>
+                        {formatGrammarOption(option)}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+              <div className="step0-more-row">
+                <div className="step0-inspect-actions step0-inspect-actions-inline">
+                  <button
+                    type="button"
+                    className="step0-inspect-action-btn"
+                    onClick={() => {
+                      void handleOpenLexiconInspect(setupGrammarId, 1, null);
+                    }}
+                    disabled={loading}
+                  >
+                    Lexicon内容確認
+                  </button>
+                  <button
+                    type="button"
+                    className="step0-inspect-action-btn"
+                    onClick={() => {
+                      void handleOpenGrammarInspect(setupGrammarId);
+                    }}
+                    disabled={loading}
+                    >
+                    Grammar内容確認
+                  </button>
+                </div>
+                <span
+                  className="step0-more-toggle"
+                  role="button"
+                  tabIndex={loading ? -1 : 0}
+                  aria-label="More toggle"
+                  aria-pressed={showMoreGrammarOptions}
+                  aria-disabled={loading}
                   onClick={() => {
-                    void jumpToGrammarEditor();
+                    if (!loading) {
+                      setShowMoreGrammarOptions((prev) => !prev);
+                    }
                   }}
-                  disabled={loading}
+                  onKeyDown={(event) => {
+                    if (loading) {
+                      return;
+                    }
+                    if (event.key === "Enter" || event.key === " ") {
+                      event.preventDefault();
+                      setShowMoreGrammarOptions((prev) => !prev);
+                    }
+                  }}
                 >
-                  文法定義を閲覧・編集
-                </button>
+                  {showMoreGrammarOptions ? "✓ More" : "More"}
+                </span>
               </div>
             </div>
+          </div>
 
-            <label>
-              観察文（原文）
-              <textarea
-                aria-label="Sentence"
-                value={sentence}
-                onChange={(event) => setSentence(event.target.value)}
-                rows={3}
-              />
-            </label>
+          <div className="row step0-start-row">
+            <button
+              type="button"
+              className="step0-start-btn"
+              onClick={handleStartHypothesisLoop}
+              disabled={loading}
+            >
+              この設定で開始
+            </button>
+          </div>
+        </section>
 
-            <div className="split-result-panel">
-              <div className="split-result-head">
-                <div className="split-result-title">分割結果</div>
-                <div className="split-result-actions">
-                  <span className="split-mode-status" data-testid="token-input-mode">
-                    {tokenInputMode === "manual" ? "手動" : "自動"}
-                  </span>
-                  <div className="token-mode-toggle" role="group" aria-label="分割方法">
-                    <button
-                      type="button"
-                      className={tokenInputMode === "manual" ? "token-mode-btn active" : "token-mode-btn"}
-                      onClick={() => setTokenInputMode("manual")}
-                    >
-                      手動
-                    </button>
-                    <button
-                      type="button"
-                      className={tokenInputMode === "auto" ? "token-mode-btn active" : "token-mode-btn"}
-                      onClick={() => setTokenInputMode("auto")}
-                    >
-                      自動（Sudachi）
-                    </button>
+        <section className="card" data-panel="sentence">
+          <h2>【Step.1】Numerationの形成</h2>
+          {!workflowStarted && (
+            <p className="hint">
+              先に Step0 で設定を確定してください。未確定でも操作できますが、観察条件の固定には Step0 開始操作を推奨します。
+            </p>
+          )}
+          <p className="hint">
+            適用中のGrammar:
+            {" "}
+            {activeGrammarOption ? formatGrammarOption(activeGrammarOption) : grammarId}
+          </p>
+          <p className="hint">
+            このステップのゴールは「観察に使う .num（Numeration）を1本確定すること」です。
+          </p>
+          <p className="hint">
+            入口を分離しています。<strong>例文選択 / Lexiconから組み立てる</strong>は「Numerationを新規に形成」します。
+            <strong>numファイルを選ぶ</strong>は「既存 .num を読み込み」です。
+          </p>
+          <div className="row step1-entry-modes" role="group" aria-label="Step1 Entry Mode">
+            <button
+              type="button"
+              className={step1EntryMode === "example_sentence" ? "token-mode-btn active" : "token-mode-btn"}
+              onClick={() => handleSelectStep1EntryMode("example_sentence")}
+            >
+              例文から選ぶ
+            </button>
+            <button
+              type="button"
+              className={step1EntryMode === "upload_num" ? "token-mode-btn active" : "token-mode-btn"}
+              onClick={() => handleSelectStep1EntryMode("upload_num")}
+            >
+              numファイルを選ぶ
+            </button>
+            <button
+              type="button"
+              className={step1EntryMode === "build_lexicon" ? "token-mode-btn active" : "token-mode-btn"}
+              onClick={() => handleSelectStep1EntryMode("build_lexicon")}
+            >
+              Lexiconから組み立てる
+            </button>
+          </div>
+
+          {step1EntryMode === "example_sentence" && (
+            <div className="step1-stack">
+              <p className="hint">このモードは set-numeration から example .num を選びます。</p>
+              <label>
+                例文選択
+                <select
+                  aria-label="Step1 Example Sentence"
+                  value={step1ExampleNumerationPath}
+                  onChange={(event) => handleChangeStep1ExampleNumerationPath(event.target.value)}
+                  disabled={setNumerationFiles.length === 0}
+                >
+                  {setNumerationFiles.length === 0 ? (
+                    <option value="">
+                      （候補を読み込み中）
+                    </option>
+                  ) : (
+                    setNumerationFiles.map((entry) => (
+                      <option key={entry.path} value={entry.path}>
+                        [{entry.memo}]
+                      </option>
+                    ))
+                  )}
+                </select>
+              </label>
+              {setNumerationFiles.length === 0 && (
+                <p className="hint">例文候補が空です。Step0で「この設定で開始」を押すか、API接続を確認してください。</p>
+              )}
+              {step1NumerationLexiconSourceText === "" ? (
+                <p className="hint">例文対応 .num を読み込んで語彙情報を参照中…</p>
+              ) : (
+                numerationLexiconPanel
+              )}
+            </div>
+          )}
+
+          {step1EntryMode === "upload_num" && (
+            <div className="step1-stack">
+              <p className="hint">このモードは既存 .num の読込専用です。</p>
+              <div className="row row-start">
+                <input
+                  data-testid="step1-upload-file-input"
+                  aria-label="Step1 Upload File"
+                  type="file"
+                  accept=".num,.txt,text/plain"
+                  className="hidden-upload-input"
+                  ref={step1UploadFileInputRef}
+                  id="step1-upload-file-input"
+                  onChange={(event) => {
+                    const file = event.target.files?.[0] ?? null;
+                    void handleStep1UploadFile(file);
+                  }}
+                />
+                <button
+                  type="button"
+                  className="token-mode-btn upload-file-trigger"
+                  onClick={handleOpenStep1UploadPicker}
+                >
+                  numファイルをアップロード
+                </button>
+              </div>
+              {step1UploadFileName && <p className="hint">読み込み中ファイル: {step1UploadFileName}</p>}
+              <label>
+                .num テキスト入力（アップロード）
+                <textarea
+                  aria-label="Step1 Upload Numeration"
+                  rows={5}
+                  value={uploadNumerationText}
+                  onChange={(event) => setUploadNumerationText(event.target.value)}
+                />
+              </label>
+              {step1UploadFormatError && (
+                <p className="step1-upload-error" data-testid="step1-upload-error">
+                  {step1UploadFormatError}
+                </p>
+              )}
+              {numerationLexiconPanel}
+              <p className="hint">`Numerationを形成` を押すと、入力した `.num` を作業中Numerationへ反映します。</p>
+            </div>
+          )}
+
+          {step1EntryMode === "build_lexicon" && (
+            <div className="step1-stack">
+              <p className="hint">このモードは観察文から語彙候補を解決し、Numerationを形成します。</p>
+              <label>
+                観察文（原文）
+                <textarea
+                  aria-label="Sentence"
+                  value={sentence}
+                  onChange={(event) => setSentence(event.target.value)}
+                  rows={3}
+                />
+              </label>
+
+              <div className="split-result-panel">
+                <div className="split-result-head">
+                  <div className="split-result-title">分割結果</div>
+                  <div className="split-result-actions">
+                    <span className="split-mode-status" data-testid="token-input-mode">
+                      {tokenInputMode === "manual" ? "手動" : "自動"}
+                    </span>
+                    <div className="token-mode-toggle" role="group" aria-label="分割方法">
+                      <button
+                        type="button"
+                        className={tokenInputMode === "manual" ? "token-mode-btn active" : "token-mode-btn"}
+                        onClick={() => {
+                          setTokenInputMode("manual");
+                          setIsEditingManualTokens(false);
+                          const rawSentence = sentence.trim();
+                          setManualTokens(rawSentence === "" ? [] : [rawSentence]);
+                          setManualTokenInput(rawSentence);
+                        }}
+                      >
+                        手動
+                      </button>
+                      <button
+                        type="button"
+                        className={tokenInputMode === "auto" ? "token-mode-btn active" : "token-mode-btn"}
+                        onClick={() => {
+                          setIsEditingManualTokens(false);
+                          setTokenInputMode("auto");
+                        }}
+                      >
+                        自動（Sudachi）
+                      </button>
+                    </div>
                   </div>
+                </div>
+
+                {tokenInputMode === "manual" ? (
+                  <p className="hint">
+                    手動では観察文（原文）を空白/カンマ区切りで分割して利用します。
+                  </p>
+                ) : (
+                  <label>
+                    Sudachi 分割モード
+                    <select
+                      aria-label="Sudachi Split Mode"
+                      value={splitMode}
+                      onChange={(event) => setSplitMode(event.target.value)}
+                    >
+                      <option value="A">A</option>
+                      <option value="B">B</option>
+                      <option value="C">C</option>
+                    </select>
+                  </label>
+                )}
+                {tokenInputMode === "auto" && (
+                  <p className="hint">
+                    分割モードを切り替えると結果がその場で更新されます。
+                    {autoPreviewLoading ? "（更新中）" : ""}
+                  </p>
+                )}
+
+                <div
+                  className={`token-chip-row ${tokenInputMode === "manual" ? "manual-editable" : ""}`}
+                  data-testid="token-chip-row"
+                  onClick={(event) => {
+                    if (isEditingManualTokens) {
+                      event.stopPropagation();
+                      return;
+                    }
+                    startManualTokenEdit();
+                  }}
+                  onKeyDown={(event) => {
+                    if (isEditingManualTokens) {
+                      event.stopPropagation();
+                      return;
+                    }
+                    if (event.key === "Enter" || event.key === " ") {
+                      event.preventDefault();
+                      startManualTokenEdit();
+                    }
+                  }}
+                  role={tokenInputMode === "manual" ? "button" : undefined}
+                  tabIndex={tokenInputMode === "manual" ? 0 : -1}
+                >
+                  {tokenInputMode === "manual" && isEditingManualTokens ? (
+                    <textarea
+                      aria-label="Manual Token Editor"
+                      className="token-chip-editor"
+                      rows={2}
+                      value={manualTokenInput}
+                      onChange={(event) => setManualTokenInput(event.target.value)}
+                      onMouseDown={(event) => event.stopPropagation()}
+                      onClick={(event) => event.stopPropagation()}
+                      onKeyDown={(event) => {
+                        event.stopPropagation();
+                        if (event.key === "Enter") {
+                          event.preventDefault();
+                          commitManualTokenEdit();
+                        }
+                      }}
+                      onBlur={commitManualTokenEdit}
+                      autoFocus
+                    />
+                  ) : (
+                    <>
+                      {displayedTokens.length === 0 && (
+                        <span className="token-chip-empty">（まだ分割結果がありません）</span>
+                      )}
+                      {displayedTokens.map((token, index) => (
+                        <span
+                          key={`${token}-${index}`}
+                          className="token-chip"
+                          style={{ backgroundColor: TOKEN_CHIP_COLORS[index % TOKEN_CHIP_COLORS.length] }}
+                        >
+                          {token}
+                        </span>
+                      ))}
+                    </>
+                  )}
                 </div>
               </div>
 
-              {tokenInputMode === "manual" ? (
-                <label>
-                  手動入力（空白/カンマ区切り）
-                  <input
-                    aria-label="Manual Tokens"
-                    value={manualTokensInput}
-                    onChange={(event) => setManualTokensInput(event.target.value)}
-                  />
-                </label>
-              ) : (
-                <label>
-                  Sudachi 分割モード
-                  <select
-                    aria-label="Sudachi Split Mode"
-                    value={splitMode}
-                    onChange={(event) => setSplitMode(event.target.value)}
-                  >
-                    <option value="A">A</option>
-                    <option value="B">B</option>
-                    <option value="C">C</option>
-                  </select>
-                </label>
-              )}
-              {tokenInputMode === "auto" && (
-                <p className="hint">
-                  分割モードを切り替えると結果がその場で更新されます。
-                  {autoPreviewLoading ? "（更新中）" : ""}
-                </p>
-              )}
+              <p className="hint">
+                分割結果にもとづく語彙候補を参照します（Lexiconから組み立てるモード）。
+              </p>
+              {isStep1BuildPreviewLoading && <p className="hint">分割結果から語彙候補を計算中…</p>}
+              {step1BuildPreviewError && <p className="step1-upload-error">{step1BuildPreviewError}</p>}
+              {numerationLexiconPanel}
+            </div>
+          )}
 
-              <div className="token-chip-row" data-testid="token-chip-row">
-                {displayedTokens.length === 0 && (
-                  <span className="token-chip-empty">（まだ分割結果がありません）</span>
-                )}
-                {displayedTokens.map((token, index) => (
-                  <span
-                    key={`${token}-${index}`}
-                    className="token-chip"
-                    style={{ backgroundColor: TOKEN_CHIP_COLORS[index % TOKEN_CHIP_COLORS.length] }}
-                  >
-                    {token}
-                  </span>
-                ))}
-              </div>
-            </div>
-          </div>
-
-          <div className="row step1-actions" ref={step1ActionRowRef}>
-            <div className="step1-action-item">
-              <button onClick={handleGenerate} disabled={loading}>
-                .num を生成（T0は作らない）
-              </button>
-              <button
-                type="button"
-                className="help-tip"
-                aria-label=".num を生成の説明"
-                aria-expanded={openStep1Help === "generate_num"}
-                onClick={() =>
-                  setOpenStep1Help((prev) => (prev === "generate_num" ? null : "generate_num"))
-                }
-              >
-                ?
-              </button>
-              {openStep1Help === "generate_num" && (
-                <div className="help-popover">{STEP1_HELP_CONTENT.generate_num}</div>
-              )}
-            </div>
-            <div className="step1-action-item">
-              <button onClick={handleInitFromSentence} disabled={loading}>
-                文から T0 を初期化（.num 生成あり）
-              </button>
-              <button
-                type="button"
-                className="help-tip"
-                aria-label="文から T0 を初期化の説明"
-                aria-expanded={openStep1Help === "init_from_sentence"}
-                onClick={() =>
-                  setOpenStep1Help((prev) =>
-                    prev === "init_from_sentence" ? null : "init_from_sentence"
-                  )
-                }
-              >
-                ?
-              </button>
-              {openStep1Help === "init_from_sentence" && (
-                <div className="help-popover">{STEP1_HELP_CONTENT.init_from_sentence}</div>
-              )}
-            </div>
-            <div className="step1-action-item">
-              <button onClick={handleInitFromNumerationText} disabled={loading || numerationText.trim() === ""}>
-                .num から T0 を初期化
-              </button>
-              <button
-                type="button"
-                className="help-tip"
-                aria-label=".num から T0 を初期化の説明"
-                aria-expanded={openStep1Help === "init_from_num"}
-                onClick={() =>
-                  setOpenStep1Help((prev) => (prev === "init_from_num" ? null : "init_from_num"))
-                }
-              >
-                ?
-              </button>
-              {openStep1Help === "init_from_num" && (
-                <div className="help-popover">{STEP1_HELP_CONTENT.init_from_num}</div>
-              )}
-            </div>
+          <div className="row step1-actions">
+            <button
+              type="button"
+              className="step0-start-btn"
+              onClick={() => {
+                void handleCreateStep1Numeration();
+              }}
+              disabled={
+                loading ||
+                (step1EntryMode === "upload_num" &&
+                  (uploadNumerationText.trim() === "" || step1UploadFormatError !== null)) ||
+                (step1EntryMode === "example_sentence" && step1ExampleNumerationText.trim() === "") ||
+                (step1EntryMode === "build_lexicon" && sentence.trim() === "")
+              }
+            >
+            Numerationを形成
+            </button>
           </div>
           <p className="hint step1-action-summary">
-            まず「文から T0 を初期化（.num 生成あり）」を使い、.num 調整だけ行いたい時に「.num を生成（T0は作らない）」、
-            既存 .num の再利用時に「.num から T0 を初期化」を使います。
+            {step1EntryMode === "upload_num"
+              ? "numファイルを選んだモードでは、既存の `.num` をそのまま作業中Numerationへ読み込みます。"
+              : step1EntryMode === "example_sentence"
+                ? "例文選択モードでは set-numeration を読み込んで .num を採用します。"
+                : "Lexiconから組み立てるモードでは、語彙候補解決結果をもとにNumerationを形成します。"}
           </p>
         </section>
 
         <section className="card" data-panel="numeration">
-          <h2>2. Numeration 作成・編集</h2>
+          <h2>補助：Numeration 作成・編集</h2>
           <pre data-testid="numeration-text">{numerationText || "(未生成)"}</pre>
+          <div className="row">
+            <button onClick={handleInitFromNumerationText} disabled={loading || numerationText.trim() === ""}>
+              このNumerationから T0 を初期化
+            </button>
+            <button onClick={handleInitFromSentence} disabled={loading || sentence.trim() === ""}>
+              文から T0 を初期化（Numeration自動生成）
+            </button>
+          </div>
           <label>
             .num エディタ
             <textarea
@@ -1489,6 +2879,7 @@ export default function App() {
               onChange={(event) => setUploadNumerationText(event.target.value)}
             />
           </label>
+          {numerationLexiconPanel}
           <div className="row">
             <button onClick={handleApplyUploadNumeration} disabled={loading || uploadNumerationText.trim() === ""}>
               入力テキストを反映
@@ -1607,7 +2998,11 @@ export default function App() {
         </section>
 
         <section className="card" data-panel="target">
-          <h2>3. Target / Derivation</h2>
+          <h2>【Step.2】Grammarの適用</h2>
+          <p className="hint">
+            このステップの目的は、具体的な Numeration から解釈不可能性を消していくことです。
+            手動で left/right と rule を選んで適用します（手動モードを維持）。
+          </p>
           <p>status: {grammarStatus}</p>
           <p>
             basenum/newnum: {state ? `${state.basenum}/${state.newnum}` : "-"}
@@ -1616,74 +3011,66 @@ export default function App() {
             history: {state?.history || "(empty)"}
           </p>
 
-          {state && (
-            <table>
-              <thead>
-                <tr>
-                  <th>left</th>
-                  <th>right</th>
-                  <th>base item</th>
-                </tr>
-              </thead>
-              <tbody>
-                {Array.from({ length: state.basenum }, (_, i) => i + 1).map((index) => (
-                  <tr key={`base-row-${index}`}>
-                    <td>
-                      <input
-                        type="radio"
-                        name="left-target"
-                        checked={selectedLeft === index}
-                        onChange={() => {
-                          setSelectedLeft(index);
-                          setLeft(String(index));
-                        }}
-                      />
-                    </td>
-                    <td>
-                      <input
-                        type="radio"
-                        name="right-target"
-                        checked={selectedRight === index}
-                        onChange={() => {
-                          setSelectedRight(index);
-                          setRight(String(index));
-                        }}
-                      />
-                    </td>
-                    <td>{renderBaseItem((state.base as unknown[])[index])}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+          {state ? (
+            <div className="numeration-lexicon-panel legacy-numeration-panel step2-target-panel">
+              <h3>適用対象（left / right の選択）</h3>
+              <p className="hint">
+                `numerationの語彙情報参照` と同じ表示で確認しながら、左列・右列を選択してください。
+                初期表示では先頭2行を自動選択し、候補規則を表示します。
+              </p>
+              {step2DisplayRows.length === 0 ? (
+                <p className="hint">適用対象の行がありません。</p>
+              ) : (
+                <div className="numeration-legacy-list step2-selection-list" data-testid="step2-selection-list">
+                  {step2DisplayRows.map((row) => {
+                    return (
+                      <div className="numeration-legacy-row step2-selection-row" key={`step2-row-${row.slot}`}>
+                        <label className="step2-side-select" aria-label={`left-select-${row.slot}`}>
+                          <input
+                            type="radio"
+                            name="left-target"
+                            aria-label={`left-${row.slot}`}
+                            data-testid={`step2-left-radio-${row.slot}`}
+                            checked={selectedLeft === row.slot}
+                            onChange={() => {
+                              setSelectedLeft(row.slot);
+                              if (selectedRight === row.slot) {
+                                setSelectedRight(null);
+                              }
+                            }}
+                          />
+                        </label>
+                        <label className="step2-side-select" aria-label={`right-select-${row.slot}`}>
+                          <input
+                            type="radio"
+                            name="right-target"
+                            aria-label={`right-${row.slot}`}
+                            data-testid={`step2-right-radio-${row.slot}`}
+                            checked={selectedRight === row.slot}
+                            onChange={() => {
+                              setSelectedRight(row.slot);
+                              if (selectedLeft === row.slot) {
+                                setSelectedLeft(null);
+                              }
+                            }}
+                          />
+                        </label>
+                        <div className="numeration-legacy-slot">{row.slot}</div>
+                        <div className="numeration-legacy-main">
+                          {renderStep2DisplayNode(row.node, row.slot, `${row.slot}`, 0)}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+              <p className="hint">
+                選択中 left/right: {selectedLeft ?? "-"} / {selectedRight ?? "-"}
+              </p>
+            </div>
+          ) : (
+            <p className="hint">state が未初期化です。Step1で Numeration を形成してください。</p>
           )}
-
-          <div className="row">
-            <label>
-              left
-              <input
-                aria-label="left"
-                value={left}
-                onChange={(event) => {
-                  setLeft(event.target.value);
-                  setSelectedLeft(null);
-                }}
-              />
-            </label>
-            <label>
-              right
-              <input
-                aria-label="right"
-                value={right}
-                onChange={(event) => {
-                  setRight(event.target.value);
-                  setSelectedRight(null);
-                }}
-              />
-            </label>
-            <button onClick={handleCandidates} disabled={loading || !state}>
-              Load Candidates
-            </button>
-          </div>
 
           <table data-testid="candidate-table">
             <thead>
@@ -1695,10 +3082,10 @@ export default function App() {
               </tr>
             </thead>
             <tbody>
-              {candidates.map((candidate) => (
-                <tr key={`${candidate.rule_number}-${candidate.left}-${candidate.right}-${candidate.check}`}>
-                  <td>
-                    {candidate.rule_number}:{candidate.rule_name}
+                {candidates.map((candidate) => (
+                  <tr key={`${candidate.rule_number}-${candidate.left}-${candidate.right}-${candidate.check}`}>
+                    <td>
+                      {candidate.rule_number}:{candidate.rule_name}
                   </td>
                   <td>{candidate.rule_kind}</td>
                   <td>
@@ -1706,15 +3093,112 @@ export default function App() {
                       ? `check=${candidate.check}`
                       : `L=${candidate.left}, R=${candidate.right}`}
                   </td>
-                  <td>
-                    <button onClick={() => handleExecuteCandidate(candidate)} disabled={loading}>
-                      Execute
-                    </button>
-                  </td>
+                    <td>
+                      <div className="step2-candidate-actions">
+                        <button onClick={() => handleExecuteCandidate(candidate)} disabled={loading}>
+                          実行
+                        </button>
+                        <button
+                          onClick={handleUndoStep2Execute}
+                          disabled={loading || step2UndoStack.length === 0}
+                        >
+                          やりなおし
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+                {candidates.length === 0 && (
+                  <tr>
+                    <td>-</td>
+                    <td>-</td>
+                    <td>
+                      {isStep2CandidatesLoading
+                        ? "適用可能ルールを読込中です…"
+                        : "適用可能ルールがありません。別の left/right か 候補を提案 を試してください。"}
+                    </td>
+                    <td>
+                      <div className="step2-candidate-actions">
+                        <button disabled>実行</button>
+                        <button
+                          onClick={handleUndoStep2Execute}
+                          disabled={loading || step2UndoStack.length === 0}
+                        >
+                          やりなおし
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                )}
+              </tbody>
+            </table>
+
+          <div className="row">
+            <button onClick={handleHeadAssist} disabled={!state}>
+              候補を提案
+            </button>
+          </div>
+          {headAssistMessage && <p className="hint">{headAssistMessage}</p>}
+
+          {headAssistRows.length > 0 && (
+            <table data-testid="head-assist-table">
+              <thead>
+                <tr>
+                  <th>rank</th>
+                  <th>pair</th>
+                  <th>rule</th>
+                  <th>最短手数</th>
+                  <th>改善量</th>
+                  <th>適用後</th>
+                  <th />
                 </tr>
-              ))}
-            </tbody>
-          </table>
+              </thead>
+              <tbody>
+                {headAssistRows.map((row) => (
+                  <tr
+                    key={`assist-${row.rank}-${row.rule_number}-${row.left}-${row.right}-${row.check ?? "none"}`}
+                  >
+                    <td>{row.rank}</td>
+                    <td>
+                      {row.left}/{row.right}
+                    </td>
+                    <td>
+                      {row.rule_number}:{row.rule_name}
+                      {row.rule_kind === "single" && row.check !== undefined ? ` (check=${row.check})` : ""}
+                    </td>
+                    <td>
+                      {row.steps_to_grammatical !== undefined && row.steps_to_grammatical !== null
+                        ? `${row.steps_to_grammatical}手`
+                        : "到達手順なし"}
+                    </td>
+                    <td>
+                      {row.unresolved_before}→{row.unresolved_after} (Δ{row.unresolved_delta})
+                    </td>
+                    <td>
+                      basenum {row.basenum_before}→{row.basenum_after}
+                      {row.grammatical_after ? " / grammatical" : row.reachable_grammatical ? " / 到達可能" : " / 未解消あり"}
+                    </td>
+                    <td>
+                      <button onClick={() => void handleExecuteHeadAssist(row)} disabled={loading}>
+                        この候補を実行
+                      </button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          )}
+
+          <label className="numeration-legacy-source-label">
+            process（Perl target出力相当）
+            <textarea
+              aria-label="step2-process-text"
+              className="numeration-legacy-source"
+              rows={7}
+              value={step2ProcessText}
+              readOnly
+            />
+          </label>
         </section>
 
         <section className="card" data-panel="observation">
@@ -1855,117 +3339,348 @@ export default function App() {
           </div>
         </section>
 
-        <section className="card" data-panel="reference" ref={referenceSectionRef}>
-          <h2>6. Rule/Feature Reference (iframe)</h2>
-          <div className="row">
-            <button onClick={handleLoadFeatureDocs} disabled={loading}>
-              機能ドキュメントを再読み込み
-            </button>
-            <select
-              aria-label="feature-doc-select"
-              value={selectedFeatureDoc}
-              onChange={(event) => setSelectedFeatureDoc(event.target.value)}
-            >
-              <option value="">(select feature doc)</option>
-              {featureDocs.map((doc) => (
-                <option key={doc.file_name} value={doc.file_name}>
-                  {doc.file_name}
-                </option>
-              ))}
-            </select>
-            <button
-              onClick={() => handleOpenFeatureDoc(selectedFeatureDoc)}
-              disabled={loading || selectedFeatureDoc === ""}
-            >
-              機能ドキュメントを表示
-            </button>
-          </div>
-
-          <iframe title="feature-doc" srcDoc={featureDocHtml} style={{ width: "100%", height: 220 }} />
-
-          <div className="row">
-            <button onClick={handleLoadRuleDocs} disabled={loading}>
-              規則ドキュメントを再読み込み
-            </button>
-            <select
-              aria-label="rule-doc-select"
-              value={selectedRuleDoc}
-              onChange={(event) => setSelectedRuleDoc(event.target.value)}
-            >
-              <option value="">(select rule doc)</option>
-              {ruleDocs.map((doc) => (
-                <option key={`${doc.rule_number}-${doc.file_name}`} value={doc.file_name}>
-                  {doc.rule_number}:{doc.rule_name}
-                </option>
-              ))}
-            </select>
-            <button
-              onClick={() => handleOpenRuleDoc(selectedRuleDoc)}
-              disabled={loading || selectedRuleDoc === ""}
-            >
-              規則ドキュメントを表示
-            </button>
-          </div>
-
-          <iframe title="rule-doc" srcDoc={ruleDocHtml} style={{ width: "100%", height: 220 }} />
-
-          <h3>文法ルール原本の閲覧・編集</h3>
-          <div className="row">
-            <button onClick={handleLoadGrammarRuleSources} disabled={loading}>
-              ルール一覧を読み込む
-            </button>
-            <select
-              aria-label="grammar-rule-source-select"
-              value={selectedGrammarRuleNumber?.toString() || ""}
-              onChange={(event) => {
-                const value = Number(event.target.value);
-                if (Number.isInteger(value) && value > 0) {
-                  setSelectedGrammarRuleNumber(value);
-                } else {
-                  setSelectedGrammarRuleNumber(null);
-                }
-              }}
-            >
-              <option value="">（ルールを選択）</option>
-              {grammarRuleSources.map((row) => (
-                <option key={`rule-source-${row.rule_number}`} value={row.rule_number}>
-                  {row.rule_number}: {row.rule_name} [{row.file_name}]
-                  {row.exists ? "" : " (missing)"}
-                </option>
-              ))}
-            </select>
-            <button
-              onClick={() => {
-                if (selectedGrammarRuleNumber) {
-                  void handleOpenGrammarRuleSource(selectedGrammarRuleNumber);
-                }
-              }}
-              disabled={loading || !selectedGrammarRuleNumber}
-            >
-              読み込む
-            </button>
-            <button onClick={handleSaveGrammarRuleSource} disabled={loading || !selectedGrammarRuleNumber}>
-              保存
-            </button>
-          </div>
-          <p className="mono" data-testid="grammar-rule-source-meta">
-            file: {grammarRuleSourceFileName || "-"}
-            {"\n"}
-            selected:{" "}
-            {selectedGrammarRule
-              ? `${selectedGrammarRule.rule_number}:${selectedGrammarRule.rule_name}`
-              : "-"}
+        <section className="card" data-panel="grammarInspect">
+          <h2>6. 文法規則の内容確認</h2>
+          <p className="hint">
+            選択中 Grammar:
+            {" "}
+            {activeSetupGrammarOption?.display_name || setupGrammarId}
           </p>
-          <p data-testid="grammar-rule-source-message">{grammarRuleSourceMessage}</p>
-          <label>
-            ルール原本（.pl）
-            <textarea
-              aria-label="grammar-rule-source-editor"
-              rows={10}
-              value={grammarRuleSourceText}
-              onChange={(event) => setGrammarRuleSourceText(event.target.value)}
-            />
-          </label>
+          <p className="hint">
+            このシステムで用いられる Merge規則は、次の規則です（選択文法の定義に基づく）。
+          </p>
+          <div className="inspect-table-wrap">
+            <table data-testid="merge-rule-table">
+              <thead>
+                <tr>
+                  <th>番号</th>
+                  <th>規則名</th>
+                  <th>種別</th>
+                  <th>原本ファイル</th>
+                  <th>比較</th>
+                </tr>
+              </thead>
+              <tbody>
+                {inspectMergeRules.length === 0 && (
+                  <tr>
+                    <td colSpan={5}>規則はまだ読み込まれていません。</td>
+                  </tr>
+                )}
+                {inspectMergeRules.map((row) => (
+                  <tr key={`merge-rule-${row.rule_number}`}>
+                    <td>{row.rule_number}</td>
+                    <td>
+                      {row.rule_name}
+                      {row.is_core_merge ? "（コア）" : ""}
+                    </td>
+                    <td>{row.rule_kind}</td>
+                    <td>{row.file_name}</td>
+                    <td>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          void handleOpenRuleCompare(setupGrammarId, row.rule_number);
+                        }}
+                        disabled={loading}
+                      >
+                        移植前後を比較
+                      </button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+          <div className="row row-end grammar-inspect-footer">
+            <button
+              type="button"
+              className="secondary-btn"
+              onClick={() => {
+                void jumpToReferenceDocs();
+              }}
+              disabled={loading}
+            >
+              資料を閲覧
+            </button>
+          </div>
+        </section>
+
+        <section className="card" data-panel="lexiconInspect">
+          <h2>7. 語彙の内容確認</h2>
+          <div className="row">
+            <p className="hint inspect-summary-inline">
+              選択中 Lexicon:
+              {" "}
+              {activeSetupGrammarOption?.display_name || setupGrammarId}
+            </p>
+          </div>
+          {inspectLexiconSummary && (
+            <div className="inspect-summary-grid">
+              <div>
+                <div className="inspect-summary-label">CSV</div>
+                <div className="inspect-summary-value">{inspectLexiconSummary.source_csv}</div>
+              </div>
+              <div>
+                <div className="inspect-summary-label">語彙件数</div>
+                <div className="inspect-summary-value">{inspectLexiconSummary.entry_count}</div>
+              </div>
+              <div>
+                <div className="inspect-summary-label">原本CGI</div>
+                <div className="inspect-summary-value">
+                  {inspectLexiconSummary.legacy_lexicon_cgi_url ? (
+                    <a href={`${LEGACY_PERL_BASE_URL}${inspectLexiconSummary.legacy_lexicon_cgi_url}`} target="_blank" rel="noreferrer">
+                      lexicon.cgi 相当を開く
+                    </a>
+                  ) : (
+                    "該当なし"
+                  )}
+                </div>
+              </div>
+            </div>
+          )}
+          {inspectLexiconSummary && inspectLexiconSummary.category_counts.length > 0 && (
+            <div className="inspect-category-row">
+              <div className="inspect-category-chips">
+                {inspectLexiconSummary.category_counts.map((row) => (
+                  <button
+                    key={`cat-${row.category}`}
+                    type="button"
+                    className={
+                      inspectLexiconCategoryFilter === row.category
+                        ? "token-chip token-chip-filter active"
+                        : "token-chip token-chip-filter"
+                    }
+                    onClick={() => {
+                      const nextCategory =
+                        inspectLexiconCategoryFilter === row.category ? null : row.category;
+                      void handleOpenLexiconInspect(setupGrammarId, 1, nextCategory);
+                    }}
+                    disabled={loading}
+                  >
+                    {row.category || "(空)"}: {row.count}
+                  </button>
+                ))}
+              </div>
+              {inspectLexiconCategoryFilter && (
+                <button
+                  type="button"
+                  className="token-chip token-chip-filter inspect-clear-chip"
+                  onClick={() => {
+                    void handleOpenLexiconInspect(setupGrammarId, 1, null);
+                  }}
+                  disabled={loading}
+                >
+                  絞り込み解除（{inspectLexiconCategoryFilter}）
+                </button>
+              )}
+            </div>
+          )}
+          <div className="inspect-table-wrap">
+            <table data-testid="lexicon-inspect-table">
+              <thead>
+                <tr>
+                  <th>no</th>
+                  <th>entry</th>
+                  <th>phono</th>
+                  <th>cat</th>
+                  <th>sy</th>
+                  <th>se</th>
+                </tr>
+              </thead>
+              <tbody>
+                {!inspectLexiconItems || inspectLexiconItems.items.length === 0 ? (
+                  <tr>
+                    <td colSpan={6}>語彙はまだ読み込まれていません。</td>
+                  </tr>
+                ) : (
+                  inspectLexiconItems.items.map((row) => (
+                    <tr key={`lexicon-item-${row.lexicon_id}`}>
+                      <td>{row.lexicon_id}</td>
+                      <td>{row.entry}</td>
+                      <td>{row.phono}</td>
+                      <td>{row.category}</td>
+                      <td className="mono">{row.sync_features.join(" / ")}</td>
+                      <td className="mono">{row.semantics.join(" / ")}</td>
+                    </tr>
+                  ))
+                )}
+              </tbody>
+            </table>
+          </div>
+          {inspectLexiconItems && inspectLexiconItems.total_pages > 0 && (
+            <div className="row">
+              <button
+                type="button"
+                onClick={() => {
+                  void handleOpenLexiconInspect(
+                    setupGrammarId,
+                    inspectLexiconItems.page - 1,
+                    inspectLexiconCategoryFilter
+                  );
+                }}
+                disabled={loading || inspectLexiconItems.page <= 1}
+              >
+                前へ
+              </button>
+              <span className="mono">
+                page {inspectLexiconItems.page} / {inspectLexiconItems.total_pages}
+              </span>
+              <button
+                type="button"
+                onClick={() => {
+                  void handleOpenLexiconInspect(
+                    setupGrammarId,
+                    inspectLexiconItems.page + 1,
+                    inspectLexiconCategoryFilter
+                  );
+                }}
+                disabled={loading || inspectLexiconItems.page >= inspectLexiconItems.total_pages}
+              >
+                次へ
+              </button>
+            </div>
+          )}
+        </section>
+
+        <section className="card" data-panel="ruleCompare">
+          <h2>8. 移植前後コード比較（規則単位）</h2>
+          <div className="row">
+            <button
+              type="button"
+              className="secondary-btn"
+              onClick={() => {
+                setRenewMenu("reference");
+                setRenewPanel("grammarInspect");
+              }}
+            >
+              文法規則の内容確認へ戻る
+            </button>
+            <label>
+              比較対象規則
+              <select
+                aria-label="rule-compare-select"
+                value={inspectCompareRuleNumber?.toString() || ""}
+                onChange={(event) => {
+                  const nextRuleNumber = Number(event.target.value);
+                  if (Number.isInteger(nextRuleNumber) && nextRuleNumber > 0) {
+                    setInspectCompareRuleNumber(nextRuleNumber);
+                  } else {
+                    setInspectCompareRuleNumber(null);
+                  }
+                }}
+              >
+                <option value="">（規則を選択）</option>
+                {inspectMergeRules.map((row) => (
+                  <option key={`compare-rule-${row.rule_number}`} value={row.rule_number}>
+                    {row.rule_number}: {row.rule_name}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <button
+              type="button"
+              onClick={() => {
+                if (inspectCompareRuleNumber) {
+                  void handleOpenRuleCompare(setupGrammarId, inspectCompareRuleNumber);
+                }
+              }}
+              disabled={loading || !inspectCompareRuleNumber}
+            >
+              比較を表示
+            </button>
+          </div>
+          {!inspectRuleCompare ? (
+            <p className="hint">規則を選んで比較を表示してください。</p>
+          ) : (
+            <div className="compare-grid">
+              <div className="compare-pane">
+                <h3>移植前（Perl）: {inspectRuleCompare.perl_file_name}</h3>
+                <pre data-testid="perl-rule-source">{inspectRuleCompare.perl_source_text}</pre>
+              </div>
+              <div className="compare-pane">
+                <h3>移植後（Python）: {inspectRuleCompare.python_file_name}</h3>
+                <pre data-testid="python-rule-source">{inspectRuleCompare.python_source_text}</pre>
+              </div>
+            </div>
+          )}
+        </section>
+
+        <section className="card" data-panel="referenceDocs" ref={referenceSectionRef}>
+          <h2>9. 資料参照（素性資料 / 規則資料）</h2>
+          <div className="row">
+            <button
+              type="button"
+              className={referenceDocTab === "feature" ? "renew-step-btn active" : "renew-step-btn"}
+              onClick={() => setReferenceDocTab("feature")}
+            >
+              素性資料
+            </button>
+            <button
+              type="button"
+              className={referenceDocTab === "rule" ? "renew-step-btn active" : "renew-step-btn"}
+              onClick={() => setReferenceDocTab("rule")}
+            >
+              規則資料
+            </button>
+          </div>
+
+          {referenceDocTab === "feature" ? (
+            <>
+              <div className="row">
+                <select
+                  aria-label="feature-doc-select"
+                  value={selectedFeatureDoc}
+                  onChange={(event) => setSelectedFeatureDoc(event.target.value)}
+                >
+                  <option value="">（素性資料を選択）</option>
+                  {featureDocs.map((doc) => (
+                    <option key={doc.file_name} value={doc.file_name}>
+                      {doc.title}
+                    </option>
+                  ))}
+                </select>
+                <button
+                  onClick={() => {
+                    void handleOpenFeatureDoc(selectedFeatureDoc);
+                  }}
+                  disabled={loading || selectedFeatureDoc === ""}
+                >
+                  表示
+                </button>
+              </div>
+              <iframe
+                title="feature-doc"
+                srcDoc={featureDocHtml}
+                style={{ width: "100%", height: 260 }}
+              />
+            </>
+          ) : (
+            <>
+              <div className="row">
+                <select
+                  aria-label="rule-doc-select"
+                  value={selectedRuleDoc}
+                  onChange={(event) => setSelectedRuleDoc(event.target.value)}
+                >
+                  <option value="">（規則資料を選択）</option>
+                  {ruleDocs.map((doc) => (
+                    <option key={`${doc.rule_number}-${doc.file_name}`} value={doc.file_name}>
+                      {doc.rule_number}: {doc.rule_name}
+                    </option>
+                  ))}
+                </select>
+                <button
+                  onClick={() => {
+                    void handleOpenRuleDoc(selectedRuleDoc);
+                  }}
+                  disabled={loading || selectedRuleDoc === ""}
+                >
+                  表示
+                </button>
+              </div>
+              <iframe title="rule-doc" srcDoc={ruleDocHtml} style={{ width: "100%", height: 260 }} />
+            </>
+          )}
         </section>
 
         <section className="card" data-panel="lexicon">

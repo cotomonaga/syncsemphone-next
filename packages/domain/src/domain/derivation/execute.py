@@ -99,11 +99,11 @@ def _eval_feature_17(
 
 
 def _normalize_sy(values: list[str]) -> list[str]:
-    return [value for value in values if value != ""]
+    return ["" if value is None else str(value) for value in values]
 
 
 def _normalize_sem(values: list[str]) -> list[str]:
-    return [value for value in values if value != ""]
+    return ["" if value is None else str(value) for value in values]
 
 
 def _parse_attr_value(raw: str) -> tuple[str, str]:
@@ -343,8 +343,8 @@ def _process_se_imi03(
     rule_name: str,
     na_pr: list[Any] | None = None,
 ) -> tuple[list[str], str, list[str], list[str], list[str]]:
-    hb_se = [str(value) for value in hb[5] if str(value) != ""]
-    nb_se = [str(value) for value in nb[5] if str(value) != ""]
+    hb_se = ["" if value is None else str(value) for value in hb[5]]
+    nb_se = ["" if value is None else str(value) for value in nb[5]]
     hb_ca = str(hb[1])
     nb_ca = str(nb[1])
     hb_id = str(hb[0])
@@ -852,8 +852,8 @@ def _execute_japanese2_special_left_headed(
     ha = deepcopy(hb)
     na = deepcopy(nb)
 
-    hb_sy = [str(value) for value in hb[3] if str(value) != ""]
-    nb_sy = [str(value) for value in nb[3] if str(value) != ""]
+    hb_sy = ["" if value is None else str(value) for value in hb[3]]
+    nb_sy = ["" if value is None else str(value) for value in nb[3]]
     mo_pr, ha_pr, na_pr, hb_sy, nb_sy = _process_pr_imi03(
         hb=hb,
         nb=nb,
@@ -870,7 +870,7 @@ def _execute_japanese2_special_left_headed(
     ha_sl = "zero"
     na_sl = "zero"
 
-    hb_se = [str(value) for value in hb[5] if str(value) != ""]
+    hb_se = ["" if value is None else str(value) for value in hb[5]]
     mo_se = deepcopy(hb_se)
     if rule_name == "sase1":
         mo_se = [value.replace("2,25,ga", "2,25,ni") for value in mo_se]
@@ -948,8 +948,8 @@ def _execute_japanese2_property_merge(
     ha = deepcopy(hb)
     na = deepcopy(nb)
 
-    hb_sy = [str(value) for value in hb[3] if str(value) != ""]
-    nb_sy = [str(value) for value in nb[3] if str(value) != ""]
+    hb_sy = ["" if value is None else str(value) for value in hb[3]]
+    nb_sy = ["" if value is None else str(value) for value in nb[3]]
     mo_pr, ha_pr, na_pr, hb_sy, nb_sy = _process_pr_imi03(
         hb=hb,
         nb=nb,
@@ -974,8 +974,8 @@ def _execute_japanese2_property_merge(
     mo_sl = str(hb[4])
     ha_sl = "zero"
     na_sl = "zero"
-    hb_se = [str(value) for value in hb[5] if str(value) != ""]
-    nb_se = [str(value) for value in nb[5] if str(value) != ""]
+    hb_se = ["" if value is None else str(value) for value in hb[5]]
+    nb_se = ["" if value is None else str(value) for value in nb[5]]
     mo_se = nb_se + hb_se
     ha_se = "zero"
     na_se = "zero"
@@ -1016,8 +1016,8 @@ def _execute_japanese2_rel_merge(
     na = deepcopy(nb)
     newnum = state.newnum
 
-    hb_sy = [str(value) for value in hb[3] if str(value) != ""]
-    nb_sy = [str(value) for value in nb[3] if str(value) != ""]
+    hb_sy = ["" if value is None else str(value) for value in hb[3]]
+    nb_sy = ["" if value is None else str(value) for value in nb[3]]
     mo_pr, ha_pr, na_pr, hb_sy, nb_sy = _process_pr_imi03(
         hb=hb,
         nb=nb,
@@ -1115,8 +1115,8 @@ def _execute_japanese2_property_no(
     ha = deepcopy(hb)
     na = deepcopy(nb)
 
-    hb_sy = [str(value) for value in hb[3] if str(value) != ""]
-    nb_sy = [str(value) for value in nb[3] if str(value) != ""]
+    hb_sy = ["" if value is None else str(value) for value in hb[3]]
+    nb_sy = ["" if value is None else str(value) for value in nb[3]]
     mo_pr, ha_pr, na_pr, hb_sy, nb_sy = _process_pr_imi03(
         hb=hb,
         nb=nb,
@@ -1198,8 +1198,8 @@ def _execute_japanese2_property_da(
     ha = deepcopy(hb)
     na = deepcopy(nb)
 
-    hb_sy = [str(value) for value in hb[3] if str(value) != ""]
-    nb_sy = [str(value) for value in nb[3] if str(value) != ""]
+    hb_sy = ["" if value is None else str(value) for value in hb[3]]
+    nb_sy = ["" if value is None else str(value) for value in nb[3]]
     mo_pr, ha_pr, na_pr, hb_sy, nb_sy = _process_pr_imi03(
         hb=hb,
         nb=nb,
@@ -1220,8 +1220,8 @@ def _execute_japanese2_property_da(
         left=left,
         right=right,
     )
-    hb_se = [str(value) for value in hb[5] if str(value) != ""]
-    nb_se = [str(value) for value in nb[5] if str(value) != ""]
+    hb_se = ["" if value is None else str(value) for value in hb[5]]
+    nb_se = ["" if value is None else str(value) for value in nb[5]]
     mo_se = nb_se + hb_se
     mo_sl = "0,24"
     ha_sl = "zero"
@@ -1264,8 +1264,8 @@ def _execute_japanese2_p_merge(
     ha = deepcopy(hb)
     na = deepcopy(nb)
 
-    hb_sy = [str(value) for value in hb[3] if str(value) != ""]
-    nb_sy = [str(value) for value in nb[3] if str(value) != ""]
+    hb_sy = ["" if value is None else str(value) for value in hb[3]]
+    nb_sy = ["" if value is None else str(value) for value in nb[3]]
     mo_pr, ha_pr, na_pr, hb_sy, nb_sy = _process_pr_imi03(
         hb=hb,
         nb=nb,
@@ -1418,8 +1418,8 @@ def _single_right_headed_merge(
     newnum = state.newnum
 
     if _uses_imi_feature_engine(state.grammar_id):
-        hb_sy = [str(value) for value in hb[3] if str(value) != ""]
-        nb_sy = [str(value) for value in nb[3] if str(value) != ""]
+        hb_sy = ["" if value is None else str(value) for value in hb[3]]
+        nb_sy = ["" if value is None else str(value) for value in nb[3]]
         mo_pr, ha_pr, na_pr, hb_sy, nb_sy = _process_pr_imi03(
             hb=hb,
             nb=nb,
@@ -1548,7 +1548,7 @@ def execute_single_merge(
         if not isinstance(hb, list) or len(hb) < 8:
             raise ValueError("invalid base item for Partitioning")
 
-        hb_sy = [str(value) for value in hb[3] if str(value) != ""]
+        hb_sy = ["" if value is None else str(value) for value in hb[3]]
         tgp = ""
         for idx, feature in enumerate(hb_sy):
             parts = _split_feature(feature) if _is_uninterpretable_feature(feature) else feature.split(",")
@@ -1724,8 +1724,8 @@ def execute_double_merge(
         ha = deepcopy(hb)
         na = deepcopy(nb)
         if _uses_imi_feature_engine(state.grammar_id):
-            hb_sy = [str(value) for value in hb[3] if str(value) != ""]
-            nb_sy = [str(value) for value in nb[3] if str(value) != ""]
+            hb_sy = ["" if value is None else str(value) for value in hb[3]]
+            nb_sy = ["" if value is None else str(value) for value in nb[3]]
             mo_pr, ha_pr, na_pr, hb_sy, nb_sy = _process_pr_imi03(
                 hb=hb,
                 nb=nb,
@@ -1803,8 +1803,8 @@ def execute_double_merge(
         ha = deepcopy(hb)
         na = deepcopy(nb)
         if _uses_imi_feature_engine(state.grammar_id):
-            hb_sy = [str(value) for value in hb[3] if str(value) != ""]
-            nb_sy = [str(value) for value in nb[3] if str(value) != ""]
+            hb_sy = ["" if value is None else str(value) for value in hb[3]]
+            nb_sy = ["" if value is None else str(value) for value in nb[3]]
             mo_pr, ha_pr, na_pr, hb_sy, nb_sy = _process_pr_imi03(
                 hb=hb,
                 nb=nb,
@@ -1882,8 +1882,8 @@ def execute_double_merge(
         ha = deepcopy(hb)
         na = deepcopy(nb)
         if _uses_imi_feature_engine(state.grammar_id):
-            hb_sy = [str(value) for value in hb[3] if str(value) != ""]
-            nb_sy = [str(value) for value in nb[3] if str(value) != ""]
+            hb_sy = ["" if value is None else str(value) for value in hb[3]]
+            nb_sy = ["" if value is None else str(value) for value in nb[3]]
             mo_pr, ha_pr, na_pr, hb_sy, nb_sy = _process_pr_imi03(
                 hb=hb,
                 nb=nb,

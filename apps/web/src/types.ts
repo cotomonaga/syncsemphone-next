@@ -16,6 +16,24 @@ export type RuleCandidate = {
   check?: number;
 };
 
+export type HeadAssistSuggestion = {
+  rank: number;
+  rule_number: number;
+  rule_name: string;
+  rule_kind: "double" | "single";
+  left: number;
+  right: number;
+  check?: number;
+  unresolved_before: number;
+  unresolved_after: number;
+  unresolved_delta: number;
+  grammatical_after: boolean;
+  basenum_before: number;
+  basenum_after: number;
+  reachable_grammatical: boolean;
+  steps_to_grammatical?: number | null;
+};
+
 export type TokenResolution = {
   token: string;
   lexicon_id: number;
@@ -117,6 +135,7 @@ export type LexiconCommitResponse = {
 
 export type FeatureDocEntry = {
   file_name: string;
+  title: string;
 };
 
 export type RuleDocEntry = {
@@ -143,4 +162,82 @@ export type GrammarRuleSourceResponse = {
   rule_name: string;
   file_name: string;
   source_text: string;
+};
+
+export type LexiconSummaryItem = {
+  category: string;
+  count: number;
+};
+
+export type LexiconSummaryResponse = {
+  grammar_id: string;
+  display_name: string;
+  source_csv: string;
+  entry_count: number;
+  legacy_grammar_no: number | null;
+  legacy_lexicon_cgi_url: string | null;
+  category_counts: LexiconSummaryItem[];
+};
+
+export type LexiconInspectItem = {
+  lexicon_id: number;
+  entry: string;
+  phono: string;
+  category: string;
+  sync_features: string[];
+  idslot: string;
+  semantics: string[];
+  note: string;
+};
+
+export type LexiconItemsPageResponse = {
+  grammar_id: string;
+  category_filter: string | null;
+  page: number;
+  page_size: number;
+  total_count: number;
+  total_pages: number;
+  items: LexiconInspectItem[];
+};
+
+export type LexiconItemLookupItem = {
+  lexicon_id: number;
+  found: boolean;
+  entry: string;
+  phono: string;
+  category: string;
+  sync_features: string[];
+  idslot: string;
+  semantics: string[];
+  note: string;
+};
+
+export type LexiconItemsLookupResponse = {
+  grammar_id: string;
+  requested_count: number;
+  found_count: number;
+  missing_ids: number[];
+  items: LexiconItemLookupItem[];
+};
+
+export type MergeRuleEntry = {
+  rule_number: number;
+  rule_name: string;
+  rule_kind: "single" | "double";
+  file_name: string;
+  is_core_merge: boolean;
+};
+
+export type RuleCompareResponse = {
+  grammar_id: string;
+  rule_number: number;
+  rule_name: string;
+  perl_file_name: string;
+  perl_source_text: string;
+  python_file_name: string;
+  python_source_text: string;
+};
+
+export type ProcessExportResponse = {
+  process_text: string;
 };
