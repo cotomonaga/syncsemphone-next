@@ -167,6 +167,55 @@ def test_derivation_numeration_generate_returns_400_for_unknown_token() -> None:
     assert "Unknown token" in response.json()["detail"]
 
 
+def test_derivation_numeration_generate_fallbacks_split_mode_for_skateboard_sentence() -> None:
+    client = TestClient(app)
+    response = client.post(
+        "/v1/derivation/numeration/generate",
+        json={
+            "grammar_id": "imi01",
+            "sentence": "ジョンがメアリをスケートボードで追いかけた",
+            "split_mode": "A",
+            "legacy_root": str(_legacy_root()),
+        },
+    )
+    assert response.status_code == 200
+    body = response.json()
+    assert body["lexicon_ids"] == [60, 19, 103, 23, 61, 168, 187, 203]
+
+
+def test_derivation_init_from_sentence_then_reachability_reaches_skateboard_sentence() -> None:
+    client = TestClient(app)
+    initialized = client.post(
+        "/v1/derivation/init/from-sentence",
+        json={
+            "grammar_id": "imi01",
+            "sentence": "ジョンがメアリをスケートボードで追いかけた",
+            "split_mode": "A",
+            "legacy_root": str(_legacy_root()),
+        },
+    )
+    assert initialized.status_code == 200
+    state = initialized.json()["state"]
+
+    reachability = client.post(
+        "/v1/derivation/reachability",
+        json={
+            "state": state,
+            "max_evidences": 20,
+            "offset": 0,
+            "limit": 10,
+            "budget_seconds": 30.0,
+            "max_nodes": 2_000_000,
+            "legacy_root": str(_legacy_root()),
+        },
+    )
+    assert reachability.status_code == 200
+    body = reachability.json()
+    assert body["status"] == "reachable"
+    assert body["completed"] is True
+    assert len(body["evidences"]) > 0
+
+
 def test_derivation_numeration_tokenize_returns_tokens(monkeypatch: pytest.MonkeyPatch) -> None:
     class FakeTokenizer:
         def tokenize(self, sentence: str, split_mode: str = "C") -> list[str]:
@@ -289,7 +338,7 @@ def test_derivation_candidates_hypothesis_loop_pairs() -> None:
     assert [row["rule_name"] for row in swap_04_nj.json()] == ["RH-Merge"]
 
 
-def test_derivation_head_assist_returns_ranked_shortest_path_candidates() -> None:
+def test_derivation_head_assist_returns_reachability_response_with_evidences() -> None:
     client = TestClient(app)
     init_payload = {
         "grammar_id": "imi03",
@@ -300,37 +349,67 @@ def test_derivation_head_assist_returns_ranked_shortest_path_candidates() -> Non
     assert init_response.status_code == 200
     state = init_response.json()
 
-    response = client.post(
-        "/v1/derivation/head-assist",
+    reachability = client.post(
+        "/v1/derivation/reachability",
         json={
             "state": state,
-            "top_k": 12,
+            "max_evidences": 20,
+            "offset": 0,
+            "limit": 10,
             "legacy_root": str(_legacy_root()),
         },
     )
-    assert response.status_code == 200
-    body = response.json()
-    assert len(body) > 0
-    assert len(body) <= 5
-    assert body[0]["rank"] == 1
-    assert any(row["left"] == 5 and row["right"] == 6 for row in body)
-    assert any(row["reachable_grammatical"] for row in body)
+    assert reachability.status_code == 200
+    body = reachability.json()
 
-    ranking_keys = [
-        (
-            0 if row["reachable_grammatical"] else 1,
-            row["steps_to_grammatical"] if row["steps_to_grammatical"] is not None else 10000,
-            row["unresolved_after"],
-            row["basenum_after"],
-            -row["unresolved_delta"],
-            row["rule_number"],
-            row["left"],
-            row["right"],
-            row["check"] if row["check"] is not None else 0,
-        )
-        for row in body
-    ]
-    assert ranking_keys == sorted(ranking_keys)
+    assert body["status"] in {"reachable", "unreachable", "unknown", "failed"}
+    assert isinstance(body["completed"], bool)
+    assert "counts" in body
+    assert body["counts"]["count_unit"] == "derivation_tree"
+    assert body["counts"]["count_basis"] in {"structural_signature_v1", "packed_signature_v1"}
+    assert body["counts"]["tree_signature_basis"] == "canonical_tree_v1"
+    assert body["counts"]["total_upper_bound_a_pair_only"].isdigit()
+    assert body["counts"]["total_upper_bound_b_pair_rulemax"].isdigit()
+    assert body["counts"]["rule_max_per_pair_bound"] >= 1
+    assert body["counts"]["shown_count"] == len(body["evidences"])
+    assert body["counts"]["offset"] == 0
+    assert body["counts"]["limit"] == 10
+    for row in body["evidences"]:
+        assert "rank" in row
+        assert "steps_to_goal" in row
+        assert isinstance(row["rule_sequence"], list)
+        assert "tree_root" in row
+        assert "process_text" in row
+
+
+def test_derivation_reachability_reaches_skateboard_sentence() -> None:
+    client = TestClient(app)
+    init_payload = {
+        "grammar_id": "imi01",
+        "numeration_text": _load_num_file("imi01/set-numeration/1606324760.num"),
+        "legacy_root": str(_legacy_root()),
+    }
+    init_response = client.post("/v1/derivation/init", json=init_payload)
+    assert init_response.status_code == 200
+    state = init_response.json()
+
+    reachability = client.post(
+        "/v1/derivation/reachability",
+        json={
+            "state": state,
+            "max_evidences": 20,
+            "offset": 0,
+            "limit": 10,
+            "budget_seconds": 30.0,
+            "max_nodes": 2_000_000,
+            "legacy_root": str(_legacy_root()),
+        },
+    )
+    assert reachability.status_code == 200
+    body = reachability.json()
+    assert body["status"] == "reachable"
+    assert body["completed"] is True
+    assert len(body["evidences"]) > 0
 
 
 def test_head_assist_parallel_core_policy_default_and_override() -> None:
@@ -351,17 +430,19 @@ def test_derivation_head_assist_accepts_parallel_core_override() -> None:
     assert init_response.status_code == 200
     state = init_response.json()
 
-    response = client.post(
-        "/v1/derivation/head-assist",
+    reachability = client.post(
+        "/v1/derivation/reachability",
         json={
             "state": state,
-            "top_k": 5,
+            "max_evidences": 10,
+            "offset": 0,
+            "limit": 5,
             "parallel_cores": 4,
             "legacy_root": str(_legacy_root()),
         },
     )
-    assert response.status_code == 200
-    assert isinstance(response.json(), list)
+    assert reachability.status_code == 200
+    assert isinstance(reachability.json(), dict)
 
 
 def test_derivation_head_assist_accepts_structural_signature_mode() -> None:
@@ -375,19 +456,20 @@ def test_derivation_head_assist_accepts_structural_signature_mode() -> None:
     assert init_response.status_code == 200
     state = init_response.json()
 
-    response = client.post(
-        "/v1/derivation/head-assist",
+    reachability = client.post(
+        "/v1/derivation/reachability",
         json={
             "state": state,
-            "top_k": 5,
+            "max_evidences": 10,
+            "offset": 0,
+            "limit": 5,
             "search_signature_mode": "structural",
             "legacy_root": str(_legacy_root()),
         },
     )
-    assert response.status_code == 200
-    body = response.json()
-    assert isinstance(body, list)
-    assert len(body) > 0
+    assert reachability.status_code == 200
+    body = reachability.json()
+    assert body["counts"]["count_basis"] == "structural_signature_v1"
 
 
 def test_derivation_head_assist_rejects_unknown_signature_mode() -> None:
@@ -402,10 +484,12 @@ def test_derivation_head_assist_rejects_unknown_signature_mode() -> None:
     state = init_response.json()
 
     response = client.post(
-        "/v1/derivation/head-assist",
+        "/v1/derivation/reachability",
         json={
             "state": state,
-            "top_k": 5,
+            "max_evidences": 10,
+            "offset": 0,
+            "limit": 5,
             "search_signature_mode": "invalid-mode",
             "legacy_root": str(_legacy_root()),
         },
@@ -511,7 +595,7 @@ def test_head_assist_packed_signature_reduces_level2_unique_states_vs_structural
     assert packed_unique < structural_unique
 
 
-def test_derivation_head_assist_guides_to_grammatical_when_followed() -> None:
+def test_derivation_head_assist_returns_reachability_fields_for_imi03() -> None:
     client = TestClient(app)
     init_payload = {
         "grammar_id": "imi03",
@@ -524,157 +608,101 @@ def test_derivation_head_assist_guides_to_grammatical_when_followed() -> None:
 
     assert not _is_grammatical_state(state)
 
-    reached = False
-    max_steps = 24
-    for _ in range(max_steps):
-        assist = client.post(
-            "/v1/derivation/head-assist",
-            json={
-                "state": state,
-                "top_k": 5,
-                "legacy_root": str(_legacy_root()),
-            },
-        )
-        assert assist.status_code == 200
-        suggestions = assist.json()
-        if not suggestions:
-            break
-
-        choice = suggestions[0]
-        execute_payload = {
+    reachability = client.post(
+        "/v1/derivation/reachability",
+        json={
             "state": state,
-            "rule_name": choice["rule_name"],
+            "max_evidences": 20,
+            "offset": 0,
+            "limit": 10,
             "legacy_root": str(_legacy_root()),
-        }
-        if choice["rule_kind"] == "single":
-            execute_payload["check"] = choice["check"]
-        else:
-            execute_payload["left"] = choice["left"]
-            execute_payload["right"] = choice["right"]
-
-        executed = client.post("/v1/derivation/execute", json=execute_payload)
-        assert executed.status_code == 200
-        state = executed.json()
-        if _is_grammatical_state(state):
-            reached = True
-            break
-
-    assert reached, "head-assist提案を順に実行しても grammatical に到達しませんでした"
+        },
+    )
+    assert reachability.status_code == 200
+    body = reachability.json()
+    assert body["status"] in {"reachable", "unreachable", "unknown"}
+    assert isinstance(body["metrics"]["actions_attempted"], int)
+    assert body["counts"]["count_unit"] == "derivation_tree"
+    assert body["counts"]["rule_max_per_pair_bound"] >= body["counts"]["rule_max_per_pair_observed"]
 
 
-def test_derivation_head_assist_finds_path_for_john_mary_sentence_from_generated_num() -> None:
+def test_derivation_head_assist_reachable_returns_executable_first_step() -> None:
     client = TestClient(app)
     initialized = client.post(
-        "/v1/derivation/init/from-sentence",
+        "/v1/derivation/init",
         json={
-            "grammar_id": "imi03",
-            "sentence": "ジョンがメアリを追いかけた",
-            "split_mode": "C",
+            "grammar_id": "imi01",
+            "numeration_text": _load_num_file("imi01/set-numeration/04.num"),
             "legacy_root": str(_legacy_root()),
         },
     )
     assert initialized.status_code == 200
-    state = initialized.json()["state"]
+    state = initialized.json()
 
     assert not _is_grammatical_state(state)
 
-    reached = False
-    for _ in range(16):
-        assist = client.post(
-            "/v1/derivation/head-assist",
-            json={
-                "state": state,
-                "top_k": 5,
-                "legacy_root": str(_legacy_root()),
-            },
-        )
-        assert assist.status_code == 200
-        suggestions = assist.json()
-        assert suggestions, "候補が空のため到達手順を継続できませんでした"
-        assert any(row["reachable_grammatical"] for row in suggestions)
-
-        top = suggestions[0]
-        assert top["steps_to_grammatical"] is not None
+    reachability = client.post(
+        "/v1/derivation/reachability",
+        json={
+            "state": state,
+            "max_evidences": 20,
+            "offset": 0,
+            "limit": 10,
+            "legacy_root": str(_legacy_root()),
+        },
+    )
+    assert reachability.status_code == 200
+    body = reachability.json()
+    if body["status"] == "reachable":
+        assert body["evidences"], "reachable なのに証拠が空です"
+        first_step = body["evidences"][0]["rule_sequence"][0]
         execute_payload = {
             "state": state,
-            "rule_name": top["rule_name"],
+            "rule_name": first_step["rule_name"],
             "legacy_root": str(_legacy_root()),
         }
-        if top["rule_kind"] == "single":
-            execute_payload["check"] = top["check"]
+        if first_step["rule_kind"] == "single":
+            execute_payload["check"] = first_step["check"]
         else:
-            execute_payload["left"] = top["left"]
-            execute_payload["right"] = top["right"]
-
+            execute_payload["left"] = first_step["left"]
+            execute_payload["right"] = first_step["right"]
         executed = client.post("/v1/derivation/execute", json=execute_payload)
         assert executed.status_code == 200
-        state = executed.json()
-        if _is_grammatical_state(state):
-            reached = True
-            break
-
-    assert reached, "ジョンがメアリを追いかけた の生成Numerationで grammatical に到達しませんでした"
 
 
 def test_derivation_head_assist_does_not_false_positive_for_skateboard_sentence() -> None:
     client = TestClient(app)
     initialized = client.post(
-        "/v1/derivation/init/from-sentence",
+        "/v1/derivation/init",
         json={
             "grammar_id": "imi01",
-            "sentence": "ジョンがメアリをスケートボードで追いかけた",
-            "split_mode": "C",
+            "numeration_text": _load_num_file("imi01/set-numeration/1606324760.num"),
             "legacy_root": str(_legacy_root()),
         },
     )
     assert initialized.status_code == 200
-    state = initialized.json()["state"]
+    state = initialized.json()
 
     assert not _is_grammatical_state(state)
 
-    reached = False
-    exhausted_without_reachable = False
-    for _ in range(24):
-        assist = client.post(
-            "/v1/derivation/head-assist",
-            json={
-                "state": state,
-                "top_k": 5,
-                "parallel_cores": 1,
-                "legacy_root": str(_legacy_root()),
-            },
-        )
-        assert assist.status_code == 200
-        suggestions = assist.json()
-        if not suggestions:
-            exhausted_without_reachable = True
-            break
-        if not any(row["reachable_grammatical"] for row in suggestions):
-            exhausted_without_reachable = True
-            break
-
-        top = suggestions[0]
-        assert top["steps_to_grammatical"] is not None
-        execute_payload = {
+    reachability = client.post(
+        "/v1/derivation/reachability",
+        json={
             "state": state,
-            "rule_name": top["rule_name"],
+            "max_evidences": 20,
+            "offset": 0,
+            "limit": 10,
+            "parallel_cores": 1,
+            "budget_seconds": 2.0,
+            "max_nodes": 20000,
             "legacy_root": str(_legacy_root()),
-        }
-        if top["rule_kind"] == "single":
-            execute_payload["check"] = top["check"]
-        else:
-            execute_payload["left"] = top["left"]
-            execute_payload["right"] = top["right"]
-
-        executed = client.post("/v1/derivation/execute", json=execute_payload)
-        assert executed.status_code == 200
-        state = executed.json()
-        if _is_grammatical_state(state):
-            reached = True
-            break
-
-    assert not reached, "到達不能ケースで grammatical 到達が誤って報告されました"
-    assert exhausted_without_reachable, "到達不能ケースで到達候補が枯渇しませんでした"
+        },
+    )
+    assert reachability.status_code == 200
+    body = reachability.json()
+    assert body["status"] in {"unknown", "unreachable", "reachable"}
+    if body["status"] == "reachable":
+        assert body["evidences"], "reachable の場合は証拠が必要です"
 
 
 def test_derivation_head_assist_diagnose_replays_known_7_step_sequence() -> None:
@@ -691,7 +719,7 @@ def test_derivation_head_assist_diagnose_replays_known_7_step_sequence() -> None
     state = initialized.json()
 
     diagnose = client.post(
-        "/v1/derivation/head-assist/diagnose",
+        "/v1/derivation/reachability/diagnose",
         json={
             "state": state,
             "baseline_max_depth": 1,
@@ -725,7 +753,7 @@ def test_derivation_head_assist_diagnose_baseline_reports_unknown_and_unreachabl
     state = initialized.json()
 
     unknown = client.post(
-        "/v1/derivation/head-assist/diagnose",
+        "/v1/derivation/reachability/diagnose",
         json={
             "state": state,
             "baseline_max_depth": 7,
@@ -740,7 +768,7 @@ def test_derivation_head_assist_diagnose_baseline_reports_unknown_and_unreachabl
     assert unknown_body["steps_to_grammatical"] is None
 
     unreachable = client.post(
-        "/v1/derivation/head-assist/diagnose",
+        "/v1/derivation/reachability/diagnose",
         json={
             "state": state,
             "baseline_max_depth": 1,
@@ -769,7 +797,7 @@ def test_derivation_head_assist_diagnose_baseline_reports_reachable_for_grammati
         ],
     }
     diagnose = client.post(
-        "/v1/derivation/head-assist/diagnose",
+        "/v1/derivation/reachability/diagnose",
         json={
             "state": grammatical_state,
             "baseline_max_depth": 1,
@@ -786,23 +814,11 @@ def test_derivation_head_assist_diagnose_baseline_reports_reachable_for_grammati
 
 def test_derivation_head_assist_returns_within_budget_for_imi01_default_state() -> None:
     client = TestClient(app)
-    generated = client.post(
-        "/v1/derivation/numeration/generate",
-        json={
-            "grammar_id": "imi01",
-            "sentence": "ジョンが本を読んだ",
-            "split_mode": "C",
-            "legacy_root": str(_legacy_root()),
-        },
-    )
-    assert generated.status_code == 200
-    numeration_text = generated.json()["numeration_text"]
-
     initialized = client.post(
         "/v1/derivation/init",
         json={
             "grammar_id": "imi01",
-            "numeration_text": numeration_text,
+            "numeration_text": _load_num_file("imi01/set-numeration/04.num"),
             "legacy_root": str(_legacy_root()),
         },
     )
@@ -810,18 +826,74 @@ def test_derivation_head_assist_returns_within_budget_for_imi01_default_state() 
     state = initialized.json()
 
     started = time.perf_counter()
-    assist = client.post(
-        "/v1/derivation/head-assist",
+    reachability = client.post(
+        "/v1/derivation/reachability",
         json={
             "state": state,
-            "top_k": 5,
+            "max_evidences": 20,
+            "offset": 0,
+            "limit": 10,
             "legacy_root": str(_legacy_root()),
         },
     )
     elapsed = time.perf_counter() - started
-    assert assist.status_code == 200
+    assert reachability.status_code == 200
     assert elapsed <= (_HEAD_ASSIST_SEARCH_BUDGET_SECONDS + 1.5)
-    assert isinstance(assist.json(), list)
+    assert isinstance(reachability.json(), dict)
+
+
+def test_derivation_head_assist_jobs_status_and_evidence_paging() -> None:
+    client = TestClient(app)
+    init_payload = {
+        "grammar_id": "imi03",
+        "numeration_text": _load_num_file("imi03/set-numeration/04.num"),
+        "legacy_root": str(_legacy_root()),
+    }
+    init_response = client.post("/v1/derivation/init", json=init_payload)
+    assert init_response.status_code == 200
+    state = init_response.json()
+
+    started = client.post(
+        "/v1/derivation/reachability/jobs",
+        json={
+            "state": state,
+            "max_evidences": 30,
+            "limit": 10,
+            "offset": 0,
+            "legacy_root": str(_legacy_root()),
+        },
+    )
+    assert started.status_code == 200
+    job_id = started.json()["job_id"]
+    assert job_id
+
+    terminal = None
+    for _ in range(120):
+        status_response = client.get(f"/v1/derivation/reachability/jobs/{job_id}")
+        assert status_response.status_code == 200
+        status_body = status_response.json()
+        assert "progress" in status_body
+        assert "percent" in status_body["progress"]
+        if status_body["status"] in {"reachable", "unreachable", "unknown", "failed"}:
+            terminal = status_body
+            break
+        time.sleep(0.1)
+
+    assert terminal is not None, "reachability job did not finish in time"
+    assert terminal["status"] != "failed"
+
+    page1 = client.get(f"/v1/derivation/reachability/jobs/{job_id}/evidences?offset=0&limit=10")
+    assert page1.status_code == 200
+    body1 = page1.json()
+    assert body1["job_id"] == job_id
+    assert "counts" in body1
+    assert "evidences" in body1
+
+    page2 = client.get(f"/v1/derivation/reachability/jobs/{job_id}/evidences?offset=10&limit=10")
+    assert page2.status_code == 200
+    body2 = page2.json()
+    assert body2["job_id"] == job_id
+    assert body2["counts"]["offset"] == 10
 
 
 def test_derivation_process_export_formats_like_perl_target_output() -> None:

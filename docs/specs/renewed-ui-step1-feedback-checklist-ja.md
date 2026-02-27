@@ -259,7 +259,30 @@
 - [x] `S2-HDA-25` Perl既知7手をPythonで逐次リプレイし、各手で候補存在・遷移結果・未解釈数を照合する。
 - [x] `S2-HDA-26` DPOR/TTを無効化した深さ制限完全探索（baseline）を追加し、深さ7で既知手順の再発見可否を固定する（単純IDDFSで `2,000,004` ノード時点でも depth=4 探索中、再発見不可）。
 
+## 46. 到達判定の運用経路回帰（文入力 -> Step2）
+- [x] `S2-REG-12` `init/from-sentence`（文入力）で生成した `ジョンがメアリをスケートボードで追いかけた` の state に対し、`/v1/derivation/reachability` が `reachable` を返すことをAPIテストで固定する。
+- [x] `S2-REG-13` Playwright実機で `【Step.1】Numerationの形成 -> Numerationを形成 -> 【Step.2】候補を提案` を実行し、到達判定が `reachable` になることを確認する。
+
 ## 46. 切り分け判定文言の厳密化（不明/未到達の分離）
 - [x] `DOC-HPSG-EXP-17` 9.2 の結果表現を二値 `found=False` から「不明（探索未完了）」へ修正し、未到達と混同しないようにする。
 - [x] `DOC-HPSG-EXP-18` 9.3 の判定を「3確定」から「不明（完走前打切り）」へ改め、状態爆発が主因であることを計算量下界（順序爆発試算）付きで明示する。
 - [x] `S2-REG-09` `未到達` と `不明(予算切れ)` の返却条件をテストで固定し、判定誤用を防止する。
+
+## 47. head-assist 完全置換（到達正判定 + DAG + 進捗表示）
+- [x] `S2-HDA-27` `POST /v1/derivation/head-assist` を提案APIから到達正判定APIへ完全置換する（`reachable/unreachable/unknown/failed` + 証拠返却）。
+- [x] `S2-HDA-28` 到達証拠を `rule_sequence + tree_root(JSON) + process_text` で返し、`max_evidences` と `offset/limit` で10件おかわりページングを可能にする。
+- [x] `S2-HDA-29` 非同期ジョブAPI（start/status/evidences）を追加し、Web側で API処理中の完了率（progress）を表示する。
+- [x] `S2-HDA-30` 件数契約を `count_status/count_unit/count_basis/tree_signature_basis` で固定し、巨大整数は文字列で返す。
+- [x] `DOC-HPSG-EXP-19` 設計レポートの用語を「森林」から「DAG（共有DAG）」へ統一し、上界A/Bと進捗率の定義を追記する。
+
+## 48. 単一開発環境（Python 3.9）へ復帰
+- [x] `ENV-UNI-01` `apps/api` と `packages/domain` の `requires-python` を `>=3.9` に揃える。
+- [x] `ENV-UNI-02` FastAPI/uvicorn/pydantic/pytest/httpx の依存バージョンを 3.9 実動構成へ固定する。
+- [x] `ENV-UNI-03` テスト実行スクリプトを単一仮想環境（`apps/api/.venv`）固定に変更し、`python3` 直呼びを排除する。
+- [x] `ENV-UNI-04` README のセットアップ手順を単一仮想環境運用に合わせ、`zsh` で壊れないコマンド表記へ修正する。
+
+## 49. Reachability 経路の実装仕上げ（探索削減ルール + UI回帰）
+- [x] `S2-HDA-31` Reachability 遷移列挙で探索削減ルールを全適用する（`nohead` 制約、未解釈素性の単調減少、格助詞の直前名詞優先、局所 `V-T` 優先）。
+- [x] `S2-HDA-32` API経路を `/v1/derivation/reachability*` に統一したまま、UI文言は `候補を提案` を維持して仮説検証導線を保持する。
+- [x] `S2-REG-10` Webユニットテストを非同期ジョブAPI（`/reachability/jobs`）仕様へ更新し、Step2提案UIの回帰を固定する。
+- [x] `S2-REG-11` 全件テスト（`apps/web` unit + `apps/api` pytest + `scripts/test-all.sh`）を実行し、回帰なしを確認する。

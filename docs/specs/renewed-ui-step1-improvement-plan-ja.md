@@ -158,6 +158,21 @@
 | S2-REG-09 | `未到達` と `不明(予算切れ)` の返却条件をテストで固定し、判定誤用を防止する | `apps/api/tests/test_derivation.py` | `pytest` |
 | DOC-HPSG-EXP-17 | 切り分けレポート9.2の結果表現を `found=False` から `不明（探索未完了）` に修正し、二値誤判定を回避する | `docs/specs/layer1-layer2-nonconvergence-report-ja.md` | 文書レビュー |
 | DOC-HPSG-EXP-18 | 切り分けレポート9.3の判定を「3確定」から「不明（完走前打切り）」へ改訂し、状態爆発の下界試算（順序爆発）を追記する | `docs/specs/layer1-layer2-nonconvergence-report-ja.md` | 文書レビュー |
+| S2-HDA-27 | `POST /v1/derivation/head-assist` を提案APIから到達正判定APIへ完全置換し、`reachable/unreachable/unknown/failed` + 証拠返却へ更新する | `apps/api/app/api/v1/derivation.py`, `apps/api/tests/test_derivation.py` | `pytest` |
+| S2-HDA-28 | 到達証拠を `rule_sequence + tree_root + process_text` で返却し、`max_evidences` と `offset/limit`（10件おかわり）に対応する | `apps/api/app/api/v1/derivation.py`, `apps/web/src/types.ts`, `apps/web/src/App.tsx` | `pytest`, `vitest` |
+| S2-HDA-29 | 非同期ジョブAPI（start/status/evidences）とWebポーリング進捗バーを実装し、API処理中の完了率を表示する | `apps/api/app/api/v1/derivation.py`, `apps/web/src/App.tsx`, `apps/web/src/api.ts` | `pytest`, `vitest`, `playwright` |
+| S2-HDA-30 | 件数契約（`count_status/count_unit/count_basis/tree_signature_basis`）と巨大整数文字列返却を固定する | `apps/api/app/api/v1/derivation.py`, `apps/web/src/types.ts` | `pytest`, `vitest` |
+| DOC-HPSG-EXP-19 | 設計レポート用語を「森林」から「DAG（共有DAG）」へ統一し、上界A/Bと進捗率定義を追記する | `docs/RHLHマージ＋素性照合における到達性と文法妥当性検証のための設計レポート.md` | 文書レビュー |
+| ENV-UNI-01 | `apps/api` と `packages/domain` の `requires-python` を `>=3.9` に揃え、3.12必須扱いを撤回する | `apps/api/pyproject.toml`, `packages/domain/pyproject.toml` | `pip install -e '.[dev]'`（3.9） |
+| ENV-UNI-02 | FastAPI/uvicorn/pydantic/pytest/httpx を 3.9 実動バージョンへ固定する | `apps/api/pyproject.toml`, `packages/domain/pyproject.toml` | `pip check`, `pytest` |
+| ENV-UNI-03 | テストスクリプトを単一仮想環境（`apps/api/.venv`）固定へ変更し、`python3` 直呼びを排除する | `scripts/test-all.sh` | `./scripts/test-all.sh` |
+| ENV-UNI-04 | README セットアップ手順を単一仮想環境運用に合わせ、`zsh` で壊れない `pip install` 表記へ修正する | `README.md` | 文書レビュー |
+| S2-HDA-31 | Reachability遷移列挙で探索削減ルールを全適用する（`nohead` 制約、未解釈素性の単調減少、格助詞の直前名詞優先、局所 `V-T` 優先） | `apps/api/app/api/v1/derivation.py` | `apps/api/tests/test_derivation.py`, `./scripts/test-all.sh` |
+| S2-HDA-32 | API経路を `/v1/derivation/reachability*` に統一したまま、Step2の操作文言を `候補を提案` へ維持して仮説検証導線を保持する | `apps/web/src/App.tsx` | `apps/web/src/__tests__/App.test.tsx` |
+| S2-REG-10 | Webユニットテストを非同期ジョブAPI（`/reachability/jobs`）仕様へ更新し、Step2提案UIの回帰を固定する | `apps/web/src/__tests__/App.test.tsx` | `npm test -- src/__tests__/App.test.tsx` |
+| S2-REG-11 | 全件テスト（Web unit / API pytest / `scripts/test-all.sh`）を再実行し、手戻りなしを確認する | `apps/web`, `apps/api`, `scripts/test-all.sh` | 実行ログ |
+| S2-REG-12 | 文入力経路（`/init/from-sentence`）で生成したスケートボード文の state に対し、`/reachability` が `reachable` を返す回帰テストを追加する | `apps/api/tests/test_derivation.py` | `pytest` |
+| S2-REG-13 | Playwright実機で `Step1 -> Numerationを形成 -> Step2 候補を提案` を実行し、スケートボード文で `reachable` 判定が表示されることを確認する | `output/playwright`（実機確認） | Playwright |
 
 ## 実装メモ（2026-02-27）
 - `S2-VIS-02`: Step2 適用対象ペインを `base[slot][7]` の子ノード再帰表示に対応し、合体後ノード（親＋子）を描画するよう更新。
@@ -177,6 +192,11 @@
 - `S2-HDA-26`: 同診断APIに DPOR/TT 無効の depth制限 baseline 探索を追加し、`imi01/1606324760.num` で単純IDDFS（深さ7）を実測。`2,000,004` ノード時点でも depth=4 探索中で打切りとなり、結論を「不明（探索未完了）」へ修正した。
 - `S2-REG-09`: baseline の三値判定（`reachable` / `unreachable` / `unknown`）を API テストで固定し、`unknown` と `unreachable` の混同を防止した。
 - `DOC-HPSG-EXP-17/DOC-HPSG-EXP-18`: 9.2/9.3 の文言を厳密化し、`found=False` 断定を廃止。状態爆発の客観値として順序爆発下界（`203,212,800`・`323,237,769`）を追記した。
+- `S2-HDA-31`: Reachability候補列挙に `nohead` 制約 + 未解釈素性単調減少 + 格助詞局所優先 + 局所 `V-T` 優先を導入し、状態空間を段階的に絞る実装へ更新した。
+- `S2-HDA-32/S2-REG-10`: Step2ボタン文言を `候補を提案` に戻しつつ、Webテストモックを `/reachability/jobs` 非同期フローへ更新した。
+- `S2-REG-11`: `apps/web` unit（20件）、`apps/api` pytest（86件）、`./scripts/test-all.sh`（domain+api）を実行し、全件通過を確認した。
+- `S2-REG-12`: API回帰 `test_derivation_init_from_sentence_then_reachability_reaches_skateboard_sentence` を追加し、文入力経路でもスケートボード文の到達成功を固定した。
+- `S2-REG-13`: Playwright実機で Step1 からスケートボード文を形成し、Step2 の `候補を提案` 実行で `到達判定: reachable` 表示になることを確認した。
 
 ## API追加（S1-GRM-02）
 - `GET /v1/reference/grammars/{grammar_id}/rule-sources`
