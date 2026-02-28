@@ -140,3 +140,22 @@ test("snapshot and resume consistency for observation loop", async ({ page }) =>
   await expect(page.getByTestId("lf-output")).not.toHaveText("", { timeout: 30000 });
   await expect(page.getByTestId("sr-output")).not.toHaveText("", { timeout: 30000 });
 });
+
+test("lexicon workbench shows 3-pane editing tabs", async ({ page }) => {
+  await page.goto("/");
+  await expectRenewedLayoutHealthy(page);
+
+  await page.getByRole("button", { name: "語彙の編集" }).click();
+  await expect(page.getByTestId("lexicon-workbench")).toBeVisible();
+  await expect(page.getByRole("heading", { name: "7. 語彙の編集" })).toBeVisible();
+  await expect(page.getByRole("button", { name: "辞書" })).toBeVisible();
+  await expect(page.getByRole("button", { name: "num紐付け" })).toBeVisible();
+  await expect(page.getByRole("button", { name: "研究メモ" })).toBeVisible();
+  await expect(page.getByRole("button", { name: "版管理" })).toBeVisible();
+  await expect(page.getByRole("button", { name: "CSV/YAML" })).toBeVisible();
+
+  await page.getByRole("button", { name: "版管理" }).click();
+  await expect(page.getByTestId("lexicon-versions-tab")).toBeVisible();
+  await page.getByRole("button", { name: "CSV/YAML" }).click();
+  await expect(page.getByTestId("lexicon-importexport-tab")).toBeVisible();
+});

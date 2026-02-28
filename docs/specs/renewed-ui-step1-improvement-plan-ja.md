@@ -194,6 +194,14 @@
 | LEX-API-04 | 語彙項目ごとの num 紐付けAPI（一覧/作成/更新/削除）を追加する | `apps/api/app/api/v1/lexicon_ext.py` | `pytest` |
 | LEX-API-05 | 語彙項目ごとの研究メモAPI（現在値/更新/履歴/履歴復元）を追加する | `apps/api/app/api/v1/lexicon_ext.py` | `pytest` |
 | LEX-API-06 | Lexicon版情報API（一覧/差分）を追加する | `apps/api/app/api/v1/lexicon_ext.py` | `pytest` |
+| LEX-UI-01 | Lexiconページを語彙項目中心の3ペイン構成（一覧/編集/研究支援）へ全面改訂する | `apps/web/src/LexiconWorkbench.tsx`, `apps/web/src/App.tsx`, `apps/web/src/styles.css` | `vitest`, `playwright` |
+| LEX-UI-02 | 構造系プロパティを選択式入力へ統一する（`category/predicates/sync_features/idslot/semantics`） | `apps/web/src/LexiconWorkbench.tsx` | `vitest` |
+| LEX-UI-03 | バリュー辞書管理UI（CRUD + 使用件数 + 一括置換）を実装する | `apps/web/src/LexiconWorkbench.tsx` | `vitest` |
+| LEX-UI-04 | num紐付けUI（語彙項目ごと複数リンク）を実装する | `apps/web/src/LexiconWorkbench.tsx` | `vitest` |
+| LEX-UI-05 | 研究メモUI（改訂履歴・差分・復元）を実装する | `apps/web/src/LexiconWorkbench.tsx` | `vitest` |
+| LEX-REG-01 | 新規Lexicon API群（`lexicon_ext`）の回帰テストを追加する | `apps/api/tests/test_lexicon_ext.py` | `pytest` |
+| LEX-REG-02 | Lexicon新UIのWebユニットテストを追加する | `apps/web/src/__tests__/App.test.tsx` | `vitest` |
+| LEX-REG-03 | Lexicon新UIのE2Eテストを追加する | `apps/web/e2e/hypothesis-loop.spec.ts` | `playwright` |
 
 ## 実装メモ（2026-02-27）
 - `S2-VIS-02`: Step2 適用対象ペインを `base[slot][7]` の子ノード再帰表示に対応し、合体後ノード（親＋子）を描画するよう更新。
@@ -233,6 +241,14 @@
 - `LEX-UI-12`: Step1候補展開テストに `sync_features` 表示アサーションを追加し、候補一覧で `+N(right)(nonhead)` を確認できるようにした。
 - `LEX-API-01..06`: 新規ルーター `lexicon_ext.py` を追加し、語彙項目CRUD・バリュー辞書CRUD/置換・num紐付け・研究メモ履歴・版情報APIを実装した。
 - `LEX-API-01..06`: `main.py` へルーターを追加し、既存 `/v1/lexicon/*` の互換を維持しつつ拡張エンドポイントを公開した。
+- `LEX-UI-01..05`: 新規 `LexiconWorkbench` を追加し、3ペイン（一覧/選択式編集/研究支援タブ）で語彙項目編集を完結できるUIへ置換した。
+- `LEX-UI-02`: `category/predicates/sync_features/idslot/semantics` を自由入力から選択式へ統一し、値追加/更新/削除は辞書タブに集約した。
+- `LEX-UI-03`: 右ペインにバリュー辞書タブを実装し、CRUD・使用件数参照・一括置換を実行可能にした。
+- `LEX-UI-04`: 右ペインにnum紐付けタブを実装し、語彙項目ごとに複数 `.num` 参照を追加/更新/削除できるようにした。
+- `LEX-UI-05`: 研究メモタブを実装し、本文更新・履歴一覧・履歴表示・復元をAPI連携で実行可能にした。
+- `LEX-REG-01`: `test_lexicon_ext.py` を追加し、語彙項目CRUD・辞書/num紐付け/研究メモ・版情報APIの回帰を固定した。
+- `LEX-REG-02`: Webテストに `shows Lexicon 3-pane editor and selection-based fields` を追加し、新UI導線を固定した。
+- `LEX-REG-03`: Playwright E2Eに `lexicon workbench shows 3-pane editing tabs` を追加し、実ブラウザ導線を固定した。
 
 ## API追加（S1-GRM-02）
 - `GET /v1/reference/grammars/{grammar_id}/rule-sources`

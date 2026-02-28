@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { apiGet, apiPost, parseManualTokens } from "./api";
+import LexiconWorkbench from "./LexiconWorkbench";
 import type {
   DerivationState,
   FeatureDocEntry,
@@ -4105,62 +4106,7 @@ export default function App() {
         </section>
 
         <section className="card" data-panel="lexicon">
-          <h2>7. Lexicon Viewer (Phase A-C)</h2>
-          <div className="row">
-            <label>
-              Lexicon Format
-              <select
-                aria-label="Lexicon Format"
-                value={lexiconFormat}
-                onChange={(event) => setLexiconFormat(event.target.value as "yaml" | "csv")}
-              >
-                <option value="yaml">yaml</option>
-                <option value="csv">csv</option>
-              </select>
-            </label>
-            <button onClick={handleLoadLexicon} disabled={loading}>
-              Load Lexicon
-            </button>
-            <button onClick={handleValidateLexiconYaml} disabled={loading || lexiconYamlInput.length === 0}>
-              Validate YAML
-            </button>
-            <button onClick={handleImportLexiconYaml} disabled={loading || lexiconYamlInput.length === 0}>
-              Import YAML
-            </button>
-            <button onClick={handleCommitLexiconYaml} disabled={loading || lexiconYamlInput.length === 0}>
-              Commit YAML
-            </button>
-          </div>
-          <label>
-            <input
-              type="checkbox"
-              checked={runLexiconCompatibilityTests}
-              onChange={(event) => setRunLexiconCompatibilityTests(event.target.checked)}
-            />
-            Run compatibility tests on commit
-          </label>
-          <p>path: {lexiconPath || "-"}</p>
-          <p>entries: {lexiconEntryCount || 0}</p>
-          <p data-testid="lexicon-commit-message">{lexiconCommitMessage}</p>
-          <pre data-testid="lexicon-output">{lexiconText}</pre>
-          <label>
-            YAML Input
-            <textarea
-              aria-label="Lexicon YAML Input"
-              rows={8}
-              value={lexiconYamlInput}
-              onChange={(event) => setLexiconYamlInput(event.target.value)}
-            />
-          </label>
-          {lexiconValidateErrors.length > 0 && (
-            <pre data-testid="lexicon-errors">{lexiconValidateErrors.join("\n")}</pre>
-          )}
-          <h3>CSV Preview</h3>
-          <pre data-testid="lexicon-csv-preview">{lexiconCsvPreview}</pre>
-          <h3>Commit stdout</h3>
-          <pre data-testid="lexicon-commit-stdout">{lexiconCommitStdout}</pre>
-          <h3>Commit stderr</h3>
-          <pre data-testid="lexicon-commit-stderr">{lexiconCommitStderr}</pre>
+          <LexiconWorkbench grammarId={grammarId} />
         </section>
           </main>
         </section>

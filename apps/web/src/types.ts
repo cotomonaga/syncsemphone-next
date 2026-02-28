@@ -16,22 +16,95 @@ export type RuleCandidate = {
   check?: number;
 };
 
-export type HeadAssistSuggestion = {
-  rank: number;
-  rule_number: number;
+export type ReachabilityRuleStep = {
+  step: number;
   rule_name: string;
+  rule_number: number;
   rule_kind: "double" | "single";
-  left: number;
-  right: number;
-  check?: number;
-  unresolved_before: number;
-  unresolved_after: number;
-  unresolved_delta: number;
-  grammatical_after: boolean;
-  basenum_before: number;
-  basenum_after: number;
-  reachable_grammatical: boolean;
-  steps_to_grammatical?: number | null;
+  left?: number | null;
+  right?: number | null;
+  check?: number | null;
+  left_id?: string | null;
+  right_id?: string | null;
+};
+
+export type ReachabilityEvidence = {
+  rank: number;
+  steps_to_goal: number;
+  rule_sequence: ReachabilityRuleStep[];
+  tree_root: Record<string, unknown>;
+  process_text?: string | null;
+};
+
+export type ReachabilityMetrics = {
+  expanded_nodes: number;
+  generated_nodes: number;
+  packed_nodes: number;
+  max_frontier: number;
+  elapsed_ms: number;
+  max_depth_reached: number;
+  actions_attempted: number;
+};
+
+export type ReachabilityCounts = {
+  count_unit: string;
+  count_basis: string;
+  tree_signature_basis: string;
+  count_status: "exact" | "upper_bound_only" | "unknown";
+  goal_count_exact?: string | null;
+  total_exact?: string | null;
+  total_upper_bound_a_pair_only: string;
+  total_upper_bound_b_pair_rulemax: string;
+  rule_max_per_pair_bound: number;
+  rule_max_per_pair_observed: number;
+  shown_count: number;
+  offset: number;
+  limit: number;
+  shown_ratio_exact_percent?: number | null;
+  coverage_upper_bound_a_percent: number;
+  coverage_upper_bound_b_percent: number;
+  has_next: boolean;
+};
+
+export type ReachabilityResponse = {
+  status: "reachable" | "unreachable" | "unknown" | "failed";
+  completed: boolean;
+  reason: string;
+  metrics: ReachabilityMetrics;
+  counts: ReachabilityCounts;
+  evidences: ReachabilityEvidence[];
+};
+
+export type ReachabilityJobStartResponse = {
+  job_id: string;
+  status: string;
+  created_at: number;
+};
+
+export type ReachabilityProgress = {
+  percent: number;
+  phase: string;
+  message: string;
+};
+
+export type ReachabilityJobStatusResponse = {
+  job_id: string;
+  status: "queued" | "running" | "reachable" | "unreachable" | "unknown" | "failed";
+  created_at: number;
+  updated_at: number;
+  progress: ReachabilityProgress;
+  metrics?: ReachabilityMetrics | null;
+  counts?: ReachabilityCounts | null;
+  reason?: string | null;
+  completed?: boolean | null;
+  error?: string | null;
+};
+
+export type ReachabilityEvidencePageResponse = {
+  job_id: string;
+  status: string;
+  counts: ReachabilityCounts;
+  evidences: ReachabilityEvidence[];
 };
 
 export type TokenResolution = {
@@ -240,4 +313,122 @@ export type RuleCompareResponse = {
 
 export type ProcessExportResponse = {
   process_text: string;
+};
+
+export type LexiconExtItem = {
+  lexicon_id?: number | null;
+  entry: string;
+  phono: string;
+  category: string;
+  predicates: string[][];
+  sync_features: string[];
+  idslot: string;
+  semantics: string[];
+  note: string;
+};
+
+export type LexiconExtItemResponse = {
+  grammar_id: string;
+  item: LexiconExtItem;
+};
+
+export type LexiconExtItemsResponse = {
+  grammar_id: string;
+  total_count: number;
+  page: number;
+  page_size: number;
+  items: LexiconExtItem[];
+};
+
+export type ValueDictionaryKind =
+  | "category"
+  | "predicate"
+  | "sync_feature"
+  | "idslot"
+  | "semantic";
+
+export type ValueDictionaryItem = {
+  id: number;
+  kind: ValueDictionaryKind;
+  normalized_value: string;
+  display_value: string;
+  metadata_json: Record<string, unknown>;
+  created_at: string;
+  updated_at: string;
+};
+
+export type ValueDictionaryListResponse = {
+  items: ValueDictionaryItem[];
+};
+
+export type ValueDictionaryUsageResponse = {
+  id: number;
+  kind: ValueDictionaryKind;
+  display_value: string;
+  total_usages: number;
+  usages_by_grammar: Record<string, number>;
+};
+
+export type NumLinkItem = {
+  id: number;
+  grammar_id: string;
+  lexicon_id: number;
+  num_path: string;
+  memo: string;
+  slot_no?: number | null;
+  idx_value: string;
+  comment: string;
+  created_at: string;
+  updated_at: string;
+};
+
+export type NumLinksResponse = {
+  items: NumLinkItem[];
+};
+
+export type NoteCurrentResponse = {
+  grammar_id: string;
+  lexicon_id: number;
+  markdown: string;
+  updated_at?: string | null;
+};
+
+export type NoteRevisionItem = {
+  id: number;
+  revision_no: number;
+  author: string;
+  created_at: string;
+  change_summary: string;
+};
+
+export type NoteRevisionsResponse = {
+  items: NoteRevisionItem[];
+};
+
+export type NoteRevisionResponse = {
+  id: number;
+  revision_no: number;
+  markdown: string;
+  author: string;
+  created_at: string;
+  change_summary: string;
+};
+
+export type LexiconVersionItem = {
+  revision_id: string;
+  author: string;
+  date: string;
+  message: string;
+};
+
+export type LexiconVersionsResponse = {
+  grammar_id: string;
+  lexicon_path: string;
+  items: LexiconVersionItem[];
+};
+
+export type LexiconVersionDiffResponse = {
+  grammar_id: string;
+  revision_id: string;
+  diff_text: string;
 };

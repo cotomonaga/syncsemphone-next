@@ -319,11 +319,11 @@
 - [x] `LEX-API-04` 語彙項目ごとの num 紐付けAPI（一覧/作成/更新/削除）を追加する。
 - [x] `LEX-API-05` 語彙項目ごとの研究メモAPI（現在値/更新/履歴/履歴復元）を追加する。
 - [x] `LEX-API-06` Lexicon版情報API（一覧/差分）を追加する。
-- [ ] `LEX-UI-01` Lexiconページを語彙項目中心の3ペイン構成へ全面改訂する。
-- [ ] `LEX-UI-02` 構造系プロパティを選択式入力へ統一する（`category/predicates/sync_features/idslot/semantics`）。
-- [ ] `LEX-UI-03` バリュー辞書管理UI（CRUD + 使用件数 + 一括置換）を実装する。
-- [ ] `LEX-UI-04` num紐付けUI（語彙項目ごと複数リンク）を実装する。
-- [ ] `LEX-UI-05` 研究メモUI（改訂履歴・差分・復元）を実装する。
-- [ ] `LEX-REG-01` 新規Lexicon API群の回帰テストを追加する。
-- [ ] `LEX-REG-02` Lexicon新UIのWebユニットテストを追加する。
-- [ ] `LEX-REG-03` Lexicon新UIのE2Eテストを追加する。
+- [x] `LEX-UI-01` Lexiconページを語彙項目中心の3ペイン構成へ全面改訂する。
+- [x] `LEX-UI-02` 構造系プロパティを選択式入力へ統一する（`category/predicates/sync_features/idslot/semantics`）。
+- [x] `LEX-UI-03` バリュー辞書管理UI（CRUD + 使用件数 + 一括置換）を実装する。
+- [x] `LEX-UI-04` num紐付けUI（語彙項目ごと複数リンク）を実装する。
+- [x] `LEX-UI-05` 研究メモUI（改訂履歴・差分・復元）を実装する。
+- [x] `LEX-REG-01` 新規Lexicon API群の回帰テストを追加する。
+- [x] `LEX-REG-02` Lexicon新UIのWebユニットテストを追加する。
+- [x] `LEX-REG-03` Lexicon新UIのE2Eテストを追加する。

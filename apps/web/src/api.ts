@@ -1,9 +1,10 @@
 const API_BASE_URL =
   import.meta.env.VITE_API_BASE_URL?.trim() || "http://127.0.0.1:8000";
 
-export async function apiPost<TResponse>(
+async function requestJson<TResponse>(
+  method: "GET" | "POST" | "PUT" | "DELETE",
   path: string,
-  payload: unknown,
+  payload?: unknown,
   options?: { timeoutMs?: number }
 ): Promise<TResponse> {
   const timeoutMs = options?.timeoutMs;
@@ -16,11 +17,11 @@ export async function apiPost<TResponse>(
   let response: Response;
   try {
     response = await fetch(`${API_BASE_URL}${path}`, {
-      method: "POST",
+      method,
       headers: {
         "Content-Type": "application/json"
       },
-      body: JSON.stringify(payload),
+      body: payload === undefined ? undefined : JSON.stringify(payload),
       signal: controller?.signal
     });
   } catch (error) {
@@ -52,28 +53,31 @@ export async function apiPost<TResponse>(
   return (await response.json()) as TResponse;
 }
 
+export async function apiPost<TResponse>(
+  path: string,
+  payload: unknown,
+  options?: { timeoutMs?: number }
+): Promise<TResponse> {
+  return requestJson<TResponse>("POST", path, payload, options);
+}
+
+export async function apiPut<TResponse>(
+  path: string,
+  payload: unknown,
+  options?: { timeoutMs?: number }
+): Promise<TResponse> {
+  return requestJson<TResponse>("PUT", path, payload, options);
+}
+
+export async function apiDelete<TResponse>(
+  path: string,
+  options?: { timeoutMs?: number }
+): Promise<TResponse> {
+  return requestJson<TResponse>("DELETE", path, undefined, options);
+}
+
 export async function apiGet<TResponse>(path: string): Promise<TResponse> {
-  const response = await fetch(`${API_BASE_URL}${path}`, {
-    method: "GET",
-    headers: {
-      "Content-Type": "application/json"
-    }
-  });
-
-  if (!response.ok) {
-    let message = `${response.status} ${response.statusText}`;
-    try {
-      const body = (await response.json()) as { detail?: string };
-      if (body.detail) {
-        message = body.detail;
-      }
-    } catch {
-      // keep default message
-    }
-    throw new Error(message);
-  }
-
-  return (await response.json()) as TResponse;
+  return requestJson<TResponse>("GET", path);
 }
 
 export function parseManualTokens(input: string): string[] | undefined {

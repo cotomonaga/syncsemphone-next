@@ -80,6 +80,89 @@ function maybeCommonResponse(url: string): Response | null {
       }
     });
   }
+  if (url.includes("/v1/lexicon/imi01/items?page=1&page_size=50&q=")) {
+    return jsonResponse({
+      body: {
+        grammar_id: "imi01",
+        total_count: 1,
+        page: 1,
+        page_size: 50,
+        items: [
+          {
+            lexicon_id: 60,
+            entry: "ジョン",
+            phono: "ジョン",
+            category: "N",
+            predicates: [],
+            sync_features: [],
+            idslot: "x1-1",
+            semantics: ["Name|=|ジョン"],
+            note: ""
+          }
+        ]
+      }
+    });
+  }
+  if (url.includes("/v1/lexicon/value-dictionary?kind=category")) {
+    return jsonResponse({
+      body: {
+        items: [
+          {
+            id: 1,
+            kind: "category",
+            normalized_value: "n",
+            display_value: "N",
+            metadata_json: {},
+            created_at: "2026-02-28T00:00:00+00:00",
+            updated_at: "2026-02-28T00:00:00+00:00"
+          }
+        ]
+      }
+    });
+  }
+  if (url.includes("/v1/lexicon/imi01/versions?limit=20&offset=0")) {
+    return jsonResponse({
+      body: {
+        grammar_id: "imi01",
+        lexicon_path: "/tmp/lexicon-all.csv",
+        items: []
+      }
+    });
+  }
+  if (url.includes("/v1/lexicon/imi01/items/60/num-links")) {
+    return jsonResponse({ body: { items: [] } });
+  }
+  if (url.includes("/v1/lexicon/imi01/items/60/notes/revisions")) {
+    return jsonResponse({ body: { items: [] } });
+  }
+  if (url.includes("/v1/lexicon/imi01/items/60/notes")) {
+    return jsonResponse({
+      body: {
+        grammar_id: "imi01",
+        lexicon_id: 60,
+        markdown: "",
+        updated_at: null
+      }
+    });
+  }
+  if (url.endsWith("/v1/lexicon/imi01/items/60")) {
+    return jsonResponse({
+      body: {
+        grammar_id: "imi01",
+        item: {
+          lexicon_id: 60,
+          entry: "ジョン",
+          phono: "ジョン",
+          category: "N",
+          predicates: [],
+          sync_features: [],
+          idslot: "x1-1",
+          semantics: ["Name|=|ジョン"],
+          note: ""
+        }
+      }
+    });
+  }
   return null;
 }
 
@@ -1882,5 +1965,35 @@ describe("App", () => {
     expect(lexiconTable).toHaveTextContent("ga(★)");
     expect(await within(uploadPanel!).findByText("語彙ID 9999 は辞書にありません")).toBeInTheDocument();
     expect(await within(uploadPanel!).findByText("語彙ID が見つかりませんでした: 9999")).toBeInTheDocument();
+  });
+
+  it("shows Lexicon 3-pane editor and selection-based fields", async () => {
+    vi.spyOn(globalThis, "fetch").mockImplementation(async (input) => {
+      const url = String(input);
+      const common = maybeCommonResponse(url);
+      if (common) {
+        return common;
+      }
+      throw new Error(`unexpected url: ${url}`);
+    });
+
+    const user = userEvent.setup();
+    render(<App />);
+
+    await user.click(await screen.findByRole("button", { name: "語彙の編集" }));
+    expect(await screen.findByTestId("lexicon-workbench")).toBeInTheDocument();
+
+    const row = await screen.findByText("ジョン");
+    await user.click(row);
+    const categorySelect = await screen.findByLabelText("lexicon-category-select");
+    expect(categorySelect).toBeInTheDocument();
+    expect(within(categorySelect).getByRole("option", { name: "N" })).toBeInTheDocument();
+
+    await user.click(screen.getByRole("button", { name: "辞書" }));
+    expect(await screen.findByTestId("lexicon-dictionary-tab")).toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: "num紐付け" }));
+    expect(await screen.findByTestId("lexicon-numlinks-tab")).toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: "研究メモ" }));
+    expect(await screen.findByTestId("lexicon-notes-tab")).toBeInTheDocument();
   });
 });
