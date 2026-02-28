@@ -1800,6 +1800,152 @@ describe("App", () => {
     });
   });
 
+  it("keeps Step1 replacement when moving to Step2 via Numeration formation", async () => {
+    const initRequests: string[] = [];
+    vi.spyOn(globalThis, "fetch").mockImplementation(async (input, init) => {
+      const url = String(input);
+      const common = maybeCommonResponse(url);
+      if (common) {
+        return common;
+      }
+      if (url.endsWith("/v1/derivation/numeration/tokenize")) {
+        return jsonResponse({ body: { tokens: ["ジョン", "が", "本", "を", "読む"] } });
+      }
+      if (url.endsWith("/v1/derivation/numeration/generate")) {
+        const payload = init?.body ? JSON.parse(String(init.body)) : {};
+        return jsonResponse({
+          body: {
+            memo: payload.sentence || "ジョンが本を読む",
+            lexicon_ids: [60, 19, 100, 23, 226],
+            token_resolutions: [
+              { token: "ジョン", lexicon_id: 60, candidate_lexicon_ids: [60] },
+              { token: "が", lexicon_id: 19, candidate_lexicon_ids: [19] },
+              { token: "本", lexicon_id: 100, candidate_lexicon_ids: [100, 227] },
+              { token: "を", lexicon_id: 23, candidate_lexicon_ids: [23] },
+              { token: "読む", lexicon_id: 226, candidate_lexicon_ids: [226] }
+            ],
+            numeration_text: `${payload.sentence || "ジョンが本を読む"}\t60\t19\t100\t23\t226\n \t\t\t\t\t\n \t1\t2\t3\t4\t5`
+          }
+        });
+      }
+      if (url.endsWith("/v1/derivation/numeration/compose")) {
+        const payload = init?.body ? JSON.parse(String(init.body)) : {};
+        const ids = Array.isArray(payload.lexicon_ids) ? payload.lexicon_ids : [];
+        return jsonResponse({
+          body: {
+            numeration_text:
+              `${payload.memo || "ジョンが本を読む"}\t${ids.join("\t")}\n` +
+              ` \t${Array.from({ length: ids.length }, () => "").join("\t")}\n` +
+              ` \t${ids.map((_: unknown, i: number) => String(i + 1)).join("\t")}`
+          }
+        });
+      }
+      if (url.endsWith("/v1/derivation/init")) {
+        const payload = init?.body ? JSON.parse(String(init.body)) : {};
+        initRequests.push(String(init?.body || ""));
+        const numerationText = String(payload.numeration_text || "");
+        const firstRow = numerationText.split(/\r?\n/)[0]?.split("\t") || [];
+        const ids = firstRow
+          .slice(1)
+          .filter((value: string) => value !== "")
+          .map((value: string) => Number(value));
+        const categoryById: Record<number, string> = {
+          19: "J",
+          23: "J",
+          60: "N",
+          100: "N",
+          227: "N",
+          226: "V"
+        };
+        return jsonResponse({
+          body: {
+            grammar_id: "imi01",
+            memo: firstRow[0] || "ジョンが本を読む",
+            newnum: ids.length + 1,
+            basenum: ids.length,
+            history: "",
+            base: [
+              null,
+              ...ids.map((lexiconId: number, index: number) => [
+                `x${index + 1}-1`,
+                categoryById[lexiconId] || "N",
+                [],
+                [],
+                `x${index + 1}-1`,
+                [null, `Sem-${lexiconId}`],
+                `phono-${lexiconId}`,
+                null,
+                ""
+              ])
+            ]
+          }
+        });
+      }
+      if (url.endsWith("/v1/derivation/candidates")) {
+        return jsonResponse({ body: [] });
+      }
+      if (url.includes("/v1/reference/grammars/imi01/lexicon-items/by-ids")) {
+        const payload = init?.body ? JSON.parse(String(init.body)) : {};
+        const ids = Array.isArray(payload.ids) ? payload.ids : [];
+        return jsonResponse({
+          body: {
+            grammar_id: "imi01",
+            requested_count: ids.length,
+            found_count: ids.length,
+            missing_ids: [],
+            items: ids.map((lexiconId: number) => ({
+              lexicon_id: lexiconId,
+              found: true,
+              entry: `ID-${lexiconId}`,
+              phono: `phono-${lexiconId}`,
+              category: lexiconId === 19 || lexiconId === 23 ? "J" : lexiconId === 226 ? "V" : "N",
+              sync_features: [],
+              idslot: "id",
+              semantics: [`Sem-${lexiconId}`],
+              note: ""
+            }))
+          }
+        });
+      }
+      throw new Error(`unexpected url: ${url}`);
+    });
+
+    const user = userEvent.setup();
+    render(<App />);
+
+    await user.click(await screen.findByRole("button", { name: "この設定で開始" }));
+
+    const sentenceInput = await screen.findByRole("textbox", { name: "Sentence" });
+    await user.clear(sentenceInput);
+    await user.type(sentenceInput, "ジョンが本を読む");
+
+    const buildPanel = screen.getByRole("button", { name: "Lexiconから組み立てる" }).closest("section");
+    expect(buildPanel).not.toBeNull();
+    await waitFor(() => {
+      expect(within(buildPanel!).getByTestId("numeration-lexicon-table")).toHaveTextContent("Sem-100");
+    });
+
+    await user.click(await within(buildPanel!).findByTestId("step1-candidate-toggle-3"));
+    const panel = await within(buildPanel!).findByTestId("step1-candidate-panel-3");
+    expect(panel).toHaveTextContent("ID 227");
+    await user.click(within(panel).getByRole("button", { name: "この候補に差し替え" }));
+
+    await waitFor(() => {
+      expect(within(buildPanel!).getByTestId("numeration-lexicon-table")).toHaveTextContent("Sem-227");
+    });
+
+    await user.click(screen.getByRole("button", { name: "Numerationを形成" }));
+
+    expect(await screen.findByRole("heading", { name: "【Step.2】Grammarの適用" })).toBeInTheDocument();
+    const selectionList = await screen.findByTestId("step2-selection-list");
+    expect(selectionList).toHaveTextContent("Sem-227");
+
+    expect(initRequests.length).toBeGreaterThan(0);
+    const lastInitPayload = JSON.parse(initRequests.at(-1) || "{}");
+    const firstRow = String(lastInitPayload.numeration_text || "").split(/\r?\n/)[0].split("\t");
+    expect(firstRow[3]).toBe("227");
+  });
+
   it("does not leak build-mode token candidates into example numeration reference", async () => {
     vi.spyOn(globalThis, "fetch").mockImplementation(async (input, init) => {
       const url = String(input);

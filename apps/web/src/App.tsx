@@ -1881,10 +1881,15 @@ export default function App() {
         setTokenSlotEdits([]);
         setOpenStep1CandidateSlot(null);
       } else {
-        const generatedNumeration = await requestGenerateNumeration();
-        setGenerated(generatedNumeration);
-        syncTokenEdits(generatedNumeration);
-        formedNumerationText = generatedNumeration.numeration_text;
+        if (tokenSlotEdits.length > 0) {
+          // Step1で差し替えた候補を保持したまま Numeration を形成する。
+          formedNumerationText = await composeNumerationFromTokenEdits(tokenSlotEdits);
+        } else {
+          const generatedNumeration = await requestGenerateNumeration();
+          setGenerated(generatedNumeration);
+          syncTokenEdits(generatedNumeration);
+          formedNumerationText = generatedNumeration.numeration_text;
+        }
       }
 
       setNumerationText(formedNumerationText);
@@ -2027,7 +2032,7 @@ export default function App() {
   async function composeNumerationFromTokenEdits(
     nextTokenSlotEdits: TokenSlotEdit[],
     options?: { reinitializeState?: boolean }
-  ) {
+  ): Promise<string> {
     const memoText = sentence.trim() === "" ? "manual" : sentence.trim();
     const response = await apiPost<{ numeration_text: string }>("/v1/derivation/numeration/compose", {
       memo: memoText,
@@ -2059,6 +2064,7 @@ export default function App() {
       });
       applyInitializedState(initialized);
     }
+    return response.numeration_text;
   }
 
   async function handleComposeNumerationFromTokenSelection() {

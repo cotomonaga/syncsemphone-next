@@ -470,6 +470,81 @@ def test_derivation_init_from_sentence_marks_john_ga_wo_yonda_as_unreachable() -
     assert body["completed"] is True
 
 
+def test_derivation_japanese2_john_hon_yomu_stays_unreachable_after_local_j_merge() -> None:
+    client = TestClient(app)
+    numeration_text = (
+        "ジョンが本を読む\t60\t19\t227\t23\t226\n"
+        " \t\t\t\t\t\n"
+        " \t1\t2\t3\t4\t5"
+    )
+    initialized = client.post(
+        "/v1/derivation/init",
+        json={
+            "grammar_id": "japanese2",
+            "numeration_text": numeration_text,
+            "legacy_root": str(_legacy_root()),
+        },
+    )
+    assert initialized.status_code == 200
+    state = initialized.json()
+
+    first_merge = client.post(
+        "/v1/derivation/execute",
+        json={
+            "state": state,
+            "rule_name": "J-Merge",
+            "left": 1,
+            "right": 2,
+            "legacy_root": str(_legacy_root()),
+        },
+    )
+    assert first_merge.status_code == 200
+    merged_state = first_merge.json()
+
+    hon_index = None
+    wo_index = None
+    for index in range(1, merged_state["basenum"] + 1):
+        row = merged_state["base"][index]
+        if not isinstance(row, list) or len(row) < 7:
+            continue
+        if row[6] == "本":
+            hon_index = index
+        if row[6] == "を":
+            wo_index = index
+    assert hon_index is not None
+    assert wo_index is not None
+
+    second_merge = client.post(
+        "/v1/derivation/execute",
+        json={
+            "state": merged_state,
+            "rule_name": "J-Merge",
+            "left": hon_index,
+            "right": wo_index,
+            "legacy_root": str(_legacy_root()),
+        },
+    )
+    assert second_merge.status_code == 200
+
+    reachability = client.post(
+        "/v1/derivation/reachability",
+        json={
+            "state": second_merge.json(),
+            "max_evidences": 20,
+            "offset": 0,
+            "limit": 10,
+            "budget_seconds": 30.0,
+            "max_nodes": 2_000_000,
+            "max_depth": 28,
+            "legacy_root": str(_legacy_root()),
+        },
+    )
+    assert reachability.status_code == 200
+    body = reachability.json()
+    assert body["status"] == "unreachable"
+    assert body["completed"] is True
+
+
 @pytest.mark.parametrize(
     ("tense_label", "grammar_id", "sentence", "expected_tokens", "source_num_relpath"),
     [

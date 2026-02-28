@@ -321,6 +321,9 @@
 | S2-RCH-21 | `ジョンが本を読む` の最小未解釈残差を抽出し、`候補を提案` が `reachable` にならない直接原因を同定する | 調査ログ（CLI） | API実行 |
 | S2-RCH-22 | `japanese2` で `ジョン+が` と `本+を` を先に `J-Merge` した局所先行状態から探索しても `unreachable` であることを確認する | 調査ログ（CLI） | API実行 |
 | S2-RCH-23 | 局所先行状態の最小未解釈残差を抽出し、`2,1,Num` と `2,1L,T`（`本=227` では `2,1L,T` のみ）が詰まり点であることを確定する | 調査ログ（CLI） | API実行 |
+| S1S2-BUG-03 | Step1候補差し替え後に `Numerationを形成` した際、再Generateで初期候補へ巻き戻さず `tokenSlotEdits` の選択値を保持して初期化する | `apps/web/src/App.tsx` | `vitest`, Playwright |
+| S1S2-REG-02 | Web回帰で `本(227)` 差し替え後に Step2へ進んでも `227` が保持されることを固定する | `apps/web/src/__tests__/App.test.tsx` | `vitest` |
+| S2-REG-19 | API回帰で `japanese2 / ジョンが本を読む` は `ジョン+が` と `本+を` の先行 `J-Merge` 後でも `unreachable` のままであることを固定する | `apps/api/tests/test_derivation.py` | `pytest` |
 
 ## API追加（S1-GRM-02）
 - `GET /v1/reference/grammars/{grammar_id}/rule-sources`
