@@ -175,8 +175,13 @@ class SudachiMorphTokenizer:
 
             out.append(row.token)
 
-            # 「いる」は V 語彙と T 語彙（る）に分ける運用を優先する。
-            if row.dictionary_form == "いる" and row.pos_major == "動詞" and "終止形" in row.conjugation_form:
+            # 動詞終止形は非過去の時制語彙（る）を補完する。
+            # 直後が助動詞（た等）の場合は、助動詞側で時制を表すため補完しない。
+            if (
+                row.pos_major == "動詞"
+                and "終止形" in row.conjugation_form
+                and (next_row is None or next_row.pos_major != "助動詞")
+            ):
                 out.append("る")
 
             i += 1
@@ -262,9 +267,17 @@ def _candidate_sort_key(
     )
     has_j_merge_feature = any("J-Merge" in feature for feature in entry.sync_features)
     imi_mode = grammar_id.startswith("imi")
+    # japanese2 の「本」は 227 を既定選択にして Num 要求(100)を避ける。
+    japanese2_hon_priority = 0
+    if grammar_id == "japanese2" and token_norm == "本":
+        if lexicon_id == 227:
+            japanese2_hon_priority = -1
+        elif lexicon_id == 100:
+            japanese2_hon_priority = 1
 
     # 既存 .num に寄せるため、まず可視音形を優先し、次に文法片の傾向に合わせて選ぶ。
     return (
+        japanese2_hon_priority,
         -entry_exact,
         -non_silent,
         -phono_exact,

@@ -324,6 +324,9 @@
 | S1S2-BUG-03 | Step1候補差し替え後に `Numerationを形成` した際、再Generateで初期候補へ巻き戻さず `tokenSlotEdits` の選択値を保持して初期化する | `apps/web/src/App.tsx` | `vitest`, Playwright |
 | S1S2-REG-02 | Web回帰で `本(227)` 差し替え後に Step2へ進んでも `227` が保持されることを固定する | `apps/web/src/__tests__/App.test.tsx` | `vitest` |
 | S2-REG-19 | API回帰で `japanese2 / ジョンが本を読む` は `ジョン+が` と `本+を` の先行 `J-Merge` 後でも `unreachable` のままであることを固定する | `apps/api/tests/test_derivation.py` | `pytest` |
+| S1-MOR-03 | 自動モード（Sudachi）で動詞終止形を一般に時制語彙 `る` へ補完する（直後が助動詞のときは除外） | `packages/domain/src/domain/numeration/generator.py` | `pytest` |
+| S1-PART-02 | `japanese2` の `本` 候補は既定選択を `227` に固定し、`100` を既定から外す | `packages/domain/src/domain/numeration/generator.py` | `pytest` |
+| S1-REG-23 | API回帰で `japanese2 / ジョンが本を読む` の `tokenize=...読む,る` と `generate本=227` を固定する | `apps/api/tests/test_derivation.py` | `pytest` |
 
 ## API追加（S1-GRM-02）
 - `GET /v1/reference/grammars/{grammar_id}/rule-sources`

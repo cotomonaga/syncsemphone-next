@@ -226,6 +226,46 @@ def test_derivation_numeration_tokenize_auto_mode_supplements_tense_for_iru() ->
     assert response.json()["tokens"] == ["うさぎ", "が", "いる", "る"]
 
 
+def test_derivation_numeration_tokenize_auto_mode_supplements_tense_for_finite_verb() -> None:
+    client = TestClient(app)
+    response = client.post(
+        "/v1/derivation/numeration/tokenize",
+        json={
+            "grammar_id": "japanese2",
+            "sentence": "ジョンが本を読む",
+            "split_mode": "C",
+            "legacy_root": str(_legacy_root()),
+        },
+    )
+    assert response.status_code == 200
+    assert response.json()["tokens"] == ["ジョン", "が", "本", "を", "読む", "る"]
+
+
+def test_derivation_numeration_generate_japanese2_defaults_hon_227_and_appends_tense() -> None:
+    client = TestClient(app)
+    response = client.post(
+        "/v1/derivation/numeration/generate",
+        json={
+            "grammar_id": "japanese2",
+            "sentence": "ジョンが本を読む",
+            "split_mode": "C",
+            "legacy_root": str(_legacy_root()),
+        },
+    )
+    assert response.status_code == 200
+    body = response.json()
+    # 本は既定で 227（Num要求の100を回避）を選び、終止動詞には時制語彙を補完する。
+    assert body["lexicon_ids"][2] == 227
+    assert len(body["lexicon_ids"]) == 6
+    assert body["lexicon_ids"][-1] in {125, 204}
+    by_token = {row["token"]: row for row in body["token_resolutions"]}
+    assert by_token["本"]["lexicon_id"] == 227
+    assert by_token["本"]["candidate_lexicon_ids"][:2] == [227, 100]
+    assert by_token["る"]["lexicon_id"] in {125, 204}
+    assert 125 in by_token["る"]["candidate_lexicon_ids"]
+    assert 204 in by_token["る"]["candidate_lexicon_ids"]
+
+
 def test_derivation_numeration_tokenize_auto_mode_compounds_shita_and_teiru() -> None:
     client = TestClient(app)
     response = client.post(
