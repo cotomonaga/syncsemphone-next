@@ -244,7 +244,13 @@ export default function LexiconWorkbench({ grammarId }: LexiconWorkbenchProps) {
 
   useEffect(() => {
     void runTask(async () => {
-      await Promise.all([refreshItems(1, ""), refreshDictionary("category"), refreshVersions(0)]);
+      await Promise.all([refreshItems(1, ""), refreshVersions(0)]);
+      try {
+        await refreshDictionary("category");
+      } catch {
+        setDictionaryItems([]);
+        setMessage("メタDB未設定のため、バリュー辞書機能は利用できません。");
+      }
       setVersionOffset(0);
       setQuery("");
       setSelectedLexiconId(null);
@@ -263,7 +269,12 @@ export default function LexiconWorkbench({ grammarId }: LexiconWorkbenchProps) {
 
   useEffect(() => {
     void runTask(async () => {
-      await refreshDictionary(dictionaryKind);
+      try {
+        await refreshDictionary(dictionaryKind);
+      } catch {
+        setDictionaryItems([]);
+        setMessage("メタDB未設定のため、バリュー辞書機能は利用できません。");
+      }
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [dictionaryKind]);

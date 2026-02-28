@@ -4106,7 +4106,7 @@ export default function App() {
         </section>
 
         <section className="card" data-panel="lexicon">
-          <LexiconWorkbench grammarId={grammarId} />
+          {renewPanel === "lexicon" ? <LexiconWorkbench grammarId={grammarId} /> : null}
         </section>
           </main>
         </section>
