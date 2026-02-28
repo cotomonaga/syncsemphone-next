@@ -257,6 +257,9 @@
 - `LEX-RPT-01`: `id_slot` の実測一覧（CSV実在値）と役割説明（コード根拠）を監査レポートへ出力し、`0,23` 非実在/非参照を明示した。
 - `S2-HDA-33 / S2-REG-17`: Step2 `候補を提案` の reachability job 起動パラメータに探索予算（`budget_seconds=30`, `max_nodes=2_000_000`, `max_depth=28`）を明示し、Web回帰で固定した。
 - `S2-REG-18`: API回帰 `test_derivation_init_from_sentence_marks_john_ga_wo_yonda_as_unreachable` を追加し、`ジョンがを読んだ` が高予算でも `unreachable` になることを固定した。
+- `LEX-UI-18`: 語彙項目一覧の `編集` ボタンを選択行右端セルへ移動し、一覧上部の操作密度を下げた。
+- `S2-UI-05`: Step2 の `やり直し` を単一ボタンへ統合し、`候補を提案` 左に固定配置した。
+- `LEX-API-09`: メタDB未設定時の `value-dictionary` をLexicon実データ由来でフォールバック返却するよう修正した。
 
 ## 追加対応表（2026-02-28）
 
@@ -269,6 +272,9 @@
 | LEX-UI-17 | `id_slot` 候補をマージ規則実使用値 + CSV実在値へ制限し、末尾カンマ揺れを正規化（`0,23` は非実在/非参照のため除外） | `apps/web/src/LexiconWorkbench.tsx` | `vitest` |
 | LEX-API-08 | `/v1/lexicon/{grammar_id}/items` に `sort/order` と `category:*` フィルタを追加 | `apps/api/app/api/v1/lexicon_ext.py`, `apps/api/tests/test_lexicon_ext.py` | `pytest` |
 | LEX-RPT-01 | `id_slot` 実測値と役割を監査レポートに整理し、不要値除外の根拠を明示 | `docs/specs/lexicon-idslot-audit-ja.md` | 文書レビュー |
+| LEX-UI-18 | 語彙項目一覧の `編集` ボタンを選択行右端セルへ移動（一覧上部から撤去） | `apps/web/src/LexiconWorkbench.tsx`, `apps/web/src/styles.css`, `apps/web/src/__tests__/App.test.tsx` | `vitest`, Playwright |
+| S2-UI-05 | Step2 の `やり直し` を各行から撤去し、`候補を提案` 左の単一ボタンへ統合 | `apps/web/src/App.tsx`, `apps/web/src/__tests__/App.test.tsx` | `vitest`, Playwright |
+| LEX-API-09 | メタDB未設定時 `value-dictionary` を Lexicon 実データ由来でフォールバック返却 | `apps/api/app/api/v1/lexicon_ext.py`, `apps/api/tests/test_lexicon_ext.py` | `pytest` |
 | S2-HDA-33 | Step2 `候補を提案` の reachability job 起動時に探索予算（30秒 / 200万ノード / 深さ28）を明示して `unknown` 回避を図る | `apps/web/src/App.tsx` | `vitest`, Playwright |
 | S2-REG-17 | Web回帰で reachability job payload の探索予算値を固定する | `apps/web/src/__tests__/App.test.tsx` | `vitest` |
 | S2-REG-18 | `ジョンがを読んだ` を high budget で評価しても `unreachable` であることをAPI回帰に固定する | `apps/api/tests/test_derivation.py` | `pytest` |

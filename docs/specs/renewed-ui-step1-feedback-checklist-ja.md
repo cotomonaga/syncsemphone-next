@@ -274,6 +274,13 @@
 - [x] `S2-REG-17` Web回帰テストで reachability job 起動payloadに上記探索予算が含まれることを固定する。
 - [x] `S2-REG-18` API回帰テストで `ジョンがを読んだ` が高予算でも `unreachable`（語彙属性/入力条件由来）になることを固定する。
 
+## 58. 次件着手前の優先修正（4件）
+- [x] `LEX-UI-18` 語彙項目一覧の `編集` ボタンを一覧上部から撤去し、選択中行の右端セルへ移動する。
+- [x] `S2-UI-05` Step2 の `やりなおし` を各候補行から撤去し、`候補を提案` 左に単一配置する。文言は `やり直し` へ統一する。
+- [x] `LEX-RPT-01` `id_slot` の実測一覧（CSV）と役割説明（コード根拠）を監査レポートとして明示する。
+  - 成果物: [lexicon-idslot-audit-ja.md](/Users/tomonaga/Documents/syncsemphoneIMI/syncsemphone-next/docs/specs/lexicon-idslot-audit-ja.md)
+- [x] `LEX-API-09` メタDB未設定時でも `value-dictionary` 一覧が空停止しないよう、Lexicon実データ由来のフォールバック辞書を返す。
+
 ## 46. 到達判定の運用経路回帰（文入力 -> Step2）
 - [x] `S2-REG-12` `init/from-sentence`（文入力）で生成した `ジョンがメアリをスケートボードで追いかけた` の state に対し、`/v1/derivation/reachability` が `reachable` を返すことをAPIテストで固定する。
 - [x] `S2-REG-13` Playwright実機で `【Step.1】Numerationの形成 -> Numerationを形成 -> 【Step.2】候補を提案` を実行し、到達判定が `reachable` になることを確認する。
