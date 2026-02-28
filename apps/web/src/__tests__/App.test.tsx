@@ -2149,9 +2149,8 @@ describe("App", () => {
     await waitFor(() => {
       expect(within(buildPanel!).getByTestId("numeration-lexicon-table")).toHaveTextContent("読む");
     });
-    const warnings = await within(buildPanel!).findAllByTestId("step1-partner-warning-impossible");
-    expect(warnings.some((el) => el.textContent?.includes("25(wo)"))).toBe(true);
-    expect(warnings.some((el) => el.textContent?.includes("25(ga)"))).toBe(true);
+    expect(within(buildPanel!).getByText(/25\(wo\).*満たす語がありません/)).toBeInTheDocument();
+    expect(within(buildPanel!).getByText(/25\(ga\).*満たす語がありません/)).toBeInTheDocument();
   });
 
   it("shows red grammar compatibility warning when manually selecting an incompatible candidate in Step1", async () => {
@@ -2270,9 +2269,6 @@ describe("App", () => {
     expect(candidatePanel).toHaveTextContent("文法非互換");
     await user.click(within(candidatePanel).getByRole("button", { name: "この候補に差し替え" }));
 
-    const warning = await within(buildPanel!).findByTestId("step1-compat-warning");
-    expect(warning).toHaveTextContent("互換ではありません");
-    expect(warning).toHaveTextContent("J-Merge");
     const inlineWarning = await within(buildPanel!).findByTestId("step1-inline-compat-warning-2");
     expect(inlineWarning).toHaveTextContent("J-Merge");
   });
@@ -2380,7 +2376,7 @@ describe("App", () => {
     expect(within(candidatePanel).getByRole("button", { name: "選択中" })).toBeInTheDocument();
     expect(candidatePanel).toHaveTextContent("ID 183");
     expect(candidatePanel).toHaveTextContent("文法非互換");
-    expect(within(buildPanel!).queryByTestId("step1-compat-warning")).not.toBeInTheDocument();
+    expect(within(buildPanel!).queryByTestId("step1-inline-compat-warning-2")).not.toBeInTheDocument();
   });
 
   it("shows inline compatibility summary in Step2 even when candidate list is closed", async () => {

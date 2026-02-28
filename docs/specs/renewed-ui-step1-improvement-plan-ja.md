@@ -346,6 +346,7 @@
 | S1S2-UI-03 | Step1/Step2 の候補UIで、候補一覧を閉じた状態でも選択中候補の警告サマリ（文法非互換・相方条件不一致）を行内表示する | `apps/web/src/App.tsx`, `apps/web/src/styles.css` | `vitest`, Playwright |
 | S1S2-REG-03 | Web回帰で Step1/Step2 の候補パネルを閉じた状態でも警告サマリが表示され、詳細は候補展開で確認できることを固定する | `apps/web/src/__tests__/App.test.tsx` | `vitest` |
 | S1S2-TXT-01 | Step1/Step2 の警告文から「未充足」を廃止し、`2,25,wo を満たす語が見つかりません` 系の表現へ統一する | `apps/web/src/App.tsx` | `vitest`, Playwright |
+| S1-UI-10 | Step1 `numerationの語彙情報参照` 冒頭の警告一覧を廃止し、各slot行内の警告サマリへ集約する | `apps/web/src/App.tsx` | `vitest`, Playwright |
 
 ## API追加（S1-GRM-02）
 - `GET /v1/reference/grammars/{grammar_id}/rule-sources`

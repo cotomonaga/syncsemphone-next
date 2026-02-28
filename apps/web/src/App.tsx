@@ -223,14 +223,6 @@ type Step1PartnerWarning = {
   providerSlots: number[];
 };
 
-type Step1GrammarCompatibilityWarning = {
-  slot: number;
-  token: string;
-  selectedLexiconId: number;
-  selectedEntry: string;
-  reasons: string[];
-};
-
 type Step2DisplayNode = {
   xLabel: string;
   category: string;
@@ -1231,28 +1223,6 @@ export default function App() {
 
     return warnings;
   }, [numerationLexiconRows, numerationLookupMap, step1EntryMode, tokenSlotEditBySlot]);
-  const step1GrammarCompatibilityWarnings = useMemo(() => {
-    if (step1EntryMode !== "build_lexicon") {
-      return [] as Step1GrammarCompatibilityWarning[];
-    }
-    const warnings: Step1GrammarCompatibilityWarning[] = [];
-    for (const slotEdit of tokenSlotEdits) {
-      const compatibility = slotEdit.candidateCompatibilityById[slotEdit.selectedLexiconId];
-      if (!compatibility || compatibility.compatible) {
-        continue;
-      }
-      const lookup = numerationLookupMap.get(slotEdit.selectedLexiconId);
-      warnings.push({
-        slot: slotEdit.slot,
-        token: slotEdit.token,
-        selectedLexiconId: slotEdit.selectedLexiconId,
-        selectedEntry: lookup?.entry || "-",
-        reasons: formatCompatibilityReasonsForDisplay(compatibility)
-      });
-    }
-    return warnings;
-  }, [numerationLookupMap, step1EntryMode, tokenSlotEdits]);
-
   useEffect(() => {
     if (!ENABLE_UI_PERSISTENCE) {
       return;
@@ -2881,37 +2851,6 @@ export default function App() {
       </p>
       {isNumerationLexiconLoading && <p className="hint">語彙情報を参照中…</p>}
       {numerationLexiconError && <p className="step1-upload-error">{numerationLexiconError}</p>}
-      {step1GrammarCompatibilityWarnings.map((warning, index) => (
-        <p
-          className="step1-upload-error"
-          data-testid="step1-compat-warning"
-          key={`step1-compat-${warning.slot}-${warning.selectedLexiconId}-${index}`}
-        >
-          警告: slot {warning.slot}（token: {warning.token}, ID {warning.selectedLexiconId} / {warning.selectedEntry}
-          ）は Step0 の文法 {grammarId} と互換ではありません。{warning.reasons.join(" ")}
-        </p>
-      ))}
-      {step1PartnerWarnings
-        .filter((warning) => warning.level === "impossible")
-        .map((warning, index) => (
-          <p className="step1-upload-error" data-testid="step1-partner-warning-impossible" key={`step1-impossible-${warning.slot}-${warning.selectedLexiconId}-${warning.requirement.featureCode}-${warning.requirement.label}-${index}`}>
-            警告: slot {warning.slot}（ID {warning.selectedLexiconId} / {warning.selectedEntry}）は
-            {` ${warning.requirement.featureCode}(${warning.requirement.label}) `}
-            を要求していますが、Numeration 内に
-            {` ${warning.requirement.featureCode}(${warning.requirement.label}) `}
-            を満たす語が見つかりません。
-          </p>
-        ))}
-      {step1PartnerWarnings
-        .filter((warning) => warning.level === "possible")
-        .map((warning, index) => (
-          <p className="step1-partner-warning" data-testid="step1-partner-warning-possible" key={`step1-possible-${warning.slot}-${warning.selectedLexiconId}-${warning.requirement.featureCode}-${warning.requirement.label}-${index}`}>
-            注意: slot {warning.slot}（ID {warning.selectedLexiconId} / {warning.selectedEntry}）の
-            {` ${warning.requirement.featureCode}(${warning.requirement.label}) `}
-            について、現在の選択では条件を満たす語がありません。
-            候補差し替えで満たせます（候補slot: {warning.providerSlots.join(", ")}）。
-          </p>
-        ))}
       {numerationLexiconRows.length === 0 ? (
         <p className="hint">対象の語彙IDがありません。</p>
       ) : (
