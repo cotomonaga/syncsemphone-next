@@ -327,3 +327,4 @@
 - [x] `LEX-REG-01` 新規Lexicon API群の回帰テストを追加する。
 - [x] `LEX-REG-02` Lexicon新UIのWebユニットテストを追加する。
 - [x] `LEX-REG-03` Lexicon新UIのE2Eテストを追加する。
+- [x] `LEX-API-07` メタDB URL 未設定時、Lexicon読取系API（辞書一覧/num紐付け一覧/メモ取得/履歴一覧）を 500 にせず空結果で返す。

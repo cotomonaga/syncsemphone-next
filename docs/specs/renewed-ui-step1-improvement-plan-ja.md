@@ -202,6 +202,7 @@
 | LEX-REG-01 | 新規Lexicon API群（`lexicon_ext`）の回帰テストを追加する | `apps/api/tests/test_lexicon_ext.py` | `pytest` |
 | LEX-REG-02 | Lexicon新UIのWebユニットテストを追加する | `apps/web/src/__tests__/App.test.tsx` | `vitest` |
 | LEX-REG-03 | Lexicon新UIのE2Eテストを追加する | `apps/web/e2e/hypothesis-loop.spec.ts` | `playwright` |
+| LEX-API-07 | メタDB URL 未設定時、Lexicon読取系APIを空結果でフォールバックし語彙編集ページを継続利用可能にする | `apps/api/app/api/v1/lexicon_ext.py` | `pytest` |
 
 ## 実装メモ（2026-02-27）
 - `S2-VIS-02`: Step2 適用対象ペインを `base[slot][7]` の子ノード再帰表示に対応し、合体後ノード（親＋子）を描画するよう更新。
@@ -249,6 +250,7 @@
 - `LEX-REG-01`: `test_lexicon_ext.py` を追加し、語彙項目CRUD・辞書/num紐付け/研究メモ・版情報APIの回帰を固定した。
 - `LEX-REG-02`: Webテストに `shows Lexicon 3-pane editor and selection-based fields` を追加し、新UI導線を固定した。
 - `LEX-REG-03`: Playwright E2Eに `lexicon workbench shows 3-pane editing tabs` を追加し、実ブラウザ導線を固定した。
+- `LEX-API-07`: メタDB URL 未設定時に `value-dictionary / num-links / notes / note-revisions` の読取APIを空結果フォールバックに変更し、`Metadata DB URL is missing...` による画面停止を解消した。
 
 ## API追加（S1-GRM-02）
 - `GET /v1/reference/grammars/{grammar_id}/rule-sources`
