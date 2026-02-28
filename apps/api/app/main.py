@@ -7,6 +7,7 @@ from app.api.v1.derivation import router as derivation_router
 from app.api.v1.health import router as health_router
 from app.api.v1.legacy_perl import router as legacy_perl_router
 from app.api.v1.lexicon import router as lexicon_router
+from app.api.v1.lexicon_ext import router as lexicon_ext_router
 from app.api.v1.observation import router as observation_router
 from app.api.v1.reference import router as reference_router
 from app.api.v1.semantics import router as semantics_router
@@ -28,6 +29,7 @@ app.add_middleware(
 )
 app.include_router(health_router, prefix="/v1")
 app.include_router(derivation_router, prefix="/v1")
+app.include_router(lexicon_ext_router, prefix="/v1")
 app.include_router(lexicon_router, prefix="/v1")
 app.include_router(observation_router, prefix="/v1")
 app.include_router(semantics_router, prefix="/v1")

@@ -667,6 +667,14 @@ button:disabled {
   padding: 1px 4px;
 }
 
+.numeration-candidate-sy {
+  font-family: "Menlo", "Monaco", monospace;
+  font-size: 0.71rem;
+  display: inline-flex;
+  align-items: baseline;
+  gap: 2px;
+}
+
 .numeration-candidate-apply {
   border: 1px solid #8ea3b0;
   border-radius: 6px;

@@ -18,11 +18,12 @@ Migration workspace for the SyncSemPhone engine:
 cd apps/api
 python3 -m venv .venv
 source .venv/bin/activate
-pip install -e .[dev]
+python -m pip install -e '.[dev]'
 uvicorn app.main:app --reload
 ```
 
 `SYNCSEMPHONE_LEGACY_ROOT` can be set to the Perl資産ルート（既定はこのリポジトリ親ディレクトリ）。
+`SYNCSEMPHONE_META_DB_URL`（または `DATABASE_URL`）を設定すると、Lexicon拡張API（value-dictionary / num-links / notes）がPostgreSQLを利用します。
 
 ## Test (API + Domain)
 ```bash
@@ -87,6 +88,30 @@ Manual replay by Playwright MCP:
   - input: `yaml_text`, optional `source_csv`, optional `legacy_root`, `run_compatibility_tests` (default: true)
   - output: `committed/rolled_back`、`compatibility_passed`、`backup_path`、`committed_csv_text`、`stdout/stderr`
   - behavior: YAML検証後にCSVを原子的に保存し、互換テスト失敗時は自動 rollback
+- `GET /v1/lexicon/{grammar_id}/items`
+- `GET /v1/lexicon/{grammar_id}/items/{lexicon_id}`
+- `POST /v1/lexicon/{grammar_id}/items`
+- `PUT /v1/lexicon/{grammar_id}/items/{lexicon_id}`
+- `DELETE /v1/lexicon/{grammar_id}/items/{lexicon_id}`
+  - behavior: CSV正本を更新（互換テストは走らせず即時保存）
+- `GET /v1/lexicon/value-dictionary`
+- `POST /v1/lexicon/value-dictionary`
+- `PUT /v1/lexicon/value-dictionary/{value_id}`
+- `GET /v1/lexicon/value-dictionary/{value_id}/usages`
+- `POST /v1/lexicon/value-dictionary/{value_id}/replace`
+- `DELETE /v1/lexicon/value-dictionary/{value_id}`
+  - behavior: 参照中削除は `409`
+- `GET /v1/lexicon/{grammar_id}/items/{lexicon_id}/num-links`
+- `POST /v1/lexicon/{grammar_id}/items/{lexicon_id}/num-links`
+- `PUT /v1/lexicon/{grammar_id}/items/{lexicon_id}/num-links/{link_id}`
+- `DELETE /v1/lexicon/{grammar_id}/items/{lexicon_id}/num-links/{link_id}`
+- `GET /v1/lexicon/{grammar_id}/items/{lexicon_id}/notes`
+- `PUT /v1/lexicon/{grammar_id}/items/{lexicon_id}/notes`
+- `GET /v1/lexicon/{grammar_id}/items/{lexicon_id}/notes/revisions`
+- `GET /v1/lexicon/{grammar_id}/items/{lexicon_id}/notes/revisions/{revision_id}`
+- `POST /v1/lexicon/{grammar_id}/items/{lexicon_id}/notes/revisions/{revision_id}/restore`
+- `GET /v1/lexicon/{grammar_id}/versions`
+- `GET /v1/lexicon/{grammar_id}/versions/{revision_id}/diff`
 
 ### Additional Endpoints (Perl UI parity support)
 - `GET /v1/derivation/grammars`

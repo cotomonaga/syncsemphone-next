@@ -1648,7 +1648,7 @@ describe("App", () => {
               entry: `ID-${lexiconId}`,
               phono: `phono-${lexiconId}`,
               category: lexiconId === 204 || lexiconId === 308 ? "T" : "N",
-              sync_features: [],
+              sync_features: lexiconId === 308 ? ["0,17,N,,,right,nonhead"] : [],
               idslot: "id",
               semantics: [`Sem-${lexiconId}`],
               note: ""
@@ -1677,6 +1677,7 @@ describe("App", () => {
     await user.click(await within(buildPanel!).findByTestId("step1-candidate-toggle-4"));
     const candidatePanel = await within(buildPanel!).findByTestId("step1-candidate-panel-4");
     expect(candidatePanel).toHaveTextContent("ID 308");
+    expect(candidatePanel).toHaveTextContent("+N(right)(nonhead)");
     await user.click(within(candidatePanel).getByRole("button", { name: "この候補に差し替え" }));
 
     await waitFor(() => {
@@ -1738,7 +1739,7 @@ describe("App", () => {
               entry: `ID-${lexiconId}`,
               phono: `phono-${lexiconId}`,
               category: lexiconId === 204 || lexiconId === 308 ? "T" : "N",
-              sync_features: [],
+              sync_features: lexiconId === 308 ? ["0,17,N,,,right,nonhead"] : [],
               idslot: "id",
               semantics: [`Sem-${lexiconId}`],
               note: ""

@@ -2553,6 +2553,9 @@ export default function App() {
                     <div className="numeration-candidate-list" data-testid={`step1-candidate-panel-${row.slot}`}>
                       {candidateIds.map((candidateId) => {
                         const candidateItem = numerationLookupMap.get(candidateId);
+                        const candidateSyncFeatures = candidateItem
+                          ? candidateItem.sync_features.filter((feature) => feature.trim() !== "").slice(0, 3)
+                          : [];
                         const candidateSemantics = candidateItem
                           ? candidateItem.semantics.filter((semantic) => semantic.trim() !== "").slice(0, 2)
                           : [];
@@ -2571,6 +2574,19 @@ export default function App() {
                                   {candidateItem.phono !== "" && (
                                     <span className="numeration-candidate-phono">{candidateItem.phono}</span>
                                   )}
+                                  {candidateSyncFeatures.map((feature, featureIdx) => (
+                                    <span
+                                      className="numeration-candidate-sy"
+                                      key={`${row.slot}-candidate-${candidateId}-sy-${featureIdx}`}
+                                    >
+                                      {isEncodedFeature(feature)
+                                        ? renderEncodedFeatureLikePerl(
+                                          feature,
+                                          `${row.slot}-candidate-${candidateId}-sy-${featureIdx}`
+                                        )
+                                        : feature}
+                                    </span>
+                                  ))}
                                   {candidateSemantics.map((semantic, semIdx) => (
                                     <span
                                       className="numeration-candidate-sem"
@@ -3375,6 +3391,9 @@ export default function App() {
                             <div className="numeration-candidate-list" data-testid={`step2-candidate-panel-${row.slot}`}>
                               {candidateIds.map((candidateId) => {
                                 const candidateItem = numerationLookupMap.get(candidateId);
+                                const candidateSyncFeatures = candidateItem
+                                  ? candidateItem.sync_features.filter((feature) => feature.trim() !== "").slice(0, 3)
+                                  : [];
                                 const candidateSemantics = candidateItem
                                   ? candidateItem.semantics.filter((semantic) => semantic.trim() !== "").slice(0, 2)
                                   : [];
@@ -3393,6 +3412,19 @@ export default function App() {
                                           {candidateItem.phono !== "" && (
                                             <span className="numeration-candidate-phono">{candidateItem.phono}</span>
                                           )}
+                                          {candidateSyncFeatures.map((feature, featureIdx) => (
+                                            <span
+                                              className="numeration-candidate-sy"
+                                              key={`step2-${row.slot}-candidate-${candidateId}-sy-${featureIdx}`}
+                                            >
+                                              {isEncodedFeature(feature)
+                                                ? renderEncodedFeatureLikePerl(
+                                                  feature,
+                                                  `step2-${row.slot}-candidate-${candidateId}-sy-${featureIdx}`
+                                                )
+                                                : feature}
+                                            </span>
+                                          ))}
                                           {candidateSemantics.map((semantic, semIdx) => (
                                             <span
                                               className="numeration-candidate-sem"

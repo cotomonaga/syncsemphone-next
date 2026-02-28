@@ -310,3 +310,20 @@
 - [x] `S2-UI-03` Step2「適用対象」ペインで、複数候補がある行に `候補(n)` を表示し、行内展開で候補詳細を確認できるようにする。
 - [x] `S2-UI-04` Step2行内候補の `この候補に差し替え` 実行で `.num` を再構成し、T0を再初期化してStep2継続できるようにする。
 - [x] `S2-REG-16` Webユニットテストで、Step2行内候補差し替え後に適用対象表示が更新されること（例: `Sem-204 -> Sem-308`）を固定する。
+
+## 56. Lexicon全面改訂（選択式編集 + 辞書管理 + 研究支援）
+- [x] `LEX-UI-12` Step1/Step2の候補展開で統語素性（`sync_features`）を表示し、`+N(right)(nonhead)` 等を確認できるようにする。
+- [x] `LEX-API-01` `/v1/lexicon/{grammar_id}/items` 系の語彙項目CRUD APIを追加する（一覧/取得/作成/更新/削除）。
+- [x] `LEX-API-02` `/v1/lexicon/value-dictionary` 系のバリュー辞書CRUD APIを追加する。
+- [x] `LEX-API-03` バリュー辞書の使用件数参照と一括置換API、および参照中削除拒否（409）を追加する。
+- [x] `LEX-API-04` 語彙項目ごとの num 紐付けAPI（一覧/作成/更新/削除）を追加する。
+- [x] `LEX-API-05` 語彙項目ごとの研究メモAPI（現在値/更新/履歴/履歴復元）を追加する。
+- [x] `LEX-API-06` Lexicon版情報API（一覧/差分）を追加する。
+- [ ] `LEX-UI-01` Lexiconページを語彙項目中心の3ペイン構成へ全面改訂する。
+- [ ] `LEX-UI-02` 構造系プロパティを選択式入力へ統一する（`category/predicates/sync_features/idslot/semantics`）。
+- [ ] `LEX-UI-03` バリュー辞書管理UI（CRUD + 使用件数 + 一括置換）を実装する。
+- [ ] `LEX-UI-04` num紐付けUI（語彙項目ごと複数リンク）を実装する。
+- [ ] `LEX-UI-05` 研究メモUI（改訂履歴・差分・復元）を実装する。
+- [ ] `LEX-REG-01` 新規Lexicon API群の回帰テストを追加する。
+- [ ] `LEX-REG-02` Lexicon新UIのWebユニットテストを追加する。
+- [ ] `LEX-REG-03` Lexicon新UIのE2Eテストを追加する。

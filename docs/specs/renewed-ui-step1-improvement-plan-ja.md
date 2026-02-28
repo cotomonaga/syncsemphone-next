@@ -187,6 +187,13 @@
 | S2-UI-03 | Step2「適用対象」ペインで複数候補行に `候補(n)` を表示し、行内展開で候補詳細を確認できるUIを追加する | `apps/web/src/App.tsx` | `apps/web/src/__tests__/App.test.tsx` |
 | S2-UI-04 | Step2行内候補 `この候補に差し替え` で `.num` 再構成→`init` によるT0再初期化を行い、Step2で継続できるようにする | `apps/web/src/App.tsx` | `apps/web/src/__tests__/App.test.tsx` |
 | S2-REG-16 | Webユニットテストで Step2 行内候補差し替え後の表示更新（`Sem-204 -> Sem-308`）を固定する | `apps/web/src/__tests__/App.test.tsx` | `npm test` |
+| LEX-UI-12 | Step1/Step2候補展開で `sync_features` を表示し、本体行と同等に `+N(right)(nonhead)` 等の統語素性を確認できるようにする | `apps/web/src/App.tsx`, `apps/web/src/styles.css` | `apps/web/src/__tests__/App.test.tsx` |
+| LEX-API-01 | `/v1/lexicon/{grammar_id}/items` の語彙項目CRUD API（一覧/取得/作成/更新/削除）を追加する | `apps/api/app/api/v1/lexicon_ext.py`, `apps/api/app/main.py` | `pytest` |
+| LEX-API-02 | `/v1/lexicon/value-dictionary` のバリュー辞書CRUD APIを追加する | `apps/api/app/api/v1/lexicon_ext.py` | `pytest` |
+| LEX-API-03 | バリュー辞書の使用件数参照/一括置換/参照中削除拒否（409）を追加する | `apps/api/app/api/v1/lexicon_ext.py` | `pytest` |
+| LEX-API-04 | 語彙項目ごとの num 紐付けAPI（一覧/作成/更新/削除）を追加する | `apps/api/app/api/v1/lexicon_ext.py` | `pytest` |
+| LEX-API-05 | 語彙項目ごとの研究メモAPI（現在値/更新/履歴/履歴復元）を追加する | `apps/api/app/api/v1/lexicon_ext.py` | `pytest` |
+| LEX-API-06 | Lexicon版情報API（一覧/差分）を追加する | `apps/api/app/api/v1/lexicon_ext.py` | `pytest` |
 
 ## 実装メモ（2026-02-27）
 - `S2-VIS-02`: Step2 適用対象ペインを `base[slot][7]` の子ノード再帰表示に対応し、合体後ノード（親＋子）を描画するよう更新。
@@ -223,6 +230,9 @@
 - `S2-UI-03`: Step2「適用対象」行にも `候補(n)` 展開UIを追加し、Step1と同じ見た目で候補詳細を確認できるようにした。
 - `S2-UI-04`: Step2行内候補の差し替えを `.num` 再構成 + `init` 再実行に接続し、T0再初期化後に同じStep2画面で継続できるようにした。
 - `S2-REG-16`: Web回帰 `allows replacing a multi-candidate lexicon item in Step2 target panel` を追加し、`Sem-204 -> Sem-308` の反映を固定した。
+- `LEX-UI-12`: Step1候補展開テストに `sync_features` 表示アサーションを追加し、候補一覧で `+N(right)(nonhead)` を確認できるようにした。
+- `LEX-API-01..06`: 新規ルーター `lexicon_ext.py` を追加し、語彙項目CRUD・バリュー辞書CRUD/置換・num紐付け・研究メモ履歴・版情報APIを実装した。
+- `LEX-API-01..06`: `main.py` へルーターを追加し、既存 `/v1/lexicon/*` の互換を維持しつつ拡張エンドポイントを公開した。
 
 ## API追加（S1-GRM-02）
 - `GET /v1/reference/grammars/{grammar_id}/rule-sources`
