@@ -185,11 +185,18 @@ def _project_root() -> Path:
     return Path(__file__).resolve().parents[5]
 
 
-def _meta_db_url() -> str:
+def _meta_db_url_optional() -> Optional[str]:
     for key in ("SYNCSEMPHONE_META_DB_URL", "SYNCSEMPHONE_DATABASE_URL", "DATABASE_URL"):
         value = os.getenv(key, "").strip()
         if value:
             return value
+    return None
+
+
+def _meta_db_url() -> str:
+    url = _meta_db_url_optional()
+    if url:
+        return url
     raise HTTPException(
         status_code=500,
         detail="Metadata DB URL is missing. Set SYNCSEMPHONE_META_DB_URL or DATABASE_URL.",
@@ -551,6 +558,8 @@ def delete_lexicon_item(grammar_id: str, lexicon_id: int) -> dict[str, Any]:
 def list_value_dictionary(
     kind: Optional[ValueKind] = Query(default=None),
 ) -> ValueDictionaryListResponse:
+    if _meta_db_url_optional() is None:
+        return ValueDictionaryListResponse(items=[])
     with _meta_conn() as conn:
         with conn.cursor() as cur:
             if kind:
@@ -717,6 +726,8 @@ def delete_value_dictionary(value_id: int) -> dict[str, Any]:
 
 @router.get("/{grammar_id}/items/{lexicon_id}/num-links", response_model=NumLinksResponse)
 def list_num_links(grammar_id: str, lexicon_id: int) -> NumLinksResponse:
+    if _meta_db_url_optional() is None:
+        return NumLinksResponse(items=[])
     with _meta_conn() as conn:
         with conn.cursor() as cur:
             cur.execute(
@@ -846,6 +857,8 @@ def delete_num_link(grammar_id: str, lexicon_id: int, link_id: int) -> dict[str,
 
 @router.get("/{grammar_id}/items/{lexicon_id}/notes", response_model=NoteCurrentResponse)
 def get_note(grammar_id: str, lexicon_id: int) -> NoteCurrentResponse:
+    if _meta_db_url_optional() is None:
+        return NoteCurrentResponse(grammar_id=grammar_id, lexicon_id=lexicon_id, markdown="", updated_at=None)
     with _meta_conn() as conn:
         with conn.cursor() as cur:
             cur.execute(
@@ -915,6 +928,8 @@ def put_note(grammar_id: str, lexicon_id: int, request: NoteUpdateRequest) -> No
 
 @router.get("/{grammar_id}/items/{lexicon_id}/notes/revisions", response_model=NoteRevisionsResponse)
 def list_note_revisions(grammar_id: str, lexicon_id: int) -> NoteRevisionsResponse:
+    if _meta_db_url_optional() is None:
+        return NoteRevisionsResponse(items=[])
     with _meta_conn() as conn:
         with conn.cursor() as cur:
             cur.execute(
@@ -1071,4 +1086,3 @@ def get_lexicon_version_diff(
     except Exception as exc:
         raise HTTPException(status_code=404, detail=f"Revision diff not found: {revision_id}") from exc
     return LexiconVersionDiffResponse(grammar_id=grammar_id, revision_id=revision_id, diff_text=diff_text)
-

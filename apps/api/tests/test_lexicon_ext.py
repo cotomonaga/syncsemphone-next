@@ -426,6 +426,7 @@ def test_lexicon_ext_items_crud(monkeypatch) -> None:
 
 def test_lexicon_ext_metadata_endpoints(monkeypatch) -> None:
     client = TestClient(app)
+    monkeypatch.setenv("DATABASE_URL", "postgresql://test:test@localhost:5432/test")
     store = {
         "value_next_id": 1,
         "values": {},
@@ -517,3 +518,26 @@ def test_lexicon_ext_versions_fallback(monkeypatch) -> None:
 
         diff = client.get("/v1/lexicon/imi03/versions/not-found/diff")
         assert diff.status_code == 404
+
+
+def test_lexicon_ext_read_endpoints_degrade_when_meta_db_missing(monkeypatch) -> None:
+    client = TestClient(app)
+    monkeypatch.delenv("SYNCSEMPHONE_META_DB_URL", raising=False)
+    monkeypatch.delenv("SYNCSEMPHONE_DATABASE_URL", raising=False)
+    monkeypatch.delenv("DATABASE_URL", raising=False)
+
+    dictionary = client.get("/v1/lexicon/value-dictionary?kind=category")
+    assert dictionary.status_code == 200
+    assert dictionary.json()["items"] == []
+
+    num_links = client.get("/v1/lexicon/imi01/items/60/num-links")
+    assert num_links.status_code == 200
+    assert num_links.json()["items"] == []
+
+    note = client.get("/v1/lexicon/imi01/items/60/notes")
+    assert note.status_code == 200
+    assert note.json()["markdown"] == ""
+
+    revisions = client.get("/v1/lexicon/imi01/items/60/notes/revisions")
+    assert revisions.status_code == 200
+    assert revisions.json()["items"] == []
