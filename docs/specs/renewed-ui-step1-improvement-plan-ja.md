@@ -311,6 +311,11 @@
 | S2-REG-18 | `ジョンがを読んだ` を high budget で評価しても `unreachable` であることをAPI回帰に固定する | `apps/api/tests/test_derivation.py` | `pytest` |
 | S1-NUM-13 | Step1 `numerationの語彙情報参照` で、`例文から選ぶ/numファイルを選ぶ` 時は `tokenSlotEdits` 候補IDを合成しないようにし、buildモード候補混入を防止する | `apps/web/src/App.tsx` | `vitest`, Playwright |
 | S1-REG-22 | Web回帰を追加し、buildモードで `ID 60` を保持した後に `例文から選ぶ` へ切替えても slot1 候補が `ID 8` のみになることを固定する | `apps/web/src/__tests__/App.test.tsx` | `vitest` |
+| S1-PART-01 | Numeration生成時の候補選択に `25/33` 要求の充足優先ロジックを追加し、相方要求を満たしやすい初期選択へ寄せる | `packages/domain/src/domain/numeration/generator.py` | `pytest` |
+| S1-PART-02 | Step1 `numerationの語彙情報参照` に、充足不能な相方要求を赤字で理由表示する警告を追加する | `apps/web/src/App.tsx`, `apps/web/src/styles.css` | `vitest`, Playwright |
+| S1-PART-03 | Step1 `numerationの語彙情報参照` に、差し替えで充足可能な相方要求を橙色注意で表示する | `apps/web/src/App.tsx`, `apps/web/src/styles.css` | `vitest`, Playwright |
+| S1-REG-23 | API回帰で `ジョンが本を読む` の `226` が単体系 `ga/wo` 候補を優先することを固定する | `apps/api/tests/test_derivation.py` | `pytest` |
+| S1-REG-24 | Web回帰で `25(ga/wo)` 未充足時に赤警告が表示されることを固定する | `apps/web/src/__tests__/App.test.tsx` | `vitest` |
 
 ## API追加（S1-GRM-02）
 - `GET /v1/reference/grammars/{grammar_id}/rule-sources`

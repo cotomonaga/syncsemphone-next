@@ -205,6 +205,12 @@ class GeneratedNumeration:
     numeration_text: str
 
 
+@dataclass(frozen=True)
+class _PartnerRequirement:
+    feature_code: str  # "25" or "33"
+    label: str
+
+
 def _phono_variants(phono: str) -> list[str]:
     out: list[str] = []
     normalized = _normalize_token(phono)
@@ -295,6 +301,177 @@ def _resolve_token(
     )
 
 
+def _extract_partner_requirements(entry: LexiconEntry) -> list[_PartnerRequirement]:
+    requirements: list[_PartnerRequirement] = []
+    for semantic in entry.semantics:
+        _, _, raw_value = semantic.partition(":")
+        value = raw_value.strip()
+        if value == "" or "," not in value:
+            continue
+        parts = value.split(",")
+        if len(parts) < 3:
+            continue
+        feature_code = parts[1].strip()
+        label = parts[2].strip()
+        if feature_code in {"25", "33"} and label != "":
+            requirements.append(_PartnerRequirement(feature_code=feature_code, label=label))
+    return requirements
+
+
+def _extract_partner_capabilities(entry: LexiconEntry) -> tuple[set[str], set[str]]:
+    plain: set[str] = set()
+    labeled: set[str] = set()
+    for feature in entry.sync_features:
+        value = feature.strip()
+        if value == "":
+            continue
+        if "," not in value or not any(ch.isdigit() for ch in value.split(",", 1)[1]):
+            plain.add(value)
+            continue
+        parts = value.split(",")
+        if len(parts) < 3:
+            continue
+        code = parts[1].strip()
+        label = parts[2].strip()
+        if code in {"11", "12"} and label != "":
+            labeled.add(label)
+    return plain, labeled
+
+
+def _requirement_is_satisfied(
+    requirement: _PartnerRequirement,
+    *,
+    plain_capabilities: set[str],
+    labeled_capabilities: set[str],
+) -> bool:
+    if requirement.feature_code == "25":
+        return requirement.label in plain_capabilities
+    if requirement.feature_code == "33":
+        return requirement.label in labeled_capabilities
+    return False
+
+
+def _optimize_partner_friendly_selection(
+    resolutions: list[TokenResolution],
+    *,
+    lexicon: dict[int, LexiconEntry],
+) -> list[int]:
+    if len(resolutions) <= 1:
+        return [resolution.lexicon_id for resolution in resolutions]
+
+    candidate_ids_by_slot: list[list[int]] = []
+    candidate_rank_by_slot: list[dict[int, int]] = []
+    for resolution in resolutions:
+        deduped = list(dict.fromkeys(resolution.candidate_lexicon_ids or [resolution.lexicon_id]))
+        if resolution.lexicon_id not in deduped:
+            deduped.insert(0, resolution.lexicon_id)
+        candidate_ids_by_slot.append(deduped)
+        candidate_rank_by_slot.append({lexicon_id: idx for idx, lexicon_id in enumerate(deduped)})
+
+    capabilities_cache: dict[int, tuple[set[str], set[str]]] = {}
+    requirements_cache: dict[int, list[_PartnerRequirement]] = {}
+
+    def _capabilities_for(lexicon_id: int) -> tuple[set[str], set[str]]:
+        if lexicon_id not in capabilities_cache:
+            entry = lexicon.get(lexicon_id)
+            if entry is None:
+                capabilities_cache[lexicon_id] = (set(), set())
+            else:
+                capabilities_cache[lexicon_id] = _extract_partner_capabilities(entry)
+        return capabilities_cache[lexicon_id]
+
+    def _requirements_for(lexicon_id: int) -> list[_PartnerRequirement]:
+        if lexicon_id not in requirements_cache:
+            entry = lexicon.get(lexicon_id)
+            if entry is None:
+                requirements_cache[lexicon_id] = []
+            else:
+                requirements_cache[lexicon_id] = _extract_partner_requirements(entry)
+        return requirements_cache[lexicon_id]
+
+    original_selected = [resolution.lexicon_id for resolution in resolutions]
+    selected = original_selected[:]
+
+    def _score(assignment: list[int]) -> tuple[int, int, int, int]:
+        impossible_count = 0
+        unsatisfied_count = 0
+        for slot, lexicon_id in enumerate(assignment):
+            requirements = _requirements_for(lexicon_id)
+            if not requirements:
+                continue
+            for requirement in requirements:
+                satisfied_now = False
+                for other_slot, other_lexicon_id in enumerate(assignment):
+                    if other_slot == slot:
+                        continue
+                    plain, labeled = _capabilities_for(other_lexicon_id)
+                    if _requirement_is_satisfied(
+                        requirement,
+                        plain_capabilities=plain,
+                        labeled_capabilities=labeled,
+                    ):
+                        satisfied_now = True
+                        break
+                if satisfied_now:
+                    continue
+                unsatisfied_count += 1
+
+                satisfiable_by_candidates = False
+                for other_slot, candidate_ids in enumerate(candidate_ids_by_slot):
+                    if other_slot == slot:
+                        continue
+                    for candidate_id in candidate_ids:
+                        plain, labeled = _capabilities_for(candidate_id)
+                        if _requirement_is_satisfied(
+                            requirement,
+                            plain_capabilities=plain,
+                            labeled_capabilities=labeled,
+                        ):
+                            satisfiable_by_candidates = True
+                            break
+                    if satisfiable_by_candidates:
+                        break
+                if not satisfiable_by_candidates:
+                    impossible_count += 1
+
+        change_penalty = sum(
+            1 for idx, lexicon_id in enumerate(assignment) if lexicon_id != original_selected[idx]
+        )
+        rank_penalty = sum(
+            candidate_rank_by_slot[idx].get(lexicon_id, len(candidate_ids_by_slot[idx]))
+            for idx, lexicon_id in enumerate(assignment)
+        )
+        return impossible_count, unsatisfied_count, change_penalty, rank_penalty
+
+    improved = True
+    max_rounds = max(1, len(candidate_ids_by_slot) * 2)
+    rounds = 0
+    while improved and rounds < max_rounds:
+        improved = False
+        rounds += 1
+        current_score = _score(selected)
+        for slot, candidate_ids in enumerate(candidate_ids_by_slot):
+            if len(candidate_ids) <= 1:
+                continue
+            best_id = selected[slot]
+            best_score = current_score
+            for candidate_id in candidate_ids:
+                if candidate_id == selected[slot]:
+                    continue
+                trial = selected[:]
+                trial[slot] = candidate_id
+                score = _score(trial)
+                if score < best_score:
+                    best_score = score
+                    best_id = candidate_id
+            if best_id != selected[slot]:
+                selected[slot] = best_id
+                current_score = best_score
+                improved = True
+
+    return selected
+
+
 def _build_numeration_text(*, memo: str, lexicon_ids: list[int]) -> str:
     if len(lexicon_ids) > NUMERATION_SLOT_COUNT:
         raise ValueError(
@@ -348,7 +525,19 @@ def generate_numeration_from_sentence(
     if not resolutions:
         raise ValueError("No valid tokens were resolved from input")
 
-    lexicon_ids = [resolution.lexicon_id for resolution in resolutions]
+    optimized_lexicon_ids = _optimize_partner_friendly_selection(
+        resolutions,
+        lexicon=lexicon,
+    )
+    resolutions = [
+        TokenResolution(
+            token=resolution.token,
+            lexicon_id=optimized_lexicon_ids[idx],
+            candidate_lexicon_ids=resolution.candidate_lexicon_ids,
+        )
+        for idx, resolution in enumerate(resolutions)
+    ]
+    lexicon_ids = optimized_lexicon_ids
     numeration_text = _build_numeration_text(memo=memo, lexicon_ids=lexicon_ids)
 
     return GeneratedNumeration(

@@ -1893,6 +1893,121 @@ describe("App", () => {
     expect(within(examplePanel!).getByText("選択中: 8")).toBeInTheDocument();
   });
 
+  it("shows red partner warning when required ga/wo partner cannot be satisfied in Step1", async () => {
+    vi.spyOn(globalThis, "fetch").mockImplementation(async (input, init) => {
+      const url = String(input);
+      const common = maybeCommonResponse(url);
+      if (common) {
+        return common;
+      }
+      if (url.endsWith("/v1/derivation/numeration/tokenize")) {
+        return jsonResponse({ body: { tokens: ["ジョン", "が", "本", "を", "読む"] } });
+      }
+      if (url.endsWith("/v1/derivation/numeration/generate")) {
+        const payload = init?.body ? JSON.parse(String(init.body)) : {};
+        return jsonResponse({
+          body: {
+            memo: payload.sentence || "ジョンが本を読む",
+            lexicon_ids: [60, 19, 100, 23, 226],
+            token_resolutions: [
+              { token: "ジョン", lexicon_id: 60, candidate_lexicon_ids: [60] },
+              { token: "が", lexicon_id: 19, candidate_lexicon_ids: [19] },
+              { token: "本", lexicon_id: 100, candidate_lexicon_ids: [100] },
+              { token: "を", lexicon_id: 23, candidate_lexicon_ids: [23] },
+              { token: "読む", lexicon_id: 226, candidate_lexicon_ids: [226] }
+            ],
+            numeration_text: `${payload.sentence || "ジョンが本を読む"}\t60\t19\t100\t23\t226\n \t\t\t\t\t\n \t1\t2\t3\t4\t5`
+          }
+        });
+      }
+      if (url.endsWith("/v1/reference/grammars/imi01/lexicon-items/by-ids")) {
+        const payload = init?.body ? JSON.parse(String(init.body)) : {};
+        const ids = Array.isArray(payload.ids) ? payload.ids : [];
+        return jsonResponse({
+          body: {
+            grammar_id: "imi01",
+            requested_count: ids.length,
+            found_count: ids.length,
+            missing_ids: [],
+            items: ids.map((lexiconId: number) => {
+              if (lexiconId === 19) {
+                return {
+                  lexicon_id: 19,
+                  found: true,
+                  entry: "が",
+                  phono: "が",
+                  category: "J",
+                  sync_features: ["0,17,N,,,right,nonhead", "3,17,V,,,left,nonhead", "4,11,ga"],
+                  idslot: "zero",
+                  semantics: [],
+                  note: ""
+                };
+              }
+              if (lexiconId === 23) {
+                return {
+                  lexicon_id: 23,
+                  found: true,
+                  entry: "を",
+                  phono: "を",
+                  category: "J",
+                  sync_features: ["0,17,N,,,right,nonhead", "3,17,V,,,left,nonhead", "4,11,wo"],
+                  idslot: "zero",
+                  semantics: [],
+                  note: ""
+                };
+              }
+              if (lexiconId === 226) {
+                return {
+                  lexicon_id: 226,
+                  found: true,
+                  entry: "読む",
+                  phono: "yom-",
+                  category: "V",
+                  sync_features: [],
+                  idslot: "id",
+                  semantics: ["Theme:2,25,wo", "Agent:2,25,ga", "Kind:読む"],
+                  note: ""
+                };
+              }
+              return {
+                lexicon_id: lexiconId,
+                found: true,
+                entry: `ID-${lexiconId}`,
+                phono: `phono-${lexiconId}`,
+                category: "N",
+                sync_features: [],
+                idslot: "id",
+                semantics: [`Sem-${lexiconId}`],
+                note: ""
+              };
+            }),
+          }
+        });
+      }
+      throw new Error(`unexpected url: ${url}`);
+    });
+
+    const user = userEvent.setup();
+    render(<App />);
+
+    await user.click(await screen.findByRole("button", { name: "この設定で開始" }));
+    await user.click(screen.getByRole("button", { name: "Lexiconから組み立てる" }));
+
+    const sentenceInput = await screen.findByRole("textbox", { name: "Sentence" });
+    await user.clear(sentenceInput);
+    await user.type(sentenceInput, "ジョンが本を読む");
+
+    const buildPanel = screen.getByRole("button", { name: "Lexiconから組み立てる" }).closest("section");
+    expect(buildPanel).not.toBeNull();
+
+    await waitFor(() => {
+      expect(within(buildPanel!).getByTestId("numeration-lexicon-table")).toHaveTextContent("読む");
+    });
+    const warnings = await within(buildPanel!).findAllByTestId("step1-partner-warning-impossible");
+    expect(warnings.some((el) => el.textContent?.includes("25(wo)"))).toBe(true);
+    expect(warnings.some((el) => el.textContent?.includes("25(ga)"))).toBe(true);
+  });
+
   it("allows replacing a multi-candidate lexicon item in Step2 target panel", async () => {
     const initRequests: string[] = [];
     vi.spyOn(globalThis, "fetch").mockImplementation(async (input, init) => {

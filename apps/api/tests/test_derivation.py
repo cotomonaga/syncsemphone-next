@@ -122,6 +122,33 @@ def test_derivation_numeration_generate_from_sentence_with_manual_tokens() -> No
     assert first_row[1:7] == ["60", "19", "103", "23", "187", "203"]
 
 
+def test_derivation_numeration_generate_prefers_partner_satisfying_candidates_for_feature_25() -> None:
+    client = TestClient(app)
+    response = client.post(
+        "/v1/derivation/numeration/generate",
+        json={
+            "grammar_id": "imi01",
+            "sentence": "ジョンが本を読む",
+            "tokens": ["ジョン", "が", "本", "を", "読む"],
+            "legacy_root": str(_legacy_root()),
+        },
+    )
+    assert response.status_code == 200
+    body = response.json()
+
+    # 226(読む) は 2,25,wo / 2,25,ga を要求するため、
+    # 単体 wo/ga を供給できる助詞候補を優先して選ぶ。
+    assert body["lexicon_ids"][4] == 226
+    assert body["lexicon_ids"][1] in {183, 196, 294}
+    assert body["lexicon_ids"][3] in {181, 197, 297}
+
+    by_token = {row["token"]: row for row in body["token_resolutions"]}
+    assert 19 in by_token["が"]["candidate_lexicon_ids"]
+    assert 23 in by_token["を"]["candidate_lexicon_ids"]
+    assert by_token["が"]["lexicon_id"] in {183, 196, 294}
+    assert by_token["を"]["lexicon_id"] in {181, 197, 297}
+
+
 def test_derivation_init_from_sentence_matches_init_with_same_lexicon_ids() -> None:
     client = TestClient(app)
     from_sentence = client.post(

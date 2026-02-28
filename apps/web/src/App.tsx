@@ -200,6 +200,20 @@ type NumerationLexiconRow = {
   note: string;
 };
 
+type PartnerRequirement = {
+  featureCode: "25" | "33";
+  label: string;
+};
+
+type Step1PartnerWarning = {
+  level: "impossible" | "possible";
+  slot: number;
+  selectedLexiconId: number;
+  selectedEntry: string;
+  requirement: PartnerRequirement;
+  providerSlots: number[];
+};
+
 type Step2DisplayNode = {
   xLabel: string;
   category: string;
@@ -419,6 +433,52 @@ function renderEncodedFeatureLikePerl(value: string, keyPrefix: string): JSX.Ele
 
 function isEncodedFeature(value: string): boolean {
   return /,[0-9]/.test(value) || value === "0=R=0" || value === "0=da=0";
+}
+
+function parsePartnerRequirementsFromSemantics(semantics: string[]): PartnerRequirement[] {
+  const requirements: PartnerRequirement[] = [];
+  for (const semantic of semantics) {
+    const pos = semantic.indexOf(":");
+    if (pos < 0) {
+      continue;
+    }
+    const value = semantic.slice(pos + 1).trim();
+    if (!isEncodedFeature(value)) {
+      continue;
+    }
+    const parts = value.split(",");
+    const featureCode = (parts[1] ?? "").trim();
+    const label = (parts[2] ?? "").trim();
+    if ((featureCode === "25" || featureCode === "33") && label !== "") {
+      requirements.push({ featureCode, label });
+    }
+  }
+  return requirements;
+}
+
+function parsePartnerCapabilitiesFromSyncFeatures(syncFeatures: string[]): {
+  plain: Set<string>;
+  labeled: Set<string>;
+} {
+  const plain = new Set<string>();
+  const labeled = new Set<string>();
+  for (const rawFeature of syncFeatures) {
+    const feature = rawFeature.trim();
+    if (feature === "") {
+      continue;
+    }
+    if (!isEncodedFeature(feature)) {
+      plain.add(feature);
+      continue;
+    }
+    const parts = feature.split(",");
+    const code = (parts[1] ?? "").trim();
+    const label = (parts[2] ?? "").trim();
+    if ((code === "11" || code === "12") && label !== "") {
+      labeled.add(label);
+    }
+  }
+  return { plain, labeled };
 }
 
 function formatEncodedFeatureLikePerl(value: string): string {
@@ -997,6 +1057,114 @@ export default function App() {
     }
     return byId;
   }, [numerationLookupItems]);
+  const step1PartnerWarnings = useMemo(() => {
+    const slotCandidates = numerationLexiconRows.map((row) => {
+      const slotEdit = tokenSlotEditBySlot.get(row.slot);
+      const includeSlotCandidates = step1EntryMode === "build_lexicon";
+      const candidateIds = Array.from(
+        new Set(
+          [
+            ...(row.lexiconId && row.lexiconId > 0 ? [row.lexiconId] : []),
+            ...(
+              includeSlotCandidates
+                ? (slotEdit?.candidateLexiconIds || []).filter(
+                  (candidateId) => Number.isInteger(candidateId) && candidateId > 0
+                )
+                : []
+            ),
+          ].filter((candidateId): candidateId is number => Number.isInteger(candidateId) && candidateId > 0)
+        )
+      );
+      const selectedLexiconId = includeSlotCandidates
+        ? slotEdit?.selectedLexiconId ?? row.lexiconId ?? null
+        : row.lexiconId ?? null;
+      return {
+        slot: row.slot,
+        selectedLexiconId,
+        candidateIds,
+      };
+    });
+
+    const capabilityByLexiconId = new Map<number, { plain: Set<string>; labeled: Set<string> }>();
+    const requirementsByLexiconId = new Map<number, PartnerRequirement[]>();
+
+    function getCapability(lexiconId: number): { plain: Set<string>; labeled: Set<string> } {
+      if (capabilityByLexiconId.has(lexiconId)) {
+        return capabilityByLexiconId.get(lexiconId)!;
+      }
+      const lookup = numerationLookupMap.get(lexiconId);
+      const capability = parsePartnerCapabilitiesFromSyncFeatures(lookup?.sync_features || []);
+      capabilityByLexiconId.set(lexiconId, capability);
+      return capability;
+    }
+
+    function getRequirements(lexiconId: number): PartnerRequirement[] {
+      if (requirementsByLexiconId.has(lexiconId)) {
+        return requirementsByLexiconId.get(lexiconId)!;
+      }
+      const lookup = numerationLookupMap.get(lexiconId);
+      const requirements = parsePartnerRequirementsFromSemantics(lookup?.semantics || []);
+      requirementsByLexiconId.set(lexiconId, requirements);
+      return requirements;
+    }
+
+    function requirementSatisfied(
+      requirement: PartnerRequirement,
+      capability: { plain: Set<string>; labeled: Set<string> }
+    ): boolean {
+      if (requirement.featureCode === "25") {
+        return capability.plain.has(requirement.label);
+      }
+      return capability.labeled.has(requirement.label);
+    }
+
+    const warnings: Step1PartnerWarning[] = [];
+    for (const source of slotCandidates) {
+      if (!source.selectedLexiconId || source.selectedLexiconId <= 0) {
+        continue;
+      }
+      const sourceLookup = numerationLookupMap.get(source.selectedLexiconId);
+      if (!sourceLookup) {
+        continue;
+      }
+      const requirements = getRequirements(source.selectedLexiconId);
+      if (requirements.length === 0) {
+        continue;
+      }
+
+      for (const requirement of requirements) {
+        const selectedProviderSlots = slotCandidates
+          .filter((candidate) => candidate.slot !== source.slot && candidate.selectedLexiconId !== null)
+          .filter((candidate) =>
+            requirementSatisfied(requirement, getCapability(candidate.selectedLexiconId!))
+          )
+          .map((candidate) => candidate.slot);
+        if (selectedProviderSlots.length > 0) {
+          continue;
+        }
+
+        const possibleProviderSlots = slotCandidates
+          .filter((candidate) => candidate.slot !== source.slot)
+          .filter((candidate) =>
+            candidate.candidateIds.some((candidateId) =>
+              requirementSatisfied(requirement, getCapability(candidateId))
+            )
+          )
+          .map((candidate) => candidate.slot);
+
+        warnings.push({
+          level: possibleProviderSlots.length > 0 ? "possible" : "impossible",
+          slot: source.slot,
+          selectedLexiconId: source.selectedLexiconId,
+          selectedEntry: sourceLookup.entry,
+          requirement,
+          providerSlots: Array.from(new Set(possibleProviderSlots)),
+        });
+      }
+    }
+
+    return warnings;
+  }, [numerationLexiconRows, numerationLookupMap, step1EntryMode, tokenSlotEditBySlot]);
 
   useEffect(() => {
     if (!ENABLE_UI_PERSISTENCE) {
@@ -2581,6 +2749,24 @@ export default function App() {
       </p>
       {isNumerationLexiconLoading && <p className="hint">語彙情報を参照中…</p>}
       {numerationLexiconError && <p className="step1-upload-error">{numerationLexiconError}</p>}
+      {step1PartnerWarnings
+        .filter((warning) => warning.level === "impossible")
+        .map((warning, index) => (
+          <p className="step1-upload-error" data-testid="step1-partner-warning-impossible" key={`step1-impossible-${warning.slot}-${warning.selectedLexiconId}-${warning.requirement.featureCode}-${warning.requirement.label}-${index}`}>
+            警告: slot {warning.slot}（ID {warning.selectedLexiconId} / {warning.selectedEntry}）は
+            {` ${warning.requirement.featureCode}(${warning.requirement.label}) `}
+            を要求していますが、Numeration 内の候補に満たせる相方がありません。
+          </p>
+        ))}
+      {step1PartnerWarnings
+        .filter((warning) => warning.level === "possible")
+        .map((warning, index) => (
+          <p className="step1-partner-warning" data-testid="step1-partner-warning-possible" key={`step1-possible-${warning.slot}-${warning.selectedLexiconId}-${warning.requirement.featureCode}-${warning.requirement.label}-${index}`}>
+            注意: slot {warning.slot}（ID {warning.selectedLexiconId} / {warning.selectedEntry}）の
+            {` ${warning.requirement.featureCode}(${warning.requirement.label}) `}
+            は現在未充足です。候補差し替えで充足可能です（候補slot: {warning.providerSlots.join(", ")}）。
+          </p>
+        ))}
       {numerationLexiconRows.length === 0 ? (
         <p className="hint">対象の語彙IDがありません。</p>
       ) : (

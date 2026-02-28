@@ -173,6 +173,13 @@ button:disabled {
   text-align: left;
 }
 
+.step1-partner-warning {
+  margin: -2px 0 0;
+  color: #a56a00;
+  font-size: 0.8rem;
+  text-align: left;
+}
+
 .hidden-upload-input {
   position: absolute;
   width: 0.1px;
@@ -693,6 +700,27 @@ button:disabled {
 .numeration-candidate-apply:disabled {
   opacity: 0.6;
   cursor: default;
+}
+
+.numeration-candidate-actions {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.numeration-candidate-open-lexicon {
+  border: 1px solid #9fb2be;
+  border-radius: 6px;
+  background: #f4faf6;
+  color: #2b5b3f;
+  font-size: 0.72rem;
+  padding: 3px 8px;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.numeration-candidate-open-lexicon:hover:not(:disabled) {
+  background: #e9f7ee;
 }
 
 .step2-target-panel {
