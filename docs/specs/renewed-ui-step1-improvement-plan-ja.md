@@ -324,9 +324,27 @@
 | S1S2-BUG-03 | Step1候補差し替え後に `Numerationを形成` した際、再Generateで初期候補へ巻き戻さず `tokenSlotEdits` の選択値を保持して初期化する | `apps/web/src/App.tsx` | `vitest`, Playwright |
 | S1S2-REG-02 | Web回帰で `本(227)` 差し替え後に Step2へ進んでも `227` が保持されることを固定する | `apps/web/src/__tests__/App.test.tsx` | `vitest` |
 | S2-REG-19 | API回帰で `japanese2 / ジョンが本を読む` は `ジョン+が` と `本+を` の先行 `J-Merge` 後でも `unreachable` のままであることを固定する | `apps/api/tests/test_derivation.py` | `pytest` |
-| S1-MOR-03 | 自動モード（Sudachi）で動詞終止形を一般に時制語彙 `る` へ補完する（直後が助動詞のときは除外） | `packages/domain/src/domain/numeration/generator.py` | `pytest` |
+| S1-MOR-03 | 自動モード（Sudachi）の時制補完は `いる`（動詞終止形）に限定し、`読む` 等の他動詞終止形へ `る` を自動補完しない | `packages/domain/src/domain/numeration/generator.py` | `pytest` |
 | S1-PART-02 | `japanese2` の `本` 候補は既定選択を `227` に固定し、`100` を既定から外す | `packages/domain/src/domain/numeration/generator.py` | `pytest` |
-| S1-REG-23 | API回帰で `japanese2 / ジョンが本を読む` の `tokenize=...読む,る` と `generate本=227` を固定する | `apps/api/tests/test_derivation.py` | `pytest` |
+| S1-REG-23 | API回帰で `japanese2 / ジョンが本を読む` の `tokenize=ジョン,が,本,を,読む`（`る` 非補完）と `generate本=227` を固定する | `apps/api/tests/test_derivation.py` | `pytest` |
+| S2-HDA-34 | Reachability探索の強制枝刈り（case-local優先/vt-local優先）を廃止し、候補を保持したまま優先度順に探索する方式へ変更する | `apps/api/app/api/v1/derivation.py` | `pytest` |
+| S2-HDA-35 | 深さ情報付き再訪制御（remaining-depthベース）を導入し、浅い重複探索を抑止しつつ深い再探索は許可する | `apps/api/app/api/v1/derivation.py` | `pytest` |
+| S2-REG-20 | 既知reachableセット12件を parameterized API回帰に固定し、探索器改修後に全件 `reachable` を継続できることを確認する | `apps/api/tests/test_derivation.py` | `pytest` |
+| DOC-RCH-01 | 既知reachableセット（文・語彙ID・numeration1行目）を文書化し、回帰テストIDに対応付ける | `docs/specs/reachability-confirmed-sets-ja.md` | 文書レビュー |
+| S2-HDA-36 | `POST /v1/derivation/reachability/jobs/{job_id}/continue` を追加し、`timeout/node_limit` で止まった同一jobを予算拡張して再探索できるようにする | `apps/api/app/api/v1/derivation.py` | `pytest` |
+| S2-HDA-37 | continue 再探索の結果を prior evidences と tree署名で統合し、同一jobで証拠を拡張できるようにする | `apps/api/app/api/v1/derivation.py` | `pytest` |
+| S2-REG-21 | `unknown(node_limit)` で停止したjobを continue して `reachable` へ遷移できることを回帰テストで固定する | `apps/api/tests/test_derivation.py` | `pytest` |
+| S2-REG-22 | `completed=true` job への continue 要求を `409` で拒否する回帰テストを追加する | `apps/api/tests/test_derivation.py` | `pytest` |
+| S2-UI-06 | Step2に `探索を続ける` ボタンを追加し、`completed=false` 時のみ有効化して continue API を呼び出す | `apps/web/src/App.tsx` | `vitest`, Playwright |
+| S1-COMP-01 | Step1 自動候補選択で Step0文法に互換な語彙候補を優先し、非互換候補は手動差し替え対象として残す | `packages/domain/src/domain/numeration/generator.py` | `packages/domain/tests/test_numeration_generator.py`, `apps/api/tests/test_derivation.py` |
+| S1-COMP-02 | 互換判定を語彙素性 + 文法ルールカタログから自動推定する（`1L/2L/3L` と参照ルール名ベース、手動表なし） | `packages/domain/src/domain/numeration/generator.py` | `apps/api/tests/test_derivation.py` |
+| S1-COMP-03 | 非互換候補を手動選択したときに Step1 `numerationの語彙情報参照` で赤警告を表示する（warn-only） | `apps/web/src/App.tsx`, `apps/web/src/styles.css` | `apps/web/src/__tests__/App.test.tsx` |
+| S1-COMP-04 | Step1 候補一覧に `文法非互換` バッジと理由表示を追加し、候補比較時に互換性を確認できるようにする | `apps/web/src/App.tsx`, `apps/web/src/styles.css` | `apps/web/src/__tests__/App.test.tsx` |
+| S1-REG-25 | API回帰で `imi01 / ジョンが本を読む` の候補選択が `19/23` へ寄ることと、`183` 非互換理由を固定する | `apps/api/tests/test_derivation.py` | `pytest` |
+| S1-REG-26 | Web回帰で非互換候補への手動差し替え後に赤警告が表示されることを固定する | `apps/web/src/__tests__/App.test.tsx` | `vitest` |
+| S1-REG-27 | API回帰で `imi01 / ジョンが本を読んだ`（自動分割）でも `が=19` が選ばれ、`183` が非互換（`J-Merge` 欠落）であることを固定する | `apps/api/tests/test_derivation.py` | `pytest` |
+| S1S2-UI-03 | Step1/Step2 の候補UIで、候補一覧を閉じた状態でも選択中候補の警告サマリ（文法非互換・相方未充足）を行内表示する | `apps/web/src/App.tsx`, `apps/web/src/styles.css` | `vitest`, Playwright |
+| S1S2-REG-03 | Web回帰で Step1/Step2 の候補パネルを閉じた状態でも警告サマリが表示され、詳細は候補展開で確認できることを固定する | `apps/web/src/__tests__/App.test.tsx` | `vitest` |
 
 ## API追加（S1-GRM-02）
 - `GET /v1/reference/grammars/{grammar_id}/rule-sources`

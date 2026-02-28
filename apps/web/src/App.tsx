@@ -61,11 +61,20 @@ type PersistedUiState = {
   step1EntryMode: Step1EntryMode;
 };
 
+type TokenCandidateCompatibility = {
+  lexiconId: number;
+  compatible: boolean;
+  reasonCodes: string[];
+  missingRuleNames: string[];
+  referencedRuleNames: string[];
+};
+
 type TokenSlotEdit = {
   slot: number;
   token: string;
   selectedLexiconId: number;
   candidateLexiconIds: number[];
+  candidateCompatibilityById: Record<number, TokenCandidateCompatibility>;
   plusValue: string;
   idxValue: string;
 };
@@ -212,6 +221,14 @@ type Step1PartnerWarning = {
   selectedEntry: string;
   requirement: PartnerRequirement;
   providerSlots: number[];
+};
+
+type Step1GrammarCompatibilityWarning = {
+  slot: number;
+  token: string;
+  selectedLexiconId: number;
+  selectedEntry: string;
+  reasons: string[];
 };
 
 type Step2DisplayNode = {
@@ -479,6 +496,55 @@ function parsePartnerCapabilitiesFromSyncFeatures(syncFeatures: string[]): {
     }
   }
   return { plain, labeled };
+}
+
+function normalizeTokenCandidateCompatibility(
+  row: GeneratedNumeration["token_resolutions"][number]
+): Record<number, TokenCandidateCompatibility> {
+  const out: Record<number, TokenCandidateCompatibility> = {};
+  const byPayload = row.candidate_compatibility || [];
+  for (const item of byPayload) {
+    out[item.lexicon_id] = {
+      lexiconId: item.lexicon_id,
+      compatible: item.compatible,
+      reasonCodes: item.reason_codes || [],
+      missingRuleNames: item.missing_rule_names || [],
+      referencedRuleNames: item.referenced_rule_names || []
+    };
+  }
+  for (const candidateId of row.candidate_lexicon_ids || []) {
+    if (!out[candidateId]) {
+      out[candidateId] = {
+        lexiconId: candidateId,
+        compatible: true,
+        reasonCodes: [],
+        missingRuleNames: [],
+        referencedRuleNames: []
+      };
+    }
+  }
+  return out;
+}
+
+function formatCompatibilityReasonsForDisplay(
+  compatibility: TokenCandidateCompatibility
+): string[] {
+  const reasons: string[] = [];
+  if (compatibility.reasonCodes.includes("requires_japanese2_l_feature")) {
+    reasons.push("1L/2L/3L 素性は japanese2 文法専用です。");
+  }
+  if (
+    compatibility.reasonCodes.includes("missing_required_rule") &&
+    compatibility.missingRuleNames.length > 0
+  ) {
+    reasons.push(
+      `必要ルールが Step0 の文法にありません（${compatibility.missingRuleNames.join(", ")}）。`
+    );
+  }
+  if (reasons.length === 0) {
+    reasons.push("選択中の Step0 文法でこの語彙項目を使う条件を満たしません。");
+  }
+  return reasons;
 }
 
 function formatEncodedFeatureLikePerl(value: string): string {
@@ -1165,6 +1231,27 @@ export default function App() {
 
     return warnings;
   }, [numerationLexiconRows, numerationLookupMap, step1EntryMode, tokenSlotEditBySlot]);
+  const step1GrammarCompatibilityWarnings = useMemo(() => {
+    if (step1EntryMode !== "build_lexicon") {
+      return [] as Step1GrammarCompatibilityWarning[];
+    }
+    const warnings: Step1GrammarCompatibilityWarning[] = [];
+    for (const slotEdit of tokenSlotEdits) {
+      const compatibility = slotEdit.candidateCompatibilityById[slotEdit.selectedLexiconId];
+      if (!compatibility || compatibility.compatible) {
+        continue;
+      }
+      const lookup = numerationLookupMap.get(slotEdit.selectedLexiconId);
+      warnings.push({
+        slot: slotEdit.slot,
+        token: slotEdit.token,
+        selectedLexiconId: slotEdit.selectedLexiconId,
+        selectedEntry: lookup?.entry || "-",
+        reasons: formatCompatibilityReasonsForDisplay(compatibility)
+      });
+    }
+    return warnings;
+  }, [numerationLookupMap, step1EntryMode, tokenSlotEdits]);
 
   useEffect(() => {
     if (!ENABLE_UI_PERSISTENCE) {
@@ -1594,6 +1681,7 @@ export default function App() {
       token: row.token,
       selectedLexiconId: row.lexicon_id,
       candidateLexiconIds: row.candidate_lexicon_ids,
+      candidateCompatibilityById: normalizeTokenCandidateCompatibility(row),
       plusValue: "",
       idxValue: String(index + 1)
     }));
@@ -2159,6 +2247,49 @@ export default function App() {
     });
   }
 
+  function applyReachabilityTerminalStatus(terminal: ReachabilityJobStatusResponse) {
+    const terminalStatus: ReachabilityResponse["status"] =
+      terminal.status === "reachable" || terminal.status === "unreachable" || terminal.status === "unknown"
+        ? terminal.status
+        : "unknown";
+
+    setReachabilityResult({
+      status: terminalStatus,
+      completed: Boolean(terminal.completed),
+      reason: terminal.reason ?? terminalStatus,
+      metrics: terminal.metrics ?? {
+        expanded_nodes: 0,
+        generated_nodes: 0,
+        packed_nodes: 0,
+        max_frontier: 0,
+        elapsed_ms: 0,
+        max_depth_reached: 0,
+        actions_attempted: 0
+      },
+      counts: terminal.counts ?? {
+        count_unit: "derivation_tree",
+        count_basis: "structural_signature_v1",
+        tree_signature_basis: "canonical_tree_v1",
+        count_status: "unknown",
+        goal_count_exact: null,
+        total_exact: null,
+        total_upper_bound_a_pair_only: "1",
+        total_upper_bound_b_pair_rulemax: "1",
+        rule_max_per_pair_bound: 1,
+        rule_max_per_pair_observed: 1,
+        shown_count: 0,
+        offset: 0,
+        limit: reachabilityLimit,
+        shown_ratio_exact_percent: null,
+        coverage_upper_bound_a_percent: 0,
+        coverage_upper_bound_b_percent: 0,
+        has_next: false
+      },
+      evidences: []
+    });
+    return terminalStatus;
+  }
+
   async function handleHeadAssist() {
     if (!state) {
       setError("T0 以降の state がありません。先に 初期化 を実行してください。");
@@ -2186,47 +2317,42 @@ export default function App() {
         setReachabilityMessage(`到達判定に失敗しました: ${terminal.error ?? "unknown error"}`);
         return;
       }
-
-      const terminalStatus: ReachabilityResponse["status"] =
-        terminal.status === "reachable" || terminal.status === "unreachable" || terminal.status === "unknown"
-          ? terminal.status
-          : "unknown";
-
-      setReachabilityResult({
-        status: terminalStatus,
-        completed: Boolean(terminal.completed),
-        reason: terminal.reason ?? terminalStatus,
-        metrics: terminal.metrics ?? {
-          expanded_nodes: 0,
-          generated_nodes: 0,
-          packed_nodes: 0,
-          max_frontier: 0,
-          elapsed_ms: 0,
-          max_depth_reached: 0,
-          actions_attempted: 0
-        },
-        counts: terminal.counts ?? {
-          count_unit: "derivation_tree",
-          count_basis: "structural_signature_v1",
-          tree_signature_basis: "canonical_tree_v1",
-          count_status: "unknown",
-          goal_count_exact: null,
-          total_exact: null,
-          total_upper_bound_a_pair_only: "1",
-          total_upper_bound_b_pair_rulemax: "1",
-          rule_max_per_pair_bound: 1,
-          rule_max_per_pair_observed: 1,
-          shown_count: 0,
-          offset: 0,
-          limit: reachabilityLimit,
-          shown_ratio_exact_percent: null,
-          coverage_upper_bound_a_percent: 0,
-          coverage_upper_bound_b_percent: 0,
-          has_next: false
-        },
-        evidences: []
-      });
+      const terminalStatus = applyReachabilityTerminalStatus(terminal);
       await loadReachabilityEvidencePage(start.job_id, 0, reachabilityLimit);
+      setReachabilityMessage(`到達判定: ${terminalStatus}`);
+    });
+  }
+
+  async function handleContinueReachability() {
+    if (!reachabilityJobId) {
+      setError("続行対象の reachability job がありません。先に候補を提案してください。");
+      return;
+    }
+    if (!reachabilityResult || reachabilityResult.completed) {
+      setError("現在の判定結果は続行対象ではありません。");
+      return;
+    }
+
+    await withLoading(async () => {
+      setReachabilityProgress({ percent: 0, phase: "queued", message: "追加探索ジョブ開始待ち" });
+      const restarted = await apiPost<ReachabilityJobStartResponse>(
+        `/v1/derivation/reachability/jobs/${reachabilityJobId}/continue`,
+        {
+          additional_budget_seconds: 30.0,
+          additional_max_nodes: 2_000_000,
+          additional_max_depth: 8,
+          additional_max_evidences: 10
+        }
+      );
+      setReachabilityJobId(restarted.job_id);
+      setReachabilityMessage("追加探索を開始しました。");
+      const terminal = await pollReachabilityJob(restarted.job_id);
+      if (terminal.status === "failed") {
+        setReachabilityMessage(`追加探索に失敗しました: ${terminal.error ?? "unknown error"}`);
+        return;
+      }
+      const terminalStatus = applyReachabilityTerminalStatus(terminal);
+      await loadReachabilityEvidencePage(restarted.job_id, 0, reachabilityLimit);
       setReachabilityMessage(`到達判定: ${terminalStatus}`);
     });
   }
@@ -2755,6 +2881,16 @@ export default function App() {
       </p>
       {isNumerationLexiconLoading && <p className="hint">語彙情報を参照中…</p>}
       {numerationLexiconError && <p className="step1-upload-error">{numerationLexiconError}</p>}
+      {step1GrammarCompatibilityWarnings.map((warning, index) => (
+        <p
+          className="step1-upload-error"
+          data-testid="step1-compat-warning"
+          key={`step1-compat-${warning.slot}-${warning.selectedLexiconId}-${index}`}
+        >
+          警告: slot {warning.slot}（token: {warning.token}, ID {warning.selectedLexiconId} / {warning.selectedEntry}
+          ）は Step0 の文法 {grammarId} と互換ではありません。{warning.reasons.join(" ")}
+        </p>
+      ))}
       {step1PartnerWarnings
         .filter((warning) => warning.level === "impossible")
         .map((warning, index) => (
@@ -2799,6 +2935,21 @@ export default function App() {
             const selectedCandidateId = includeSlotCandidates
               ? slotEdit?.selectedLexiconId ?? row.lexiconId ?? null
               : row.lexiconId ?? null;
+            const selectedCompatibility =
+              includeSlotCandidates && selectedCandidateId
+                ? slotEdit?.candidateCompatibilityById[selectedCandidateId]
+                : undefined;
+            const selectedCompatibilityReasons =
+              selectedCompatibility && !selectedCompatibility.compatible
+                ? formatCompatibilityReasonsForDisplay(selectedCompatibility)
+                : [];
+            const inlinePartnerWarnings =
+              includeSlotCandidates && selectedCandidateId
+                ? step1PartnerWarnings.filter(
+                  (warning) =>
+                    warning.slot === row.slot && warning.selectedLexiconId === selectedCandidateId
+                )
+                : [];
             const unresolvedMessage = row.lexiconId === null
               ? `語彙ID ${row.rawLexiconId} は数値ではありません`
               : `語彙ID ${row.rawLexiconId} は辞書にありません`;
@@ -2864,10 +3015,41 @@ export default function App() {
                       </span>
                     </div>
                   )}
+                  {selectedCompatibilityReasons.length > 0 && (
+                    <p
+                      className="numeration-candidate-inline-warning"
+                      data-testid={`step1-inline-compat-warning-${row.slot}`}
+                    >
+                      警告: {selectedCompatibilityReasons.join(" ")}
+                    </p>
+                  )}
+                  {inlinePartnerWarnings.map((warning, index) => (
+                    <p
+                      className={
+                        warning.level === "impossible"
+                          ? "numeration-candidate-inline-warning"
+                          : "numeration-candidate-inline-note"
+                      }
+                      data-testid={`step1-inline-partner-summary-${row.slot}-${index}`}
+                      key={`step1-inline-partner-${row.slot}-${warning.requirement.featureCode}-${warning.requirement.label}-${index}`}
+                    >
+                      {warning.level === "impossible" ? "警告" : "注意"}: {warning.requirement.featureCode}(
+                      {warning.requirement.label}) が現在未充足です。
+                    </p>
+                  ))}
                   {showStep1CandidateControls && openStep1CandidateSlot === row.slot && (
                     <div className="numeration-candidate-list" data-testid={`step1-candidate-panel-${row.slot}`}>
                       {candidateIds.map((candidateId) => {
                         const candidateItem = numerationLookupMap.get(candidateId);
+                        const candidateCompatibility =
+                          slotEdit?.candidateCompatibilityById[candidateId];
+                        const isCompatible = candidateCompatibility
+                          ? candidateCompatibility.compatible
+                          : true;
+                        const incompatibilityReasons =
+                          candidateCompatibility && !candidateCompatibility.compatible
+                            ? formatCompatibilityReasonsForDisplay(candidateCompatibility)
+                            : [];
                         const candidateSyncFeatures = candidateItem
                           ? candidateItem.sync_features.filter((feature) => feature.trim() !== "").slice(0, 3)
                           : [];
@@ -2882,6 +3064,11 @@ export default function App() {
                           >
                             <div className="numeration-candidate-summary">
                               <span className="numeration-candidate-id">ID {candidateId}</span>
+                              {!isCompatible && (
+                                <span className="numeration-candidate-incompatible">
+                                  文法非互換
+                                </span>
+                              )}
                               {candidateItem && (
                                 <>
                                   <span className="numeration-candidate-cat">{candidateItem.category || "-"}</span>
@@ -2918,6 +3105,11 @@ export default function App() {
                                 </span>
                               )}
                             </div>
+                            {!isCompatible && (
+                              <p className="numeration-candidate-incompatible-reason">
+                                {incompatibilityReasons.join(" ")}
+                              </p>
+                            )}
                             <div className="numeration-candidate-actions">
                               <button
                                 type="button"
@@ -3658,6 +3850,19 @@ export default function App() {
                       )
                     );
                     const selectedCandidateId = slotEdit?.selectedLexiconId ?? null;
+                    const selectedCompatibility = selectedCandidateId
+                      ? slotEdit?.candidateCompatibilityById[selectedCandidateId]
+                      : undefined;
+                    const selectedCompatibilityReasons =
+                      selectedCompatibility && !selectedCompatibility.compatible
+                        ? formatCompatibilityReasonsForDisplay(selectedCompatibility)
+                        : [];
+                    const inlinePartnerWarnings = selectedCandidateId
+                      ? step1PartnerWarnings.filter(
+                        (warning) =>
+                          warning.slot === row.slot && warning.selectedLexiconId === selectedCandidateId
+                      )
+                      : [];
                     const candidateIds = Array.from(
                       new Set([...(selectedCandidateId ? [selectedCandidateId] : []), ...slotCandidateIds])
                     );
@@ -3719,6 +3924,28 @@ export default function App() {
                               </span>
                             </div>
                           )}
+                          {selectedCompatibilityReasons.length > 0 && (
+                            <p
+                              className="numeration-candidate-inline-warning"
+                              data-testid={`step2-inline-compat-warning-${row.slot}`}
+                            >
+                              警告: {selectedCompatibilityReasons.join(" ")}
+                            </p>
+                          )}
+                          {inlinePartnerWarnings.map((warning, index) => (
+                            <p
+                              className={
+                                warning.level === "impossible"
+                                  ? "numeration-candidate-inline-warning"
+                                  : "numeration-candidate-inline-note"
+                              }
+                              data-testid={`step2-inline-partner-summary-${row.slot}-${index}`}
+                              key={`step2-inline-partner-${row.slot}-${warning.requirement.featureCode}-${warning.requirement.label}-${index}`}
+                            >
+                              {warning.level === "impossible" ? "警告" : "注意"}: {warning.requirement.featureCode}(
+                              {warning.requirement.label}) が現在未充足です。
+                            </p>
+                          ))}
                           {showStep2CandidateControls && openStep2CandidateSlot === row.slot && (
                             <div className="numeration-candidate-list" data-testid={`step2-candidate-panel-${row.slot}`}>
                               {candidateIds.map((candidateId) => {
@@ -3868,6 +4095,12 @@ export default function App() {
             </button>
             <button onClick={handleHeadAssist} disabled={!state}>
               候補を提案
+            </button>
+            <button
+              onClick={handleContinueReachability}
+              disabled={!reachabilityJobId || !reachabilityResult || reachabilityResult.completed || loading}
+            >
+              探索を続ける
             </button>
           </div>
           {reachabilityProgress && (

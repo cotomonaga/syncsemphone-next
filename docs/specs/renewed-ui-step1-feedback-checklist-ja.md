@@ -407,6 +407,32 @@
 - [x] `S2-REG-19` API回帰で `japanese2 / ジョンが本を読む` は `ジョン+が` と `本+を` を先行 `J-Merge` しても `unreachable` のままであることを固定する。
 
 ## 68. japanese2 「ジョンが本を読む」の自動Numeration改善
-- [x] `S1-MOR-03` 自動モード（Sudachi）で動詞終止形を検出したとき、`いる` 限定ではなく一般に時制語彙 `る` を補完する（直後が助動詞のときは補完しない）。
+- [x] `S1-MOR-03` 自動モード（Sudachi）の時制補完は `いる`（動詞終止形）に限定し、`読む` など他動詞終止形へ `る` を自動補完しない。
 - [x] `S1-PART-02` `japanese2` の `本` 候補は既定選択を `227` に固定し、`100`（`2,1,Num` 要求）を既定から外す。
-- [x] `S1-REG-23` API回帰で `japanese2 / ジョンが本を読む` の `tokenize` が `ジョン, が, 本, を, 読む, る` を返し、`generate` が `本=227` を既定選択することを固定する。
+- [x] `S1-REG-23` API回帰で `japanese2 / ジョンが本を読む` は `tokenize=ジョン,が,本,を,読む`（`る` 非補完）かつ `generate` が `本=227` を既定選択することを固定する。
+
+## 69. Reachable確認セット固定 + 探索器改善回帰
+- [x] `S2-HDA-34` Reachability探索の優先順を「強制枝刈り」から「優先度付き探索順」へ変更し、`case-local` / `vt-local` 経路を潰さずに探索できるようにする。
+- [x] `S2-HDA-35` Reachability探索に深さ情報付き再訪制御（remaining-depthベース）を追加し、同一状態の浅い再探索を抑制しつつ深い再探索は許可する。
+- [x] `S2-REG-20` 既知reachableセット（12件）を parameterized API回帰に固定し、探索器改修後も全件 `reachable` を維持できることを確認する。
+- [x] `DOC-RCH-01` 既知reachableセットを `reachability-confirmed-sets-ja.md` に固定し、文・語彙ID列・対応テストIDを明記する。
+
+## 70. timeout / node_limit 後の追加探索（continue）
+- [x] `S2-HDA-36` `POST /v1/derivation/reachability/jobs/{job_id}/continue` を追加し、`completed=false` ジョブを同一 `job_id` で予算拡張して再探索できるようにする。
+- [x] `S2-HDA-37` continue 実行時は prior evidences を tree署名で統合し、`max_evidences` の拡張分も同一ジョブで取得できるようにする。
+- [x] `S2-REG-21` `max_nodes=1` で `unknown(node_limit)` を作ったジョブを continue で `reachable` へ遷移できることをAPI回帰で固定する。
+- [x] `S2-REG-22` `completed=true` ジョブへの continue 要求を `409` で拒否する回帰テストを追加する。
+- [x] `S2-UI-06` Step2に `探索を続ける` ボタンを追加し、`completed=false` のときのみ有効化して continue API を呼べるようにする。
+
+## 71. Step0連動の語彙互換警告（Step1・赤警告のみ）
+- [x] `S1-COMP-01` Step1 `Lexiconから組み立てる` の自動候補選択で、Step0文法に互換な候補がある場合は互換候補のみを初期選択対象にする（候補一覧から非互換候補は除外しない）。
+- [x] `S1-COMP-02` 互換判定は語彙項目の素性と文法ルールカタログから自動推定し、手動管理テーブルは導入しない（推定根拠: `1L/2L/3L` と `J-Merge` 等の参照ルール名）。
+- [x] `S1-COMP-03` 非互換候補を手動で差し替えた場合は許可しつつ、Step1 `numerationの語彙情報参照` に赤警告を表示する（warn-only）。
+- [x] `S1-COMP-04` Step1 候補一覧に非互換候補の視認表示（`文法非互換` バッジ + 理由）を追加し、候補比較時に判断できるようにする。
+- [x] `S1-REG-25` API回帰で `imi01 / ジョンが本を読む` の自動候補選択が `が=19 / を=23` を選び、`183` の互換判定が `missing_required_rule(J-Merge)` になることを固定する。
+- [x] `S1-REG-26` Web回帰で Step1 で非互換候補へ手動差し替えした際に赤警告が表示されることを固定する。
+- [x] `S1-REG-27` API回帰で `imi01 / ジョンが本を読んだ`（自動分割）でも `が=19` が選ばれ、`183` が非互換（`J-Merge` 欠落）であることを固定する。
+
+## 72. 候補パネルを閉じた状態の警告サマリ表示（Step1/Step2）
+- [x] `S1S2-UI-03` Step1 `numerationの語彙情報参照` と Step2 `適用対象` の両方で、候補一覧を閉じた状態でも選択中候補の警告サマリ（文法非互換・相方未充足）を行内表示する。
+- [x] `S1S2-REG-03` Web回帰で、Step1/Step2 の候補一覧を開かずに警告サマリが表示されること、および候補一覧を開いたときに詳細理由が引き続き確認できることを固定する。

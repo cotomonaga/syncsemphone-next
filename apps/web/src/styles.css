@@ -611,6 +611,21 @@ button:disabled {
   color: #435161;
 }
 
+.numeration-candidate-inline-warning,
+.numeration-candidate-inline-note {
+  margin: 4px 0 0;
+  font-size: 0.72rem;
+  line-height: 1.35;
+}
+
+.numeration-candidate-inline-warning {
+  color: #a01818;
+}
+
+.numeration-candidate-inline-note {
+  color: #8a5b05;
+}
+
 .numeration-candidate-list {
   margin-top: 6px;
   border-top: 1px dashed #9fb2be;
@@ -649,6 +664,16 @@ button:disabled {
   color: #203040;
 }
 
+.numeration-candidate-incompatible {
+  font-size: 0.68rem;
+  font-weight: 700;
+  color: #9b1010;
+  border: 1px solid #d98e8e;
+  background: #ffecec;
+  border-radius: 999px;
+  padding: 1px 6px;
+}
+
 .numeration-candidate-cat {
   font-family: "Menlo", "Monaco", monospace;
   font-size: 0.72rem;
@@ -680,6 +705,13 @@ button:disabled {
   display: inline-flex;
   align-items: baseline;
   gap: 2px;
+}
+
+.numeration-candidate-incompatible-reason {
+  grid-column: 1 / -1;
+  margin: 0;
+  font-size: 0.68rem;
+  color: #a01818;
 }
 
 .numeration-candidate-apply {

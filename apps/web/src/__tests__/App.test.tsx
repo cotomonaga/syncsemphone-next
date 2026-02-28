@@ -2154,6 +2154,368 @@ describe("App", () => {
     expect(warnings.some((el) => el.textContent?.includes("25(ga)"))).toBe(true);
   });
 
+  it("shows red grammar compatibility warning when manually selecting an incompatible candidate in Step1", async () => {
+    vi.spyOn(globalThis, "fetch").mockImplementation(async (input, init) => {
+      const url = String(input);
+      const common = maybeCommonResponse(url);
+      if (common) {
+        return common;
+      }
+      if (url.endsWith("/v1/derivation/numeration/tokenize")) {
+        return jsonResponse({ body: { tokens: ["ジョン", "が"] } });
+      }
+      if (url.endsWith("/v1/derivation/numeration/generate")) {
+        const payload = init?.body ? JSON.parse(String(init.body)) : {};
+        return jsonResponse({
+          body: {
+            memo: payload.sentence || "ジョンが",
+            lexicon_ids: [60, 19],
+            token_resolutions: [
+              {
+                token: "ジョン",
+                lexicon_id: 60,
+                candidate_lexicon_ids: [60],
+                candidate_compatibility: [
+                  {
+                    lexicon_id: 60,
+                    compatible: true,
+                    reason_codes: [],
+                    missing_rule_names: [],
+                    referenced_rule_names: []
+                  }
+                ]
+              },
+              {
+                token: "が",
+                lexicon_id: 19,
+                candidate_lexicon_ids: [19, 183],
+                candidate_compatibility: [
+                  {
+                    lexicon_id: 19,
+                    compatible: true,
+                    reason_codes: [],
+                    missing_rule_names: [],
+                    referenced_rule_names: []
+                  },
+                  {
+                    lexicon_id: 183,
+                    compatible: false,
+                    reason_codes: ["missing_required_rule"],
+                    missing_rule_names: ["J-Merge"],
+                    referenced_rule_names: ["J-Merge"]
+                  }
+                ]
+              }
+            ],
+            numeration_text: `${payload.sentence || "ジョンが"}\t60\t19\n \t\t\n \t1\t2`
+          }
+        });
+      }
+      if (url.endsWith("/v1/derivation/numeration/compose")) {
+        const payload = init?.body ? JSON.parse(String(init.body)) : {};
+        const ids = Array.isArray(payload.lexicon_ids) ? payload.lexicon_ids : [];
+        return jsonResponse({
+          body: {
+            numeration_text:
+              `${payload.memo || "ジョンが"}\t${ids.join("\t")}\n` +
+              ` \t${Array.from({ length: ids.length }, () => "").join("\t")}\n` +
+              ` \t${ids.map((_: unknown, i: number) => String(i + 1)).join("\t")}`
+          }
+        });
+      }
+      if (url.endsWith("/v1/reference/grammars/imi01/lexicon-items/by-ids")) {
+        const payload = init?.body ? JSON.parse(String(init.body)) : {};
+        const ids = Array.isArray(payload.ids) ? payload.ids : [];
+        return jsonResponse({
+          body: {
+            grammar_id: "imi01",
+            requested_count: ids.length,
+            found_count: ids.length,
+            missing_ids: [],
+            items: ids.map((lexiconId: number) => ({
+              lexicon_id: lexiconId,
+              found: true,
+              entry: lexiconId === 60 ? "ジョン" : lexiconId === 19 ? "が" : "が(J)",
+              phono: lexiconId === 60 ? "ジョン" : "が",
+              category: lexiconId === 60 ? "N" : "J",
+              sync_features: lexiconId === 183 ? ["1,5,J-Merge"] : [],
+              idslot: "id",
+              semantics: [],
+              note: ""
+            }))
+          }
+        });
+      }
+      throw new Error(`unexpected url: ${url}`);
+    });
+
+    const user = userEvent.setup();
+    render(<App />);
+
+    await user.click(await screen.findByRole("button", { name: "この設定で開始" }));
+    await user.click(screen.getByRole("button", { name: "Lexiconから組み立てる" }));
+
+    const sentenceInput = await screen.findByRole("textbox", { name: "Sentence" });
+    await user.clear(sentenceInput);
+    await user.type(sentenceInput, "ジョンが");
+
+    const buildPanel = screen.getByRole("button", { name: "Lexiconから組み立てる" }).closest("section");
+    expect(buildPanel).not.toBeNull();
+    await waitFor(() => {
+      expect(within(buildPanel!).getByTestId("numeration-lexicon-table")).toHaveTextContent("ジョン");
+    });
+
+    await user.click(await within(buildPanel!).findByTestId("step1-candidate-toggle-2"));
+    const candidatePanel = await within(buildPanel!).findByTestId("step1-candidate-panel-2");
+    expect(candidatePanel).toHaveTextContent("文法非互換");
+    await user.click(within(candidatePanel).getByRole("button", { name: "この候補に差し替え" }));
+
+    const warning = await within(buildPanel!).findByTestId("step1-compat-warning");
+    expect(warning).toHaveTextContent("互換ではありません");
+    expect(warning).toHaveTextContent("J-Merge");
+    const inlineWarning = await within(buildPanel!).findByTestId("step1-inline-compat-warning-2");
+    expect(inlineWarning).toHaveTextContent("J-Merge");
+  });
+
+  it("keeps compatible が (ID 19) as default for imi01 when generating ジョンが本を読んだ", async () => {
+    vi.spyOn(globalThis, "fetch").mockImplementation(async (input, init) => {
+      const url = String(input);
+      const common = maybeCommonResponse(url);
+      if (common) {
+        return common;
+      }
+      if (url.endsWith("/v1/derivation/numeration/tokenize")) {
+        return jsonResponse({ body: { tokens: ["ジョン", "が", "本", "を", "読む", "だ"] } });
+      }
+      if (url.endsWith("/v1/derivation/numeration/generate")) {
+        const payload = init?.body ? JSON.parse(String(init.body)) : {};
+        return jsonResponse({
+          body: {
+            memo: payload.sentence || "ジョンが本を読んだ",
+            lexicon_ids: [60, 19, 100, 23, 226, 257],
+            token_resolutions: [
+              { token: "ジョン", lexicon_id: 60, candidate_lexicon_ids: [60] },
+              {
+                token: "が",
+                lexicon_id: 19,
+                candidate_lexicon_ids: [19, 183],
+                candidate_compatibility: [
+                  {
+                    lexicon_id: 19,
+                    compatible: true,
+                    reason_codes: [],
+                    missing_rule_names: [],
+                    referenced_rule_names: []
+                  },
+                  {
+                    lexicon_id: 183,
+                    compatible: false,
+                    reason_codes: ["missing_required_rule"],
+                    missing_rule_names: ["J-Merge"],
+                    referenced_rule_names: ["J-Merge"]
+                  }
+                ]
+              },
+              { token: "本", lexicon_id: 100, candidate_lexicon_ids: [100, 227] },
+              { token: "を", lexicon_id: 23, candidate_lexicon_ids: [23] },
+              { token: "読む", lexicon_id: 226, candidate_lexicon_ids: [226] },
+              { token: "だ", lexicon_id: 257, candidate_lexicon_ids: [257, 117] }
+            ],
+            numeration_text: `${payload.sentence || "ジョンが本を読んだ"}\t60\t19\t100\t23\t226\t257\n \t\t\t\t\t\t\n \t1\t2\t3\t4\t5\t6`
+          }
+        });
+      }
+      if (url.endsWith("/v1/reference/grammars/imi01/lexicon-items/by-ids")) {
+        const payload = init?.body ? JSON.parse(String(init.body)) : {};
+        const ids = Array.isArray(payload.ids) ? payload.ids : [];
+        return jsonResponse({
+          body: {
+            grammar_id: "imi01",
+            requested_count: ids.length,
+            found_count: ids.length,
+            missing_ids: [],
+            items: ids.map((lexiconId: number) => ({
+              lexicon_id: lexiconId,
+              found: true,
+              entry:
+                lexiconId === 60
+                  ? "ジョン"
+                  : lexiconId === 19
+                    ? "が"
+                    : lexiconId === 183
+                      ? "が(J)"
+                      : `ID-${lexiconId}`,
+              phono: lexiconId === 60 ? "ジョン" : lexiconId === 226 ? "yom-" : "が",
+              category: lexiconId === 60 ? "N" : lexiconId === 226 ? "V" : lexiconId === 257 ? "T" : "J",
+              sync_features: lexiconId === 183 ? ["1,5,J-Merge"] : [],
+              idslot: "id",
+              semantics: lexiconId === 226 ? ["Theme:2,25,wo", "Agent:2,25,ga", "Kind:読む"] : [],
+              note: ""
+            }))
+          }
+        });
+      }
+      throw new Error(`unexpected url: ${url}`);
+    });
+
+    const user = userEvent.setup();
+    render(<App />);
+
+    await user.click(await screen.findByRole("button", { name: "この設定で開始" }));
+    await user.click(screen.getByRole("button", { name: "Lexiconから組み立てる" }));
+
+    const sentenceInput = await screen.findByRole("textbox", { name: "Sentence" });
+    await user.clear(sentenceInput);
+    await user.type(sentenceInput, "ジョンが本を読んだ");
+
+    const buildPanel = screen.getByRole("button", { name: "Lexiconから組み立てる" }).closest("section");
+    expect(buildPanel).not.toBeNull();
+    await waitFor(() => {
+      expect(within(buildPanel!).getByTestId("numeration-lexicon-table")).toHaveTextContent("ジョン");
+    });
+
+    await user.click(await within(buildPanel!).findByTestId("step1-candidate-toggle-2"));
+    const candidatePanel = await within(buildPanel!).findByTestId("step1-candidate-panel-2");
+    expect(candidatePanel).toHaveTextContent("ID 19");
+    expect(within(candidatePanel).getByRole("button", { name: "選択中" })).toBeInTheDocument();
+    expect(candidatePanel).toHaveTextContent("ID 183");
+    expect(candidatePanel).toHaveTextContent("文法非互換");
+    expect(within(buildPanel!).queryByTestId("step1-compat-warning")).not.toBeInTheDocument();
+  });
+
+  it("shows inline compatibility summary in Step2 even when candidate list is closed", async () => {
+    vi.spyOn(globalThis, "fetch").mockImplementation(async (input, init) => {
+      const url = String(input);
+      const common = maybeCommonResponse(url);
+      if (common) {
+        return common;
+      }
+      if (url.endsWith("/v1/derivation/numeration/tokenize")) {
+        return jsonResponse({ body: { tokens: ["ジョン", "が"] } });
+      }
+      if (url.endsWith("/v1/derivation/numeration/generate")) {
+        const payload = init?.body ? JSON.parse(String(init.body)) : {};
+        return jsonResponse({
+          body: {
+            memo: payload.sentence || "ジョンが",
+            lexicon_ids: [60, 183],
+            token_resolutions: [
+              {
+                token: "ジョン",
+                lexicon_id: 60,
+                candidate_lexicon_ids: [60],
+                candidate_compatibility: [
+                  {
+                    lexicon_id: 60,
+                    compatible: true,
+                    reason_codes: [],
+                    missing_rule_names: [],
+                    referenced_rule_names: []
+                  }
+                ]
+              },
+              {
+                token: "が",
+                lexicon_id: 183,
+                candidate_lexicon_ids: [19, 183],
+                candidate_compatibility: [
+                  {
+                    lexicon_id: 19,
+                    compatible: true,
+                    reason_codes: [],
+                    missing_rule_names: [],
+                    referenced_rule_names: []
+                  },
+                  {
+                    lexicon_id: 183,
+                    compatible: false,
+                    reason_codes: ["missing_required_rule"],
+                    missing_rule_names: ["J-Merge"],
+                    referenced_rule_names: ["J-Merge"]
+                  }
+                ]
+              }
+            ],
+            numeration_text: `${payload.sentence || "ジョンが"}\t60\t183\n \t\t\n \t1\t2`
+          }
+        });
+      }
+      if (url.endsWith("/v1/derivation/numeration/compose")) {
+        const payload = init?.body ? JSON.parse(String(init.body)) : {};
+        const ids = Array.isArray(payload.lexicon_ids) ? payload.lexicon_ids : [];
+        return jsonResponse({
+          body: {
+            numeration_text:
+              `${payload.memo || "ジョンが"}\t${ids.join("\t")}\n` +
+              ` \t${Array.from({ length: ids.length }, () => "").join("\t")}\n` +
+              ` \t${ids.map((_: unknown, i: number) => String(i + 1)).join("\t")}`
+          }
+        });
+      }
+      if (url.endsWith("/v1/derivation/init")) {
+        return jsonResponse({
+          body: {
+            grammar_id: "imi01",
+            memo: "ジョンが",
+            newnum: 3,
+            basenum: 2,
+            history: "",
+            base: [
+              null,
+              ["x1-1", "N", [], [], "x1-1", [null, "Name:ジョン"], "ジョン", null, ""],
+              ["x2-1", "J", [], [], "x2-1", [null, "ga"], "が", null, ""]
+            ]
+          }
+        });
+      }
+      if (url.endsWith("/v1/derivation/candidates")) {
+        return jsonResponse({ body: [] });
+      }
+      if (url.endsWith("/v1/reference/grammars/imi01/lexicon-items/by-ids")) {
+        const payload = init?.body ? JSON.parse(String(init.body)) : {};
+        const ids = Array.isArray(payload.ids) ? payload.ids : [];
+        return jsonResponse({
+          body: {
+            grammar_id: "imi01",
+            requested_count: ids.length,
+            found_count: ids.length,
+            missing_ids: [],
+            items: ids.map((lexiconId: number) => ({
+              lexicon_id: lexiconId,
+              found: true,
+              entry: lexiconId === 60 ? "ジョン" : lexiconId === 183 ? "が(J)" : "が",
+              phono: lexiconId === 60 ? "ジョン" : "が",
+              category: lexiconId === 60 ? "N" : "J",
+              sync_features: lexiconId === 183 ? ["1,5,J-Merge"] : [],
+              idslot: "id",
+              semantics: [],
+              note: ""
+            }))
+          }
+        });
+      }
+      throw new Error(`unexpected url: ${url}`);
+    });
+
+    const user = userEvent.setup();
+    render(<App />);
+
+    await user.click(await screen.findByRole("button", { name: "この設定で開始" }));
+    await user.click(screen.getByRole("button", { name: "Lexiconから組み立てる" }));
+
+    const sentenceInput = await screen.findByRole("textbox", { name: "Sentence" });
+    await user.clear(sentenceInput);
+    await user.type(sentenceInput, "ジョンが");
+
+    const formButton = await screen.findByRole("button", { name: "Numerationを形成" });
+    await user.click(formButton);
+
+    expect(await screen.findByRole("heading", { name: "【Step.2】Grammarの適用" })).toBeInTheDocument();
+    const inlineWarning = await screen.findByTestId("step2-inline-compat-warning-2");
+    expect(inlineWarning).toHaveTextContent("J-Merge");
+    expect(screen.queryByTestId("step2-candidate-panel-2")).not.toBeInTheDocument();
+  });
+
   it("allows replacing a multi-candidate lexicon item in Step2 target panel", async () => {
     const initRequests: string[] = [];
     vi.spyOn(globalThis, "fetch").mockImplementation(async (input, init) => {
