@@ -269,6 +269,9 @@
 - `LEX-UI-23`: バリュー辞書 `更新` を「同一IDで値が変化した場合のみ有効」に変更し、未変更更新を無効化した。
 - `LEX-RPT-03`: `0,24 / 2,22 / 2,24 / 2,27,target` の所在（`lexicon-all.csv` の `id_slot/semfeat/predicate`）を監査レポートへ追記した。
 - `LEX-DATA-01`: 指示訂正により `lexicon-all.csv` はバックアップから復元し、`id_slot` の `0,24 / 2,22 / 2,24 / 2,27,target` は削除せず維持する方針へ戻した。
+- `S1-MOR-03`: Sudachi自動分割後に `X + する + た => Xした` と `動詞 + て + いる => 〜ている` の再構成を追加し、語彙既知形へ寄せる処理を実装した。
+- `S1-REG-20`: API回帰で長文例の自動分割結果（`ふわふわした / ... / る`）を固定した。
+- `S1-REG-21`: API回帰で同文の `init/from-sentence` が `Unknown token` で落ちず、語彙ID列を返すことを固定した。
 
 ## 追加対応表（2026-02-28）
 
@@ -295,6 +298,9 @@
 | LEX-UI-25 | `CSV/YAML` の表記をタブ名・見出し・説明文で `CSV/YAML管理` に統一する | `apps/web/src/LexiconWorkbench.tsx`, `apps/web/src/__tests__/App.test.tsx` | `vitest` |
 | LEX-RPT-03 | `0,24 / 2,22 / 2,24 / 2,27,target` の所在（`lexicon-all.csv` の列）を明示 | `docs/specs/lexicon-idslot-audit-ja.md` | 文書レビュー |
 | LEX-DATA-01 | 指示訂正を受け、`lexicon-all.csv` はバックアップから復元して `id_slot` 値を維持（削除しない） | `/Users/tomonaga/Documents/syncsemphoneIMI/lexicon-all.csv`, `/Users/tomonaga/Documents/syncsemphoneIMI/lexicon-all.csv.bak-20260228-130337` | 件数再確認 |
+| S1-MOR-03 | Sudachi自動分割後に `X + する + た` と `動詞 + て + いる` を語彙既知形へ再構成する | `packages/domain/src/domain/numeration/generator.py` | `pytest` |
+| S1-REG-20 | 長文例の自動分割が `ふわふわした / ... / る` になることを固定する | `apps/api/tests/test_derivation.py` | `pytest` |
+| S1-REG-21 | 長文例の `init/from-sentence` が語彙ID列を生成して失敗しないことを固定する | `apps/api/tests/test_derivation.py` | `pytest` |
 | S2-HDA-33 | Step2 `候補を提案` の reachability job 起動時に探索予算（30秒 / 200万ノード / 深さ28）を明示して `unknown` 回避を図る | `apps/web/src/App.tsx` | `vitest`, Playwright |
 | S2-REG-17 | Web回帰で reachability job payload の探索予算値を固定する | `apps/web/src/__tests__/App.test.tsx` | `vitest` |
 | S2-REG-18 | `ジョンがを読んだ` を high budget で評価しても `unreachable` であることをAPI回帰に固定する | `apps/api/tests/test_derivation.py` | `pytest` |

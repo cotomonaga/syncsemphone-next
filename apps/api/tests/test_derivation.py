@@ -199,6 +199,62 @@ def test_derivation_numeration_tokenize_auto_mode_supplements_tense_for_iru() ->
     assert response.json()["tokens"] == ["うさぎ", "が", "いる", "る"]
 
 
+def test_derivation_numeration_tokenize_auto_mode_compounds_shita_and_teiru() -> None:
+    client = TestClient(app)
+    response = client.post(
+        "/v1/derivation/numeration/tokenize",
+        json={
+            "grammar_id": "imi01",
+            "sentence": "ふわふわしたわたあめを食べているひつじと話しているうさぎがいる",
+            "split_mode": "A",
+            "legacy_root": str(_legacy_root()),
+        },
+    )
+    assert response.status_code == 200
+    assert response.json()["tokens"] == [
+        "ふわふわした",
+        "わたあめ",
+        "を",
+        "食べている",
+        "ひつじ",
+        "と",
+        "話している",
+        "うさぎ",
+        "が",
+        "いる",
+        "る",
+    ]
+
+
+def test_derivation_init_from_sentence_resolves_compounded_tokens() -> None:
+    client = TestClient(app)
+    initialized = client.post(
+        "/v1/derivation/init/from-sentence",
+        json={
+            "grammar_id": "imi01",
+            "sentence": "ふわふわしたわたあめを食べているひつじと話しているうさぎがいる",
+            "split_mode": "A",
+            "legacy_root": str(_legacy_root()),
+        },
+    )
+    assert initialized.status_code == 200
+    body = initialized.json()
+    assert body["numeration"]["lexicon_ids"] == [264, 265, 23, 266, 267, 268, 269, 270, 19, 271, 204]
+    assert [row["token"] for row in body["numeration"]["token_resolutions"]] == [
+        "ふわふわした",
+        "わたあめ",
+        "を",
+        "食べている",
+        "ひつじ",
+        "と",
+        "話している",
+        "うさぎ",
+        "が",
+        "いる",
+        "る",
+    ]
+
+
 def test_derivation_numeration_tokenize_auto_mode_supports_other_tense_items() -> None:
     client = TestClient(app)
     cases = [

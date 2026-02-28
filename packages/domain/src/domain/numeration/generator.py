@@ -94,6 +94,37 @@ class SudachiMorphTokenizer:
         while i < len(rows):
             row = rows[i]
             next_row = rows[i + 1] if i + 1 < len(rows) else None
+            next2_row = rows[i + 2] if i + 2 < len(rows) else None
+
+            # X + する + た => Xした（例: ふわふわ + する + た => ふわふわした）
+            if (
+                next_row is not None
+                and next2_row is not None
+                and next_row.pos_major == "動詞"
+                and next_row.dictionary_form == "する"
+                and next2_row.pos_major == "助動詞"
+                and next2_row.dictionary_form == "た"
+            ):
+                combined = _normalize_token(f"{row.surface}{next_row.surface}{next2_row.surface}")
+                if combined != "":
+                    out.append(combined)
+                    i += 3
+                    continue
+
+            # 動詞 + て + いる => 動詞連用 + ている（例: 食べる + て + いる => 食べている）
+            if (
+                row.pos_major == "動詞"
+                and next_row is not None
+                and next2_row is not None
+                and next_row.token == "て"
+                and next2_row.pos_major == "動詞"
+                and next2_row.dictionary_form == "いる"
+            ):
+                combined = _normalize_token(f"{row.surface}{next_row.surface}{next2_row.surface}")
+                if combined != "":
+                    out.append(combined)
+                    i += 3
+                    continue
 
             # 形容詞 + た => 語幹 + かった（例: かわい + かった）
             if (
