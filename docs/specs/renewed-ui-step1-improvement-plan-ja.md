@@ -316,6 +316,9 @@
 | S1-PART-03 | Step1 `numerationの語彙情報参照` に、差し替えで充足可能な相方要求を橙色注意で表示する | `apps/web/src/App.tsx`, `apps/web/src/styles.css` | `vitest`, Playwright |
 | S1-REG-23 | API回帰で `ジョンが本を読む` の `226` が単体系 `ga/wo` 候補を優先することを固定する | `apps/api/tests/test_derivation.py` | `pytest` |
 | S1-REG-24 | Web回帰で `25(ga/wo)` 未充足時に赤警告が表示されることを固定する | `apps/web/src/__tests__/App.test.tsx` | `vitest` |
+| S2-RCH-19 | Step2 `候補を提案` の再現確認として、`ジョンがメアリをスケートボードで追いかけた` が UI/API の両方で `reachable` になることを確認する | 調査ログ（Playwright/CLI） | Playwright, API実行 |
+| S2-RCH-20 | `ジョンが本を読む` で、現行削減探索と削減なし全探索（候補全展開）の両方を実行し、到達不能が探索打ち切りではないことを確認する | 調査スクリプト（一時実行） | API実行 |
+| S2-RCH-21 | `ジョンが本を読む` の最小未解釈残差を抽出し、`候補を提案` が `reachable` にならない直接原因を同定する | 調査ログ（CLI） | API実行 |
 
 ## API追加（S1-GRM-02）
 - `GET /v1/reference/grammars/{grammar_id}/rule-sources`
