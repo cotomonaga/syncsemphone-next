@@ -264,6 +264,11 @@
 - `LEX-RPT-02`: `id_slot` 値（`0,24` / `2,22` / `2,24` / `2,27,target`）の実処理参照箇所を監査レポートへ追記した。
 - `LEX-UI-20`: バリュー辞書で行選択時に `値` 入力へ自動反映し、既存項目の更新を即時実行できるよう修正した。`metadata(JSON)` 入力は撤去した。
 - `LEX-API-10`: `使用語彙を表示` を `lexicon_id / entry` を含む一覧へ変更し、メタDB未設定時フォールバックでも返却するようにした。
+- `LEX-UI-21`: 行内 `編集` ボタンを既存緑ボタン系の配色（緑背景/白文字）へ統一した。
+- `LEX-UI-22`: バリュー辞書 `新規追加` を「同値なしの場合のみ有効」に変更し、重複作成をUIで防止した。
+- `LEX-UI-23`: バリュー辞書 `更新` を「同一IDで値が変化した場合のみ有効」に変更し、未変更更新を無効化した。
+- `LEX-RPT-03`: `0,24 / 2,22 / 2,24 / 2,27,target` の所在（`lexicon-all.csv` の `id_slot/semfeat/predicate`）を監査レポートへ追記した。
+- `LEX-DATA-01`: 指示訂正により `lexicon-all.csv` はバックアップから復元し、`id_slot` の `0,24 / 2,22 / 2,24 / 2,27,target` は削除せず維持する方針へ戻した。
 
 ## 追加対応表（2026-02-28）
 
@@ -283,6 +288,13 @@
 | LEX-RPT-02 | `id_slot` 各値が実際に参照されるマージ処理をコード根拠付きで追記 | `docs/specs/lexicon-idslot-audit-ja.md` | 文書レビュー |
 | LEX-UI-20 | バリュー辞書行選択時に `値` へ自動入力し、既存項目を直接更新可能にする。`metadata(JSON)` 入力は廃止 | `apps/web/src/LexiconWorkbench.tsx`, `apps/web/src/types.ts` | `vitest`, Playwright |
 | LEX-API-10 | `使用語彙を表示` で `lexicon_id/entry` を返し、フォールバックでも利用可能にする | `apps/api/app/api/v1/lexicon_ext.py`, `apps/api/tests/test_lexicon_ext.py` | `pytest` |
+| LEX-UI-21 | 行内 `編集` ボタンを緑背景/白文字（既存緑ボタン系）へ統一 | `apps/web/src/styles.css` | `vitest`, Playwright |
+| LEX-UI-22 | バリュー辞書 `新規追加` を同値なし時のみ有効化し、重複値追加を抑止 | `apps/web/src/LexiconWorkbench.tsx`, `apps/web/src/__tests__/App.test.tsx` | `vitest` |
+| LEX-UI-23 | バリュー辞書 `更新` を値変更時のみ有効化（同一値更新を無効化） | `apps/web/src/LexiconWorkbench.tsx`, `apps/web/src/__tests__/App.test.tsx` | `vitest` |
+| LEX-UI-24 | 語彙編集ページの4ペイン（一覧/編集/辞書/CSV-YAML）をタブ切替固定にし、同時縦表示を回帰テストで防止する | `apps/web/src/LexiconWorkbench.tsx`, `apps/web/src/__tests__/App.test.tsx` | `vitest` |
+| LEX-UI-25 | `CSV/YAML` の表記をタブ名・見出し・説明文で `CSV/YAML管理` に統一する | `apps/web/src/LexiconWorkbench.tsx`, `apps/web/src/__tests__/App.test.tsx` | `vitest` |
+| LEX-RPT-03 | `0,24 / 2,22 / 2,24 / 2,27,target` の所在（`lexicon-all.csv` の列）を明示 | `docs/specs/lexicon-idslot-audit-ja.md` | 文書レビュー |
+| LEX-DATA-01 | 指示訂正を受け、`lexicon-all.csv` はバックアップから復元して `id_slot` 値を維持（削除しない） | `/Users/tomonaga/Documents/syncsemphoneIMI/lexicon-all.csv`, `/Users/tomonaga/Documents/syncsemphoneIMI/lexicon-all.csv.bak-20260228-130337` | 件数再確認 |
 | S2-HDA-33 | Step2 `候補を提案` の reachability job 起動時に探索予算（30秒 / 200万ノード / 深さ28）を明示して `unknown` 回避を図る | `apps/web/src/App.tsx` | `vitest`, Playwright |
 | S2-REG-17 | Web回帰で reachability job payload の探索予算値を固定する | `apps/web/src/__tests__/App.test.tsx` | `vitest` |
 | S2-REG-18 | `ジョンがを読んだ` を high budget で評価しても `unreachable` であることをAPI回帰に固定する | `apps/api/tests/test_derivation.py` | `pytest` |

@@ -1991,6 +1991,9 @@ describe("App", () => {
     await user.click(await screen.findByRole("button", { name: "語彙の編集" }));
     expect(await screen.findByTestId("lexicon-workbench")).toBeInTheDocument();
     expect(await screen.findByTestId("lexicon-items-tab")).toBeInTheDocument();
+    expect(screen.queryByTestId("lexicon-edit-tab")).not.toBeInTheDocument();
+    expect(screen.queryByTestId("lexicon-dictionary-tab")).not.toBeInTheDocument();
+    expect(screen.queryByTestId("lexicon-importexport-tab")).not.toBeInTheDocument();
 
     const row = await screen.findByText("ジョン");
     const rowElement = row.closest("tr");
@@ -1999,6 +2002,7 @@ describe("App", () => {
     const editButton = within(rowElement!).getByRole("button", { name: "編集" });
     await user.click(editButton);
     expect(await screen.findByTestId("lexicon-edit-tab")).toBeInTheDocument();
+    expect(screen.queryByTestId("lexicon-items-tab")).not.toBeInTheDocument();
     const categorySelect = await screen.findByLabelText("lexicon-category-select");
     expect(categorySelect).toBeInTheDocument();
     expect(within(categorySelect).getByRole("option", { name: "N" })).toBeInTheDocument();
@@ -2009,8 +2013,10 @@ describe("App", () => {
 
     await user.click(screen.getByRole("button", { name: "バリュー辞書" }));
     expect(await screen.findByTestId("lexicon-dictionary-tab")).toBeInTheDocument();
-    await user.click(screen.getByRole("button", { name: "CSV/YAML" }));
+    expect(screen.queryByTestId("lexicon-edit-tab")).not.toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: "CSV/YAML管理" }));
     expect(await screen.findByTestId("lexicon-importexport-tab")).toBeInTheDocument();
+    expect(screen.queryByTestId("lexicon-dictionary-tab")).not.toBeInTheDocument();
   });
 
   it("autofills dictionary value, updates existing item, and shows usage lexicon rows", async () => {
@@ -2077,11 +2083,18 @@ describe("App", () => {
     await user.click(row!);
     const valueInput = await screen.findByLabelText("dictionary-new-value");
     expect(valueInput).toHaveValue("N");
+    const createButton = within(dictionaryTab).getByRole("button", { name: "新規追加" });
+    const updateButtons = within(dictionaryTab).getAllByRole("button", { name: "更新" });
+    const updateButton = updateButtons[updateButtons.length - 1];
+
+    expect(createButton).toBeDisabled();
+    expect(updateButton).toBeDisabled();
 
     await user.clear(valueInput);
     await user.type(valueInput, "N2");
-    const updateButtons = within(dictionaryTab).getAllByRole("button", { name: "更新" });
-    await user.click(updateButtons[updateButtons.length - 1]);
+    expect(createButton).toBeEnabled();
+    expect(updateButton).toBeEnabled();
+    await user.click(updateButton);
     expect(
       calls.some(
         (call) =>
@@ -2090,6 +2103,11 @@ describe("App", () => {
           (call.body || "").includes('"display_value":"N2"')
       )
     ).toBe(true);
+
+    await user.clear(valueInput);
+    await user.type(valueInput, "N");
+    expect(createButton).toBeDisabled();
+    expect(updateButton).toBeDisabled();
 
     await user.click(within(dictionaryTab).getByRole("button", { name: "使用語彙を表示" }));
     expect(await within(dictionaryTab).findByText("ジョン")).toBeInTheDocument();

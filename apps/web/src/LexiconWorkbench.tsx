@@ -76,6 +76,13 @@ function normalizeIdslotValue(value: string): string {
   return value.trim().replace(/,+$/, "");
 }
 
+function normalizeDictionaryValue(kind: ValueDictionaryKind, value: string): string {
+  if (kind === "idslot") {
+    return normalizeIdslotValue(value);
+  }
+  return value.trim();
+}
+
 function uniqueSorted(rows: string[]): string[] {
   return [...new Set(rows.filter((row) => row.trim() !== "").map((row) => row.trim()))].sort((a, b) =>
     a.localeCompare(b, "ja")
@@ -352,6 +359,24 @@ export default function LexiconWorkbench({ grammarId }: LexiconWorkbenchProps) {
   }, [dictionaryByKind, draft.idslot, grammarIdslotValues, idslotAllowSet, listDerivedOptions]);
 
   const selectedDictionaryItem = dictionaryItems.find((row) => row.id === selectedDictionaryId) || null;
+  const dictionaryInputNormalized = normalizeDictionaryValue(dictionaryKind, dictionaryCreateValue);
+  const selectedDictionaryValueNormalized = selectedDictionaryItem
+    ? normalizeDictionaryValue(selectedDictionaryItem.kind, selectedDictionaryItem.display_value)
+    : "";
+  const hasDictionaryDuplicate = dictionaryItems.some(
+    (row) =>
+      normalizeDictionaryValue(row.kind, row.display_value) === dictionaryInputNormalized &&
+      (selectedDictionaryItem === null || row.id !== selectedDictionaryItem.id)
+  );
+  const canCreateDictionaryValue =
+    dictionaryInputNormalized !== "" &&
+    !dictionaryItems.some((row) => normalizeDictionaryValue(row.kind, row.display_value) === dictionaryInputNormalized);
+  const canUpdateDictionaryValue =
+    selectedDictionaryItem !== null &&
+    dictionaryInputNormalized !== "" &&
+    dictionaryInputNormalized !== selectedDictionaryValueNormalized &&
+    !hasDictionaryDuplicate;
+
   const currentLexiconId = Number(draft.lexicon_id || selectedLexiconId || 0);
   const hasSelectedItem = currentLexiconId > 0;
 
@@ -657,10 +682,10 @@ export default function LexiconWorkbench({ grammarId }: LexiconWorkbenchProps) {
 
   async function handleCreateDictionaryValue() {
     await runTask(async () => {
+      const normalizedDisplayValue = normalizeDictionaryValue(dictionaryKind, dictionaryCreateValue);
       await apiPost<ValueDictionaryItem>("/v1/lexicon/value-dictionary", {
         kind: dictionaryKind,
-        display_value:
-          dictionaryKind === "idslot" ? normalizeIdslotValue(dictionaryCreateValue) : dictionaryCreateValue,
+        display_value: normalizedDisplayValue,
         metadata_json: {}
       });
       await Promise.all([refreshDictionary(dictionaryKind), refreshAllIdslotValues()]);
@@ -679,8 +704,9 @@ export default function LexiconWorkbench({ grammarId }: LexiconWorkbenchProps) {
       if (!selected) {
         throw new Error("更新対象の辞書値が見つかりません。");
       }
+      const normalizedDisplayValue = normalizeDictionaryValue(selected.kind, dictionaryCreateValue);
       await apiPut<ValueDictionaryItem>(`/v1/lexicon/value-dictionary/${selectedDictionaryId}`, {
-        display_value: selected.kind === "idslot" ? normalizeIdslotValue(dictionaryCreateValue) : dictionaryCreateValue,
+        display_value: normalizedDisplayValue,
         metadata_json: selected.metadata_json || {}
       });
       await Promise.all([refreshDictionary(dictionaryKind), refreshAllIdslotValues()]);
@@ -917,7 +943,7 @@ export default function LexiconWorkbench({ grammarId }: LexiconWorkbenchProps) {
       <div className="lexicon-workbench-header">
         <h2>語彙の編集</h2>
         <p className="hint">
-          タブで「語彙項目一覧 / 語彙項目編集 / バリュー辞書 / CSV/YAML」を切り替えます。検索は
+          タブで「語彙項目一覧 / 語彙項目編集 / バリュー辞書 / CSV/YAML管理」を切り替えます。検索は
           <code>category:iA</code> 形式にも対応します。
         </p>
       </div>
@@ -952,7 +978,7 @@ export default function LexiconWorkbench({ grammarId }: LexiconWorkbenchProps) {
           className={activeTopTab === "importexport" ? "renew-step-btn active" : "renew-step-btn"}
           onClick={() => setActiveTopTab("importexport")}
         >
-          CSV/YAML
+          CSV/YAML管理
         </button>
       </div>
 
@@ -1578,14 +1604,14 @@ export default function LexiconWorkbench({ grammarId }: LexiconWorkbenchProps) {
             <button
               type="button"
               onClick={() => void handleCreateDictionaryValue()}
-              disabled={loading || !dictionaryCreateValue.trim()}
+              disabled={loading || !canCreateDictionaryValue}
             >
               新規追加
             </button>
             <button
               type="button"
               onClick={() => void handleUpdateDictionaryValue()}
-              disabled={loading || selectedDictionaryId === null || !dictionaryCreateValue.trim()}
+              disabled={loading || !canUpdateDictionaryValue}
             >
               更新
             </button>
@@ -1677,7 +1703,7 @@ export default function LexiconWorkbench({ grammarId }: LexiconWorkbenchProps) {
 
       {activeTopTab === "importexport" && (
         <section className="lexicon-pane" data-testid="lexicon-importexport-tab">
-          <h3>CSV/YAML 入出力</h3>
+          <h3>CSV/YAML管理</h3>
           <div className="row">
             <select
               aria-label="lexicon-import-export-format"

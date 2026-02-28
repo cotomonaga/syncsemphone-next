@@ -1191,14 +1191,14 @@ td {
   font-size: 0.78rem;
   padding: 3px 10px;
   border-radius: 8px;
-  border: 1px solid var(--line);
-  background: #f3f6fa;
-  color: var(--ink);
+  border: 1px solid #0b6a60;
+  background: linear-gradient(135deg, #0b7f63, #0a5f87);
+  color: #ffffff;
 }
 
 .lexicon-row-edit-btn:hover:not(:disabled) {
-  background: #e8eef6;
-  color: var(--ink);
+  background: linear-gradient(135deg, #0a6d56, #084f72);
+  color: #ffffff;
   transform: none;
 }
 
