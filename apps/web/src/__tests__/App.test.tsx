@@ -121,6 +121,24 @@ function maybeCommonResponse(url: string): Response | null {
       }
     });
   }
+  if (url.includes("/v1/lexicon/value-dictionary?kind=semantic")) {
+    return jsonResponse({
+      body: {
+        source: "lexicon_fallback",
+        items: [
+          {
+            id: 2,
+            kind: "semantic",
+            normalized_value: "name:ジョン",
+            display_value: "Name:ジョン",
+            metadata_json: {},
+            created_at: "2026-02-28T00:00:00+00:00",
+            updated_at: "2026-02-28T00:00:00+00:00"
+          }
+        ]
+      }
+    });
+  }
   if (url.includes("/v1/lexicon/imi01/versions?limit=20&offset=0")) {
     return jsonResponse({
       body: {
@@ -1765,10 +1783,16 @@ describe("App", () => {
       expect(within(buildPanel!).getByTestId("numeration-lexicon-table")).toHaveTextContent("Sem-204");
     });
 
+    await user.click(await within(buildPanel!).findByTestId("step1-candidate-toggle-1"));
+    const singleCandidatePanel = await within(buildPanel!).findByTestId("step1-candidate-panel-1");
+    expect(singleCandidatePanel).toHaveTextContent("ID 270");
+    expect(within(singleCandidatePanel).getByRole("button", { name: "語彙項目を編集" })).toBeInTheDocument();
+
     await user.click(await within(buildPanel!).findByTestId("step1-candidate-toggle-4"));
     const candidatePanel = await within(buildPanel!).findByTestId("step1-candidate-panel-4");
     expect(candidatePanel).toHaveTextContent("ID 308");
     expect(candidatePanel).toHaveTextContent("+N(right)(nonhead)");
+    expect(within(candidatePanel).getAllByRole("button", { name: "語彙項目を編集" }).length).toBeGreaterThan(0);
     await user.click(within(candidatePanel).getByRole("button", { name: "この候補に差し替え" }));
 
     await waitFor(() => {
@@ -1776,10 +1800,104 @@ describe("App", () => {
     });
   });
 
+  it("does not leak build-mode token candidates into example numeration reference", async () => {
+    vi.spyOn(globalThis, "fetch").mockImplementation(async (input, init) => {
+      const url = String(input);
+      const common = maybeCommonResponse(url);
+      if (common) {
+        return common;
+      }
+      if (url.endsWith("/v1/derivation/numeration/tokenize")) {
+        return jsonResponse({ body: { tokens: ["ジョン", "が", "いる"] } });
+      }
+      if (url.endsWith("/v1/derivation/numeration/generate")) {
+        const payload = init?.body ? JSON.parse(String(init.body)) : {};
+        return jsonResponse({
+          body: {
+            memo: payload.sentence || "ジョンがいる",
+            lexicon_ids: [60, 19, 271],
+            token_resolutions: [
+              { token: "ジョン", lexicon_id: 60, candidate_lexicon_ids: [60] },
+              { token: "が", lexicon_id: 19, candidate_lexicon_ids: [19] },
+              { token: "いる", lexicon_id: 271, candidate_lexicon_ids: [271] }
+            ],
+            numeration_text: `${payload.sentence || "ジョンがいる"}\t60\t19\t271\n \t\t\t\n \t1\t2\t3`
+          }
+        });
+      }
+      if (url.endsWith("/v1/derivation/numeration/load")) {
+        return jsonResponse({
+          body: {
+            path: "/repo/imi01/set-numeration/00.num",
+            memo: "白いギターの箱",
+            numeration_text: "白いギターの箱\t8\t45\t21\t88\n \t\t\t\t\n \t1\t2\t3\t4"
+          }
+        });
+      }
+      if (url.endsWith("/v1/reference/grammars/imi01/lexicon-items/by-ids")) {
+        const payload = init?.body ? JSON.parse(String(init.body)) : {};
+        const ids = Array.isArray(payload.ids) ? payload.ids : [];
+        return jsonResponse({
+          body: {
+            grammar_id: "imi01",
+            requested_count: ids.length,
+            found_count: ids.length,
+            missing_ids: [],
+            items: ids.map((lexiconId: number) => ({
+              lexicon_id: lexiconId,
+              found: true,
+              entry:
+                lexiconId === 8 ? "白い" : lexiconId === 60 ? "ジョン" : `ID-${lexiconId}`,
+              phono:
+                lexiconId === 8 ? "白い" : lexiconId === 60 ? "ジョン" : `phono-${lexiconId}`,
+              category: lexiconId === 8 ? "iA" : lexiconId === 19 ? "J" : "N",
+              sync_features: [],
+              idslot: "id",
+              semantics: [`Sem-${lexiconId}`],
+              note: ""
+            }))
+          }
+        });
+      }
+      throw new Error(`unexpected url: ${url}`);
+    });
+
+    const user = userEvent.setup();
+    render(<App />);
+
+    await user.click(await screen.findByRole("button", { name: "この設定で開始" }));
+
+    const sentenceInput = await screen.findByRole("textbox", { name: "Sentence" });
+    await user.clear(sentenceInput);
+    await user.type(sentenceInput, "ジョンがいる");
+
+    const buildPanel = screen.getByRole("button", { name: "Lexiconから組み立てる" }).closest("section");
+    expect(buildPanel).not.toBeNull();
+    await waitFor(() => {
+      expect(within(buildPanel!).getByTestId("numeration-lexicon-table")).toHaveTextContent("Sem-60");
+    });
+
+    await user.click(screen.getByRole("button", { name: "例文から選ぶ" }));
+    const examplePanel = screen.getByRole("button", { name: "例文から選ぶ" }).closest("section");
+    expect(examplePanel).not.toBeNull();
+
+    await waitFor(() => {
+      expect(within(examplePanel!).getByTestId("numeration-lexicon-table")).toHaveTextContent("Sem-8");
+      expect(within(examplePanel!).queryByText("選択中: 60")).not.toBeInTheDocument();
+    });
+
+    await user.click(await within(examplePanel!).findByTestId("step1-candidate-toggle-1"));
+    const candidatePanel = await within(examplePanel!).findByTestId("step1-candidate-panel-1");
+    expect(candidatePanel).toHaveTextContent("ID 8");
+    expect(candidatePanel).not.toHaveTextContent("ID 60");
+    expect(within(examplePanel!).getByText("選択中: 8")).toBeInTheDocument();
+  });
+
   it("allows replacing a multi-candidate lexicon item in Step2 target panel", async () => {
     const initRequests: string[] = [];
     vi.spyOn(globalThis, "fetch").mockImplementation(async (input, init) => {
       const url = String(input);
+      const method = String(init?.method || "GET").toUpperCase();
       const common = maybeCommonResponse(url);
       if (common) {
         return common;
@@ -1869,6 +1987,43 @@ describe("App", () => {
       if (url.endsWith("/v1/derivation/candidates")) {
         return jsonResponse({ body: [] });
       }
+      if (method === "GET" && /\/v1\/lexicon\/imi01\/items\/\d+$/.test(url)) {
+        const id = Number(url.split("/").pop() || "0");
+        return jsonResponse({
+          body: {
+            grammar_id: "imi01",
+            item: {
+              lexicon_id: id,
+              entry: `ID-${id}`,
+              phono: `phono-${id}`,
+              category: id === 204 || id === 308 ? "T" : "N",
+              predicates: [],
+              sync_features: id === 308 ? ["0,17,N,,,right,nonhead"] : [],
+              idslot: "id",
+              semantics: [`Sem-${id}`],
+              note: ""
+            }
+          }
+        });
+      }
+      if (method === "GET" && /\/v1\/lexicon\/imi01\/items\/\d+\/num-links$/.test(url)) {
+        return jsonResponse({ body: { items: [] } });
+      }
+      if (method === "GET" && /\/v1\/lexicon\/imi01\/items\/\d+\/notes\/revisions$/.test(url)) {
+        return jsonResponse({ body: { items: [] } });
+      }
+      if (method === "GET" && /\/v1\/lexicon\/imi01\/items\/\d+\/notes$/.test(url)) {
+        const parts = url.split("/");
+        const id = Number(parts[parts.length - 2] || "0");
+        return jsonResponse({
+          body: {
+            grammar_id: "imi01",
+            lexicon_id: id,
+            markdown: "",
+            updated_at: null
+          }
+        });
+      }
       throw new Error(`unexpected url: ${url}`);
     });
 
@@ -1885,15 +2040,29 @@ describe("App", () => {
     const selectionList = await screen.findByTestId("step2-selection-list");
     expect(selectionList).toHaveTextContent("Sem-204");
 
+    await user.click(await within(selectionList).findByTestId("step2-candidate-toggle-1"));
+    const singleCandidatePanel = await within(selectionList).findByTestId("step2-candidate-panel-1");
+    expect(singleCandidatePanel).toHaveTextContent("ID 270");
+    expect(within(singleCandidatePanel).getByRole("button", { name: "語彙項目を編集" })).toBeInTheDocument();
+
     await user.click(await within(selectionList).findByTestId("step2-candidate-toggle-4"));
     const panel = await within(selectionList).findByTestId("step2-candidate-panel-4");
     expect(panel).toHaveTextContent("ID 308");
+    expect(within(panel).getAllByRole("button", { name: "語彙項目を編集" }).length).toBeGreaterThan(0);
     await user.click(within(panel).getByRole("button", { name: "この候補に差し替え" }));
 
     await waitFor(() => {
       expect(screen.getByTestId("step2-selection-list")).toHaveTextContent("Sem-308");
       expect(initRequests.some((text) => text.includes("\t308"))).toBe(true);
     });
+
+    const panelAfterApply = await within(screen.getByTestId("step2-selection-list")).findByTestId("step2-candidate-panel-4");
+    const candidateRow308 = within(panelAfterApply).getByText("ID 308").closest(".numeration-candidate-item");
+    expect(candidateRow308).not.toBeNull();
+    await user.click(within(candidateRow308!).getByRole("button", { name: "語彙項目を編集" }));
+    expect(await screen.findByTestId("lexicon-workbench")).toBeInTheDocument();
+    expect(await screen.findByTestId("lexicon-edit-tab")).toBeInTheDocument();
+    expect(screen.getByLabelText("lexicon-entry-input")).toHaveValue("ID-308");
   });
 
   it("shows lexicon information table for .num text", async () => {
@@ -1976,8 +2145,10 @@ describe("App", () => {
   });
 
   it("shows Lexicon tabbed editor and selection-based fields", async () => {
+    const calls: string[] = [];
     vi.spyOn(globalThis, "fetch").mockImplementation(async (input) => {
       const url = String(input);
+      calls.push(url);
       const common = maybeCommonResponse(url);
       if (common) {
         return common;
@@ -2017,6 +2188,7 @@ describe("App", () => {
     await user.click(screen.getByRole("button", { name: "CSV/YAML管理" }));
     expect(await screen.findByTestId("lexicon-importexport-tab")).toBeInTheDocument();
     expect(screen.queryByTestId("lexicon-dictionary-tab")).not.toBeInTheDocument();
+    expect(calls.some((url) => url.includes("/v1/lexicon/value-dictionary?kind=semantic"))).toBe(true);
   });
 
   it("autofills dictionary value, updates existing item, and shows usage lexicon rows", async () => {

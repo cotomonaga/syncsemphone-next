@@ -267,6 +267,7 @@
 - `LEX-UI-21`: 行内 `編集` ボタンを既存緑ボタン系の配色（緑背景/白文字）へ統一した。
 - `LEX-UI-22`: バリュー辞書 `新規追加` を「同値なしの場合のみ有効」に変更し、重複作成をUIで防止した。
 - `LEX-UI-23`: バリュー辞書 `更新` を「同一IDで値が変化した場合のみ有効」に変更し、未変更更新を無効化した。
+- `LEX-UI-26`: 語彙項目編集 `semantics` の候補源を `kind=semantic` 辞書値へ固定し、一覧ページ由来の候補混入を廃止した（編集中値は保持のため併記）。
 - `LEX-RPT-03`: `0,24 / 2,22 / 2,24 / 2,27,target` の所在（`lexicon-all.csv` の `id_slot/semfeat/predicate`）を監査レポートへ追記した。
 - `LEX-DATA-01`: 指示訂正により `lexicon-all.csv` はバックアップから復元し、`id_slot` の `0,24 / 2,22 / 2,24 / 2,27,target` は削除せず維持する方針へ戻した。
 - `S1-MOR-03`: Sudachi自動分割後に `X + する + た => Xした` と `動詞 + て + いる => 〜ている` の再構成を追加し、語彙既知形へ寄せる処理を実装した。
@@ -296,6 +297,10 @@
 | LEX-UI-23 | バリュー辞書 `更新` を値変更時のみ有効化（同一値更新を無効化） | `apps/web/src/LexiconWorkbench.tsx`, `apps/web/src/__tests__/App.test.tsx` | `vitest` |
 | LEX-UI-24 | 語彙編集ページの4ペイン（一覧/編集/辞書/CSV-YAML）をタブ切替固定にし、同時縦表示を回帰テストで防止する | `apps/web/src/LexiconWorkbench.tsx`, `apps/web/src/__tests__/App.test.tsx` | `vitest` |
 | LEX-UI-25 | `CSV/YAML` の表記をタブ名・見出し・説明文で `CSV/YAML管理` に統一する | `apps/web/src/LexiconWorkbench.tsx`, `apps/web/src/__tests__/App.test.tsx` | `vitest` |
+| LEX-UI-26 | 語彙項目編集 `semantics` 候補を `kind=semantic` の辞書値のみで提示し、候補の一貫性を確保する | `apps/web/src/LexiconWorkbench.tsx`, `apps/web/src/__tests__/App.test.tsx` | `vitest`, Playwright |
+| S1S2-UI-01 | Step1/Step2 の候補UIで `候補(1)` も表示し、ID確認導線を常時維持する（複数候補時のみ表示を廃止） | `apps/web/src/App.tsx`, `apps/web/src/styles.css` | `vitest`, Playwright |
+| S1S2-UI-02 | Step1/Step2 の候補一覧から `語彙項目を編集` を押して語彙編集画面へ遷移し、対象IDを自動読込できるようにする | `apps/web/src/App.tsx`, `apps/web/src/LexiconWorkbench.tsx` | `vitest`, Playwright |
+| S1S2-REG-01 | Web回帰で Step1/Step2 の単一候補表示と候補ID表示、Step2候補から語彙編集遷移が維持されることを固定する | `apps/web/src/__tests__/App.test.tsx` | `vitest` |
 | LEX-RPT-03 | `0,24 / 2,22 / 2,24 / 2,27,target` の所在（`lexicon-all.csv` の列）を明示 | `docs/specs/lexicon-idslot-audit-ja.md` | 文書レビュー |
 | LEX-DATA-01 | 指示訂正を受け、`lexicon-all.csv` はバックアップから復元して `id_slot` 値を維持（削除しない） | `/Users/tomonaga/Documents/syncsemphoneIMI/lexicon-all.csv`, `/Users/tomonaga/Documents/syncsemphoneIMI/lexicon-all.csv.bak-20260228-130337` | 件数再確認 |
 | S1-MOR-03 | Sudachi自動分割後に `X + する + た` と `動詞 + て + いる` を語彙既知形へ再構成する | `packages/domain/src/domain/numeration/generator.py` | `pytest` |
@@ -304,6 +309,8 @@
 | S2-HDA-33 | Step2 `候補を提案` の reachability job 起動時に探索予算（30秒 / 200万ノード / 深さ28）を明示して `unknown` 回避を図る | `apps/web/src/App.tsx` | `vitest`, Playwright |
 | S2-REG-17 | Web回帰で reachability job payload の探索予算値を固定する | `apps/web/src/__tests__/App.test.tsx` | `vitest` |
 | S2-REG-18 | `ジョンがを読んだ` を high budget で評価しても `unreachable` であることをAPI回帰に固定する | `apps/api/tests/test_derivation.py` | `pytest` |
+| S1-NUM-13 | Step1 `numerationの語彙情報参照` で、`例文から選ぶ/numファイルを選ぶ` 時は `tokenSlotEdits` 候補IDを合成しないようにし、buildモード候補混入を防止する | `apps/web/src/App.tsx` | `vitest`, Playwright |
+| S1-REG-22 | Web回帰を追加し、buildモードで `ID 60` を保持した後に `例文から選ぶ` へ切替えても slot1 候補が `ID 8` のみになることを固定する | `apps/web/src/__tests__/App.test.tsx` | `vitest` |
 
 ## API追加（S1-GRM-02）
 - `GET /v1/reference/grammars/{grammar_id}/rule-sources`

@@ -863,6 +863,8 @@ export default function App() {
   const [selectedLeft, setSelectedLeft] = useState<number | null>(null);
   const [selectedRight, setSelectedRight] = useState<number | null>(null);
   const [isStep2CandidatesLoading, setIsStep2CandidatesLoading] = useState(false);
+  const [lexiconFocusLexiconId, setLexiconFocusLexiconId] = useState<number | null>(null);
+  const [lexiconFocusRequestSeq, setLexiconFocusRequestSeq] = useState(0);
 
   const [treeCsv, setTreeCsv] = useState("");
   const [treeCatCsv, setTreeCatCsv] = useState("");
@@ -1189,7 +1191,10 @@ export default function App() {
     const rowIds = parsedRows
       .map((row) => row.lexiconId)
       .filter((value): value is number => value !== null);
-    const candidateIds = parsedRows.flatMap((row) => tokenSlotEditBySlot.get(row.slot)?.candidateLexiconIds || []);
+    const includeTokenCandidates = step1EntryMode === "build_lexicon";
+    const candidateIds = includeTokenCandidates
+      ? parsedRows.flatMap((row) => tokenSlotEditBySlot.get(row.slot)?.candidateLexiconIds || [])
+      : [];
     const uniqueIds = Array.from(
       new Set(
         [...rowIds, ...candidateIds].filter(
@@ -1260,7 +1265,7 @@ export default function App() {
       clearTimeout(timer);
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [grammarId, step1NumerationRows, step1NumerationLexiconSourceText, tokenSlotEdits]);
+  }, [grammarId, step1EntryMode, step1NumerationRows, step1NumerationLexiconSourceText, tokenSlotEdits]);
 
   useEffect(() => {
     if (openStep1CandidateSlot === null) {
@@ -1520,6 +1525,9 @@ export default function App() {
       setStep1ExampleNumerationText("");
       setNumerationLexiconRows([]);
       setNumerationLexiconError("");
+      setTokenSlotEdits([]);
+      setGenerated(null);
+      setOpenStep1CandidateSlot(null);
       if (setNumerationFiles.length === 0) {
         setStep1ExampleNumerationPath("");
       } else if (
@@ -1532,6 +1540,9 @@ export default function App() {
     if (mode === "upload_num") {
       setNumerationLexiconRows([]);
       setNumerationLexiconError("");
+      setTokenSlotEdits([]);
+      setGenerated(null);
+      setOpenStep1CandidateSlot(null);
     }
     if (mode === "build_lexicon") {
       setTokenInputMode("auto");
@@ -1691,12 +1702,16 @@ export default function App() {
         }
         formedNumerationText = uploadNumerationText;
         setGenerated(null);
+        setTokenSlotEdits([]);
+        setOpenStep1CandidateSlot(null);
       } else if (step1EntryMode === "example_sentence") {
         if (step1ExampleNumerationText.trim() === "") {
           throw new Error("例文から .num を選択してください。");
         }
         formedNumerationText = step1ExampleNumerationText;
         setGenerated(null);
+        setTokenSlotEdits([]);
+        setOpenStep1CandidateSlot(null);
       } else {
         const generatedNumeration = await requestGenerateNumeration();
         setGenerated(generatedNumeration);
@@ -1915,6 +1930,17 @@ export default function App() {
       setRenewMenu("hypothesis");
       setRenewPanel("target");
     });
+  }
+
+  function handleOpenLexiconFromCandidate(lexiconId: number) {
+    if (!Number.isInteger(lexiconId) || lexiconId <= 0) {
+      return;
+    }
+    setLexiconFocusLexiconId(lexiconId);
+    setLexiconFocusRequestSeq((prev) => prev + 1);
+    setUiMode("renewed");
+    setRenewMenu("lexicon");
+    setRenewPanel("lexicon");
   }
 
   function updateTokenSlotEdit(slot: number, patch: Partial<TokenSlotEdit>) {
@@ -2565,15 +2591,22 @@ export default function App() {
             const semanticValues = row.semantics.filter((semantic) => semantic.trim() !== "");
             const idslotRaw = row.idslot.trim();
             const slotEdit = tokenSlotEditBySlot.get(row.slot);
-            const candidateIds = Array.from(
+            const includeSlotCandidates = step1EntryMode === "build_lexicon";
+            const slotCandidateIds = Array.from(
               new Set(
-                (slotEdit?.candidateLexiconIds || []).filter(
+                (includeSlotCandidates ? slotEdit?.candidateLexiconIds || [] : []).filter(
                   (candidateId) => Number.isInteger(candidateId) && candidateId > 0
                 )
               )
             );
-            const canSwapCandidates = step1EntryMode === "build_lexicon" && candidateIds.length > 1;
-            const selectedCandidateId = slotEdit?.selectedLexiconId ?? row.lexiconId;
+            const candidateIds = Array.from(
+              new Set([...(row.lexiconId ? [row.lexiconId] : []), ...slotCandidateIds])
+            );
+            const showStep1CandidateControls = candidateIds.length > 0;
+            const canApplyStep1Candidates = includeSlotCandidates && Boolean(slotEdit);
+            const selectedCandidateId = includeSlotCandidates
+              ? slotEdit?.selectedLexiconId ?? row.lexiconId ?? null
+              : row.lexiconId ?? null;
             const unresolvedMessage = row.lexiconId === null
               ? `語彙ID ${row.rawLexiconId} は数値ではありません`
               : `語彙ID ${row.rawLexiconId} は辞書にありません`;
@@ -2621,7 +2654,7 @@ export default function App() {
                       {row.phono !== "" && <span className="perl-f6">{row.phono}</span>}
                     </div>
                   )}
-                  {canSwapCandidates && (
+                  {showStep1CandidateControls && (
                     <div className="numeration-candidate-controls">
                       <button
                         type="button"
@@ -2639,7 +2672,7 @@ export default function App() {
                       </span>
                     </div>
                   )}
-                  {canSwapCandidates && openStep1CandidateSlot === row.slot && (
+                  {showStep1CandidateControls && openStep1CandidateSlot === row.slot && (
                     <div className="numeration-candidate-list" data-testid={`step1-candidate-panel-${row.slot}`}>
                       {candidateIds.map((candidateId) => {
                         const candidateItem = numerationLookupMap.get(candidateId);
@@ -2693,16 +2726,27 @@ export default function App() {
                                 </span>
                               )}
                             </div>
-                            <button
-                              type="button"
-                              className="numeration-candidate-apply"
-                              disabled={loading || isSelected}
-                              onClick={() => {
-                                void handleApplyStep1Candidate(row.slot, candidateId);
-                              }}
-                            >
-                              {isSelected ? "選択中" : "この候補に差し替え"}
-                            </button>
+                            <div className="numeration-candidate-actions">
+                              <button
+                                type="button"
+                                className="numeration-candidate-open-lexicon"
+                                onClick={() => {
+                                  handleOpenLexiconFromCandidate(candidateId);
+                                }}
+                              >
+                                語彙項目を編集
+                              </button>
+                              <button
+                                type="button"
+                                className="numeration-candidate-apply"
+                                disabled={loading || isSelected || !canApplyStep1Candidates}
+                                onClick={() => {
+                                  void handleApplyStep1Candidate(row.slot, candidateId);
+                                }}
+                              >
+                                {isSelected ? "選択中" : canApplyStep1Candidates ? "この候補に差し替え" : "差し替え不可"}
+                              </button>
+                            </div>
                           </div>
                         );
                       })}
@@ -3414,18 +3458,22 @@ export default function App() {
                 <div className="numeration-legacy-list step2-selection-list" data-testid="step2-selection-list">
                   {step2DisplayRows.map((row) => {
                     const slotEdit = tokenSlotEditBySlot.get(row.slot);
-                    const candidateIds = Array.from(
+                    const slotCandidateIds = Array.from(
                       new Set(
                         (slotEdit?.candidateLexiconIds || []).filter(
                           (candidateId) => Number.isInteger(candidateId) && candidateId > 0
                         )
                       )
                     );
-                    const canSwapStep2Candidates =
-                      candidateIds.length > 1 &&
-                      state.history.trim() === "" &&
-                      row.node.children.length === 0;
                     const selectedCandidateId = slotEdit?.selectedLexiconId ?? null;
+                    const candidateIds = Array.from(
+                      new Set([...(selectedCandidateId ? [selectedCandidateId] : []), ...slotCandidateIds])
+                    );
+                    const showStep2CandidateControls = candidateIds.length > 0;
+                    const canApplyStep2Candidates =
+                      state.history.trim() === "" &&
+                      row.node.children.length === 0 &&
+                      Boolean(slotEdit);
                     return (
                       <div className="numeration-legacy-row step2-selection-row" key={`step2-row-${row.slot}`}>
                         <label className="step2-side-select" aria-label={`left-select-${row.slot}`}>
@@ -3461,7 +3509,7 @@ export default function App() {
                         <div className="numeration-legacy-slot">{row.slot}</div>
                         <div className="numeration-legacy-main">
                           {renderStep2DisplayNode(row.node, row.slot, `${row.slot}`, 0)}
-                          {canSwapStep2Candidates && (
+                          {showStep2CandidateControls && (
                             <div className="numeration-candidate-controls">
                               <button
                                 type="button"
@@ -3479,7 +3527,7 @@ export default function App() {
                               </span>
                             </div>
                           )}
-                          {canSwapStep2Candidates && openStep2CandidateSlot === row.slot && (
+                          {showStep2CandidateControls && openStep2CandidateSlot === row.slot && (
                             <div className="numeration-candidate-list" data-testid={`step2-candidate-panel-${row.slot}`}>
                               {candidateIds.map((candidateId) => {
                                 const candidateItem = numerationLookupMap.get(candidateId);
@@ -3533,16 +3581,27 @@ export default function App() {
                                         </span>
                                       )}
                                     </div>
-                                    <button
-                                      type="button"
-                                      className="numeration-candidate-apply"
-                                      disabled={loading || isSelected}
-                                      onClick={() => {
-                                        void handleApplyStep2Candidate(row.slot, candidateId);
-                                      }}
-                                    >
-                                      {isSelected ? "選択中" : "この候補に差し替え"}
-                                    </button>
+                                    <div className="numeration-candidate-actions">
+                                      <button
+                                        type="button"
+                                        className="numeration-candidate-open-lexicon"
+                                        onClick={() => {
+                                          handleOpenLexiconFromCandidate(candidateId);
+                                        }}
+                                      >
+                                        語彙項目を編集
+                                      </button>
+                                      <button
+                                        type="button"
+                                        className="numeration-candidate-apply"
+                                        disabled={loading || isSelected || !canApplyStep2Candidates}
+                                        onClick={() => {
+                                          void handleApplyStep2Candidate(row.slot, candidateId);
+                                        }}
+                                      >
+                                        {isSelected ? "選択中" : canApplyStep2Candidates ? "この候補に差し替え" : "差し替え不可"}
+                                      </button>
+                                    </div>
                                   </div>
                                 );
                               })}
@@ -4188,7 +4247,13 @@ export default function App() {
         </section>
 
         <section className="card" data-panel="lexicon">
-          {renewPanel === "lexicon" ? <LexiconWorkbench grammarId={grammarId} /> : null}
+          {renewPanel === "lexicon" ? (
+            <LexiconWorkbench
+              grammarId={grammarId}
+              focusLexiconId={lexiconFocusLexiconId}
+              focusLexiconNonce={lexiconFocusRequestSeq}
+            />
+          ) : null}
         </section>
           </main>
         </section>
