@@ -2897,7 +2897,9 @@ export default function App() {
           <p className="step1-upload-error" data-testid="step1-partner-warning-impossible" key={`step1-impossible-${warning.slot}-${warning.selectedLexiconId}-${warning.requirement.featureCode}-${warning.requirement.label}-${index}`}>
             警告: slot {warning.slot}（ID {warning.selectedLexiconId} / {warning.selectedEntry}）は
             {` ${warning.requirement.featureCode}(${warning.requirement.label}) `}
-            を要求していますが、Numeration 内の候補に満たせる相方がありません。
+            を要求していますが、Numeration 内に
+            {` ${warning.requirement.featureCode}(${warning.requirement.label}) `}
+            を満たす語が見つかりません。
           </p>
         ))}
       {step1PartnerWarnings
@@ -2906,7 +2908,8 @@ export default function App() {
           <p className="step1-partner-warning" data-testid="step1-partner-warning-possible" key={`step1-possible-${warning.slot}-${warning.selectedLexiconId}-${warning.requirement.featureCode}-${warning.requirement.label}-${index}`}>
             注意: slot {warning.slot}（ID {warning.selectedLexiconId} / {warning.selectedEntry}）の
             {` ${warning.requirement.featureCode}(${warning.requirement.label}) `}
-            は現在未充足です。候補差し替えで充足可能です（候補slot: {warning.providerSlots.join(", ")}）。
+            について、現在の選択では条件を満たす語がありません。
+            候補差し替えで満たせます（候補slot: {warning.providerSlots.join(", ")}）。
           </p>
         ))}
       {numerationLexiconRows.length === 0 ? (
@@ -3033,8 +3036,9 @@ export default function App() {
                       data-testid={`step1-inline-partner-summary-${row.slot}-${index}`}
                       key={`step1-inline-partner-${row.slot}-${warning.requirement.featureCode}-${warning.requirement.label}-${index}`}
                     >
-                      {warning.level === "impossible" ? "警告" : "注意"}: {warning.requirement.featureCode}(
-                      {warning.requirement.label}) が現在未充足です。
+                      {warning.level === "impossible"
+                        ? `警告: ${warning.requirement.featureCode}(${warning.requirement.label}) を満たす語が見つかりません。`
+                        : `注意: 現在の選択では ${warning.requirement.featureCode}(${warning.requirement.label}) を満たす語がありません。`}
                     </p>
                   ))}
                   {showStep1CandidateControls && openStep1CandidateSlot === row.slot && (
@@ -3942,8 +3946,9 @@ export default function App() {
                               data-testid={`step2-inline-partner-summary-${row.slot}-${index}`}
                               key={`step2-inline-partner-${row.slot}-${warning.requirement.featureCode}-${warning.requirement.label}-${index}`}
                             >
-                              {warning.level === "impossible" ? "警告" : "注意"}: {warning.requirement.featureCode}(
-                              {warning.requirement.label}) が現在未充足です。
+                              {warning.level === "impossible"
+                                ? `警告: ${warning.requirement.featureCode}(${warning.requirement.label}) を満たす語が見つかりません。`
+                                : `注意: 現在の選択では ${warning.requirement.featureCode}(${warning.requirement.label}) を満たす語がありません。`}
                             </p>
                           ))}
                           {showStep2CandidateControls && openStep2CandidateSlot === row.slot && (

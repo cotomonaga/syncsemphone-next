@@ -313,9 +313,9 @@
 | S1-REG-22 | Web回帰を追加し、buildモードで `ID 60` を保持した後に `例文から選ぶ` へ切替えても slot1 候補が `ID 8` のみになることを固定する | `apps/web/src/__tests__/App.test.tsx` | `vitest` |
 | S1-PART-01 | Numeration生成時の候補選択に `25/33` 要求の充足優先ロジックを追加し、相方要求を満たしやすい初期選択へ寄せる | `packages/domain/src/domain/numeration/generator.py` | `pytest` |
 | S1-PART-02 | Step1 `numerationの語彙情報参照` に、充足不能な相方要求を赤字で理由表示する警告を追加する | `apps/web/src/App.tsx`, `apps/web/src/styles.css` | `vitest`, Playwright |
-| S1-PART-03 | Step1 `numerationの語彙情報参照` に、差し替えで充足可能な相方要求を橙色注意で表示する | `apps/web/src/App.tsx`, `apps/web/src/styles.css` | `vitest`, Playwright |
+| S1-PART-03 | Step1 `numerationの語彙情報参照` に、差し替えで条件を満たせる相方要求を橙色注意で表示する | `apps/web/src/App.tsx`, `apps/web/src/styles.css` | `vitest`, Playwright |
 | S1-REG-23 | API回帰で `ジョンが本を読む` の `226` が単体系 `ga/wo` 候補を優先することを固定する | `apps/api/tests/test_derivation.py` | `pytest` |
-| S1-REG-24 | Web回帰で `25(ga/wo)` 未充足時に赤警告が表示されることを固定する | `apps/web/src/__tests__/App.test.tsx` | `vitest` |
+| S1-REG-24 | Web回帰で `25(ga/wo)` 条件不一致時に赤警告が表示されることを固定する | `apps/web/src/__tests__/App.test.tsx` | `vitest` |
 | S2-RCH-19 | Step2 `候補を提案` の再現確認として、`ジョンがメアリをスケートボードで追いかけた` が UI/API の両方で `reachable` になることを確認する | 調査ログ（Playwright/CLI） | Playwright, API実行 |
 | S2-RCH-20 | `ジョンが本を読む` で、現行削減探索と削減なし全探索（候補全展開）の両方を実行し、到達不能が探索打ち切りではないことを確認する | 調査スクリプト（一時実行） | API実行 |
 | S2-RCH-21 | `ジョンが本を読む` の最小未解釈残差を抽出し、`候補を提案` が `reachable` にならない直接原因を同定する | 調査ログ（CLI） | API実行 |
@@ -343,8 +343,9 @@
 | S1-REG-25 | API回帰で `imi01 / ジョンが本を読む` の候補選択が `19/23` へ寄ることと、`183` 非互換理由を固定する | `apps/api/tests/test_derivation.py` | `pytest` |
 | S1-REG-26 | Web回帰で非互換候補への手動差し替え後に赤警告が表示されることを固定する | `apps/web/src/__tests__/App.test.tsx` | `vitest` |
 | S1-REG-27 | API回帰で `imi01 / ジョンが本を読んだ`（自動分割）でも `が=19` が選ばれ、`183` が非互換（`J-Merge` 欠落）であることを固定する | `apps/api/tests/test_derivation.py` | `pytest` |
-| S1S2-UI-03 | Step1/Step2 の候補UIで、候補一覧を閉じた状態でも選択中候補の警告サマリ（文法非互換・相方未充足）を行内表示する | `apps/web/src/App.tsx`, `apps/web/src/styles.css` | `vitest`, Playwright |
+| S1S2-UI-03 | Step1/Step2 の候補UIで、候補一覧を閉じた状態でも選択中候補の警告サマリ（文法非互換・相方条件不一致）を行内表示する | `apps/web/src/App.tsx`, `apps/web/src/styles.css` | `vitest`, Playwright |
 | S1S2-REG-03 | Web回帰で Step1/Step2 の候補パネルを閉じた状態でも警告サマリが表示され、詳細は候補展開で確認できることを固定する | `apps/web/src/__tests__/App.test.tsx` | `vitest` |
+| S1S2-TXT-01 | Step1/Step2 の警告文から「未充足」を廃止し、`2,25,wo を満たす語が見つかりません` 系の表現へ統一する | `apps/web/src/App.tsx` | `vitest`, Playwright |
 
 ## API追加（S1-GRM-02）
 - `GET /v1/reference/grammars/{grammar_id}/rule-sources`
