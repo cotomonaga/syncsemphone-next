@@ -328,3 +328,4 @@
 - [x] `LEX-REG-02` Lexicon新UIのWebユニットテストを追加する。
 - [x] `LEX-REG-03` Lexicon新UIのE2Eテストを追加する。
 - [x] `LEX-API-07` メタDB URL 未設定時、Lexicon読取系API（辞書一覧/num紐付け一覧/メモ取得/履歴一覧）を 500 にせず空結果で返す。
+- [x] `UI-PERSIST-01` リロード時にメニュー/ステップが変わらないよう、Renewed UI の表示状態（`uiMode/menu/panel/workflowStarted/grammar`）を保存・復元する。

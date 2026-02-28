@@ -52,6 +52,15 @@ type RenewPanel =
   | "referenceDocs"
   | "lexicon";
 
+type PersistedUiState = {
+  uiMode: UiMode;
+  renewPanel: RenewPanel;
+  workflowStarted: boolean;
+  grammarId: string;
+  setupGrammarId: string;
+  step1EntryMode: Step1EntryMode;
+};
+
 type TokenSlotEdit = {
   slot: number;
   token: string;
@@ -99,6 +108,9 @@ const DEFAULT_GRAMMARS: GrammarOption[] = [
     display_name: "japanese2"
   }
 ];
+
+const UI_PERSISTENCE_KEY = "syncsemphone-next:ui-state:v1";
+const ENABLE_UI_PERSISTENCE = import.meta.env.MODE !== "test";
 
 const RENEW_MENUS: Array<{
   key: RenewMenu;
@@ -904,6 +916,7 @@ export default function App() {
 
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [uiPersistenceReady, setUiPersistenceReady] = useState(!ENABLE_UI_PERSISTENCE);
   const referenceSectionRef = useRef<HTMLElement | null>(null);
   const step1UploadFileInputRef = useRef<HTMLInputElement | null>(null);
   const autoPreviewRequestSeqRef = useRef(0);
@@ -982,6 +995,74 @@ export default function App() {
     }
     return byId;
   }, [numerationLookupItems]);
+
+  useEffect(() => {
+    if (!ENABLE_UI_PERSISTENCE) {
+      return;
+    }
+    try {
+      const raw = window.localStorage.getItem(UI_PERSISTENCE_KEY);
+      if (!raw) {
+        return;
+      }
+      const parsed = JSON.parse(raw) as Partial<PersistedUiState>;
+      if (parsed.uiMode === "legacy" || parsed.uiMode === "renewed") {
+        setUiMode(parsed.uiMode);
+      }
+      if (typeof parsed.workflowStarted === "boolean") {
+        setWorkflowStarted(parsed.workflowStarted);
+      }
+      if (typeof parsed.grammarId === "string" && parsed.grammarId.trim() !== "") {
+        setGrammarId(parsed.grammarId);
+      }
+      if (typeof parsed.setupGrammarId === "string" && parsed.setupGrammarId.trim() !== "") {
+        setSetupGrammarId(parsed.setupGrammarId);
+      }
+      if (
+        parsed.step1EntryMode === "example_sentence" ||
+        parsed.step1EntryMode === "upload_num" ||
+        parsed.step1EntryMode === "build_lexicon"
+      ) {
+        setStep1EntryMode(parsed.step1EntryMode);
+      }
+      if (
+        parsed.renewPanel &&
+        RENEW_MENUS.some((menu) => menu.steps.some((step) => step.key === parsed.renewPanel))
+      ) {
+        setRenewPanel(parsed.renewPanel);
+      }
+    } catch {
+      // localStorageが壊れている場合は既定値で続行する。
+    } finally {
+      setUiPersistenceReady(true);
+    }
+  }, []);
+
+  useEffect(() => {
+    const owner = RENEW_MENUS.find((menu) => menu.steps.some((step) => step.key === renewPanel));
+    if (owner && owner.key !== renewMenu) {
+      setRenewMenu(owner.key);
+    }
+  }, [renewMenu, renewPanel]);
+
+  useEffect(() => {
+    if (!ENABLE_UI_PERSISTENCE || !uiPersistenceReady) {
+      return;
+    }
+    const payload: PersistedUiState = {
+      uiMode,
+      renewPanel,
+      workflowStarted,
+      grammarId,
+      setupGrammarId,
+      step1EntryMode
+    };
+    try {
+      window.localStorage.setItem(UI_PERSISTENCE_KEY, JSON.stringify(payload));
+    } catch {
+      // 保存できない環境では無視する。
+    }
+  }, [grammarId, renewPanel, setupGrammarId, step1EntryMode, uiMode, uiPersistenceReady, workflowStarted]);
   const step2DisplayRows = useMemo(() => buildStep2DisplayRows(state), [state]);
 
   function renderStep2DisplayNode(
