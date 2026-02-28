@@ -80,13 +80,13 @@ function maybeCommonResponse(url: string): Response | null {
       }
     });
   }
-  if (url.includes("/v1/lexicon/imi01/items?page=1&page_size=50&q=")) {
+  if (url.includes("/v1/lexicon/imi01/items?")) {
     return jsonResponse({
       body: {
         grammar_id: "imi01",
         total_count: 1,
         page: 1,
-        page_size: 50,
+        page_size: url.includes("page_size=300") ? 300 : 50,
         items: [
           {
             lexicon_id: 60,
@@ -746,6 +746,7 @@ describe("App", () => {
   });
 
   it("keeps 候補を提案 enabled while auto candidate loading is in progress", async () => {
+    const reachabilityJobBodies: Array<Record<string, unknown>> = [];
     vi.spyOn(globalThis, "fetch").mockImplementation(async (input, init) => {
       const url = String(input);
       const common = maybeCommonResponse(url);
@@ -802,6 +803,8 @@ describe("App", () => {
         });
       }
       if (url.endsWith("/v1/derivation/reachability/jobs")) {
+        const payload = init?.body ? (JSON.parse(String(init.body)) as Record<string, unknown>) : {};
+        reachabilityJobBodies.push(payload);
         return jsonResponse({
           body: {
             job_id: "job-2",
@@ -912,6 +915,10 @@ describe("App", () => {
     expect(assistButton).toBeEnabled();
     await user.click(assistButton);
     expect(await screen.findByTestId("reachability-table")).toHaveTextContent("1:RH-Merge");
+    expect(reachabilityJobBodies.length).toBeGreaterThan(0);
+    expect(reachabilityJobBodies[0]?.budget_seconds).toBe(30);
+    expect(reachabilityJobBodies[0]?.max_nodes).toBe(2_000_000);
+    expect(reachabilityJobBodies[0]?.max_depth).toBe(28);
   });
 
   it("toggles More as text and shows checkmark", async () => {
@@ -1967,7 +1974,7 @@ describe("App", () => {
     expect(await within(uploadPanel!).findByText("語彙ID が見つかりませんでした: 9999")).toBeInTheDocument();
   });
 
-  it("shows Lexicon 3-pane editor and selection-based fields", async () => {
+  it("shows Lexicon tabbed editor and selection-based fields", async () => {
     vi.spyOn(globalThis, "fetch").mockImplementation(async (input) => {
       const url = String(input);
       const common = maybeCommonResponse(url);
@@ -1982,18 +1989,22 @@ describe("App", () => {
 
     await user.click(await screen.findByRole("button", { name: "語彙の編集" }));
     expect(await screen.findByTestId("lexicon-workbench")).toBeInTheDocument();
+    expect(await screen.findByTestId("lexicon-items-tab")).toBeInTheDocument();
 
     const row = await screen.findByText("ジョン");
     await user.click(row);
+    await user.click(screen.getByRole("button", { name: "編集" }));
+    expect(await screen.findByTestId("lexicon-edit-tab")).toBeInTheDocument();
     const categorySelect = await screen.findByLabelText("lexicon-category-select");
     expect(categorySelect).toBeInTheDocument();
     expect(within(categorySelect).getByRole("option", { name: "N" })).toBeInTheDocument();
+    expect(within(categorySelect).queryByRole("option", { name: "iA" })).not.toBeInTheDocument();
+    const idSlotSelect = await screen.findByLabelText("lexicon-idslot-select");
+    expect(within(idSlotSelect).queryByRole("option", { name: "0,22" })).not.toBeInTheDocument();
 
-    await user.click(screen.getByRole("button", { name: "辞書" }));
+    await user.click(screen.getByRole("button", { name: "バリュー辞書" }));
     expect(await screen.findByTestId("lexicon-dictionary-tab")).toBeInTheDocument();
-    await user.click(screen.getByRole("button", { name: "num紐付け" }));
-    expect(await screen.findByTestId("lexicon-numlinks-tab")).toBeInTheDocument();
-    await user.click(screen.getByRole("button", { name: "研究メモ" }));
-    expect(await screen.findByTestId("lexicon-notes-tab")).toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: "CSV/YAML" }));
+    expect(await screen.findByTestId("lexicon-importexport-tab")).toBeInTheDocument();
   });
 });

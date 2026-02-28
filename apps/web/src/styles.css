@@ -1135,13 +1135,6 @@ td {
   margin: 4px 0 0;
 }
 
-.lexicon-three-pane {
-  display: grid;
-  grid-template-columns: minmax(240px, 28%) minmax(340px, 40%) minmax(300px, 32%);
-  gap: 10px;
-  min-width: 0;
-}
-
 .lexicon-pane {
   border: 1px solid var(--line);
   border-radius: 12px;
@@ -1163,6 +1156,26 @@ td {
 .lexicon-pane-header h3 {
   margin: 0;
   font-size: 1rem;
+}
+
+.lexicon-main-tab-row {
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.lexicon-sort-btn {
+  border: none;
+  background: transparent;
+  font: inherit;
+  cursor: pointer;
+  padding: 0;
+  color: inherit;
+}
+
+.lexicon-sort-arrow {
+  font-size: 0.7rem;
+  color: #5d6f7f;
+  margin-left: 4px;
 }
 
 .lexicon-row-active {
@@ -1193,8 +1206,52 @@ td {
   flex-wrap: wrap;
 }
 
+.lexicon-note-editor-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: 10px;
+}
+
+.lexicon-markdown-preview {
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  overflow: hidden;
+}
+
+.lexicon-markdown-preview-title {
+  background: #edf3f8;
+  border-bottom: 1px solid var(--line);
+  font-weight: 600;
+  padding: 6px 10px;
+}
+
+.lexicon-markdown-preview-body {
+  padding: 10px;
+  max-height: 360px;
+  overflow: auto;
+}
+
+.lexicon-markdown-preview-body h3,
+.lexicon-markdown-preview-body h4,
+.lexicon-markdown-preview-body h5 {
+  margin: 0 0 8px;
+}
+
+.lexicon-markdown-preview-body p,
+.lexicon-markdown-preview-body ul {
+  margin: 0 0 8px;
+}
+
+.lexicon-markdown-preview-body pre {
+  margin: 0 0 8px;
+}
+
+.lexicon-md-gap {
+  height: 8px;
+}
+
 @media (max-width: 1200px) {
-  .lexicon-three-pane {
+  .lexicon-note-editor-grid {
     grid-template-columns: 1fr;
   }
 }

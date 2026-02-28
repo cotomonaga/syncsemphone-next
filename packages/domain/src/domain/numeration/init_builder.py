@@ -60,8 +60,9 @@ def build_initial_derivation_state(
                 sync_features.append(feature)
 
         lexical_id = f"β{newnum}" if beta else f"x{idx_value}-1"
-        sy_raw = [feature.replace("id", lexical_id) for feature in sync_features]
-        sy_features: list[str | None] = [None, *sy_raw] if len(sy_raw) > 0 else []
+        sy_features: list[str | None] = [
+            feature.replace("id", lexical_id) for feature in sync_features
+        ]
         _append_plus_feature(
             grammar_id=grammar_id, plus_value=rows.plus_slot(slot), sy_features=sy_features
         )

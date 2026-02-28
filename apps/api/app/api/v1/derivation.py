@@ -7,10 +7,12 @@ import multiprocessing as mp
 import os
 import re
 import sys
+import threading
 import time
+import uuid
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Callable, Optional
+from typing import Any, Callable, Optional
 
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
@@ -56,32 +58,111 @@ class DerivationCandidatesRequest(BaseModel):
     lh_merge_version: Optional[str] = None
 
 
-class DerivationHeadAssistRequest(BaseModel):
+class DerivationReachabilityRequest(BaseModel):
     state: DerivationState
-    top_k: int = 5
+    max_evidences: int = 50
+    offset: int = 0
+    limit: int = 10
     parallel_cores: Optional[int] = None
     search_signature_mode: Optional[str] = None
+    budget_seconds: float = 10.0
+    max_nodes: int = 220000
+    max_depth: int = 28
+    return_process_text: bool = True
     legacy_root: Optional[str] = None
     rh_merge_version: Optional[str] = None
     lh_merge_version: Optional[str] = None
 
 
-class HeadAssistSuggestionResponse(BaseModel):
-    rank: int
-    rule_number: int
+class ReachabilityRuleStepResponse(BaseModel):
+    step: int
     rule_name: str
+    rule_number: int
     rule_kind: str
-    left: int
-    right: int
+    left: Optional[int] = None
+    right: Optional[int] = None
     check: Optional[int] = None
-    unresolved_before: int
-    unresolved_after: int
-    unresolved_delta: int
-    grammatical_after: bool
-    basenum_before: int
-    basenum_after: int
-    reachable_grammatical: bool = False
-    steps_to_grammatical: Optional[int] = None
+    left_id: Optional[str] = None
+    right_id: Optional[str] = None
+
+
+class ReachabilityEvidenceResponse(BaseModel):
+    rank: int
+    steps_to_goal: int
+    rule_sequence: list[ReachabilityRuleStepResponse]
+    tree_root: dict[str, Any]
+    process_text: Optional[str] = None
+
+
+class ReachabilityMetricsResponse(BaseModel):
+    expanded_nodes: int
+    generated_nodes: int
+    packed_nodes: int
+    max_frontier: int
+    elapsed_ms: int
+    max_depth_reached: int
+    actions_attempted: int
+
+
+class ReachabilityCountsResponse(BaseModel):
+    count_unit: str
+    count_basis: str
+    tree_signature_basis: str
+    count_status: str
+    goal_count_exact: Optional[str] = None
+    total_exact: Optional[str] = None
+    total_upper_bound_a_pair_only: str
+    total_upper_bound_b_pair_rulemax: str
+    rule_max_per_pair_bound: int
+    rule_max_per_pair_observed: int
+    shown_count: int
+    offset: int
+    limit: int
+    shown_ratio_exact_percent: Optional[float] = None
+    coverage_upper_bound_a_percent: float
+    coverage_upper_bound_b_percent: float
+    has_next: bool = False
+
+
+class DerivationReachabilityResponse(BaseModel):
+    status: str
+    completed: bool
+    reason: str
+    metrics: ReachabilityMetricsResponse
+    counts: ReachabilityCountsResponse
+    evidences: list[ReachabilityEvidenceResponse]
+
+
+class DerivationReachabilityJobStartResponse(BaseModel):
+    job_id: str
+    status: str
+    created_at: float
+
+
+class ReachabilityProgressResponse(BaseModel):
+    percent: float
+    phase: str
+    message: str
+
+
+class DerivationReachabilityJobStatusResponse(BaseModel):
+    job_id: str
+    status: str
+    created_at: float
+    updated_at: float
+    progress: ReachabilityProgressResponse
+    metrics: Optional[ReachabilityMetricsResponse] = None
+    counts: Optional[ReachabilityCountsResponse] = None
+    reason: Optional[str] = None
+    completed: Optional[bool] = None
+    error: Optional[str] = None
+
+
+class DerivationReachabilityEvidencePageResponse(BaseModel):
+    job_id: str
+    status: str
+    counts: ReachabilityCountsResponse
+    evidences: list[ReachabilityEvidenceResponse]
 
 
 class DerivationReachabilityDiagnoseRequest(BaseModel):
@@ -252,9 +333,45 @@ _HEAD_ASSIST_SEARCH_MAX_NODES = 220000
 _HEAD_ASSIST_SEARCH_WEIGHT = 0.5
 _HEAD_ASSIST_DEFAULT_PARALLEL_CORES = 2
 _HEAD_ASSIST_MAX_PARALLEL_CORES = 8
+_HEAD_ASSIST_MAX_EVIDENCES_CAP = 200
+_HEAD_ASSIST_PAGE_LIMIT_CAP = 100
+_HEAD_ASSIST_JOBS_TTL_SECONDS = 1800.0
 _BASELINE_SEARCH_MAX_DEPTH_CAP = 32
 _BASELINE_SEARCH_MAX_NODES_CAP = 2_000_000
 _BASELINE_SEARCH_BUDGET_SECONDS_CAP = 300.0
+_DOUBLE_LEFT_HEADED_RULES = {
+    "LH-Merge",
+    "J-Merge",
+    "sase1",
+    "sase2",
+    "rare1",
+    "rare2",
+    "property-Merge",
+    "rel-Merge",
+    "property-no",
+    "property-da",
+    "P-Merge",
+}
+_CASE_PARTICLE_SURFACES = {
+    "が",
+    "を",
+    "の",
+    "で",
+    "に",
+    "へ",
+    "と",
+    "から",
+    "まで",
+    "ga",
+    "wo",
+    "no",
+    "de",
+    "ni",
+    "he",
+    "to",
+    "kara",
+    "made",
+}
 
 
 @dataclass
@@ -273,6 +390,52 @@ class _BaselineSearchOutcome:
     status: str
     expanded_nodes: int
     steps_to_grammatical: Optional[int] = None
+
+
+@dataclass
+class _ReachabilityPathStep:
+    rule_name: str
+    rule_number: int
+    rule_kind: str
+    left: Optional[int]
+    right: Optional[int]
+    check: Optional[int]
+    left_id: Optional[str]
+    right_id: Optional[str]
+
+
+@dataclass
+class _ReachabilityEvidenceInternal:
+    steps: list[_ReachabilityPathStep]
+    final_state: DerivationState
+    tree_signature: str
+
+
+@dataclass
+class _ReachabilityResultInternal:
+    status: str
+    completed: bool
+    reason: str
+    expanded_nodes: int
+    generated_nodes: int
+    max_frontier: int
+    max_depth_reached: int
+    actions_attempted: int
+    rule_max_per_pair_observed: int
+    elapsed_ms: int
+    count_status: str
+    goal_count_exact: Optional[int]
+    total_exact: Optional[int]
+    total_upper_bound_a_pair_only: int
+    total_upper_bound_b_pair_rulemax: int
+    rule_max_per_pair_bound: int
+    count_basis: str
+    tree_signature_basis: str
+    evidences: list[_ReachabilityEvidenceInternal]
+
+
+_REACHABILITY_JOBS: dict[str, dict[str, Any]] = {}
+_REACHABILITY_JOBS_LOCK = threading.Lock()
 
 
 def _default_legacy_root() -> Path:
@@ -500,6 +663,7 @@ def _enumerate_candidate_transitions(
 
     transitions: list[tuple[RuleCandidate, int, int, DerivationState]] = []
     seen_actions: set[tuple[int, str, str, int, int, int]] = set()
+    unresolved_before = _count_uninterpretable_like_perl(state)
 
     for left in range(1, state.basenum + 1):
         for right in range(1, state.basenum + 1):
@@ -516,6 +680,13 @@ def _enumerate_candidate_transitions(
             for candidate in candidates:
                 actual_left = candidate.left if candidate.left is not None else left
                 actual_right = candidate.right if candidate.right is not None else right
+                if candidate.rule_kind == "double" and not _passes_nohead_constraint(
+                    state=state,
+                    rule_name=candidate.rule_name,
+                    left=actual_left,
+                    right=actual_right,
+                ):
+                    continue
                 action_key = (
                     candidate.rule_number,
                     candidate.rule_name,
@@ -539,9 +710,39 @@ def _enumerate_candidate_transitions(
                     )
                 except ValueError:
                     continue
+                unresolved_after = _count_uninterpretable_like_perl(next_state)
+                # 探索縮約: 未解釈素性を減らさない遷移は展開しない。
+                if unresolved_after >= unresolved_before:
+                    continue
                 if state_signature_fn(next_state) == state_key:
                     continue
                 transitions.append((candidate, actual_left, actual_right, next_state))
+
+    case_local_transitions = [
+        row
+        for row in transitions
+        if _is_case_particle_local_transition(
+            state=state,
+            candidate=row[0],
+            left=row[1],
+            right=row[2],
+        )
+    ]
+    if case_local_transitions:
+        transitions = case_local_transitions
+    else:
+        vt_local_transitions = [
+            row
+            for row in transitions
+            if _is_local_vt_transition(
+                state=state,
+                candidate=row[0],
+                left=row[1],
+                right=row[2],
+            )
+        ]
+        if vt_local_transitions:
+            transitions = vt_local_transitions
 
     cache[state_key] = transitions
     return transitions
@@ -588,6 +789,693 @@ def _find_item_index_by_id(state: DerivationState, item_id: str) -> Optional[int
         if isinstance(item, list) and len(item) > 0 and str(item[0]) == item_id:
             return index
     return None
+
+
+def _resolve_reachability_max_evidences(value: int) -> int:
+    if value <= 0:
+        return 1
+    return min(_HEAD_ASSIST_MAX_EVIDENCES_CAP, value)
+
+
+def _resolve_reachability_page(offset: int, limit: int, *, max_evidences: int) -> tuple[int, int]:
+    resolved_offset = max(0, offset)
+    resolved_limit = max(1, min(limit, _HEAD_ASSIST_PAGE_LIMIT_CAP))
+    if resolved_offset > max_evidences:
+        resolved_offset = max_evidences
+    return resolved_offset, resolved_limit
+
+
+def _resolve_reachability_max_depth(requested_depth: int, *, state: DerivationState) -> int:
+    cap = _resolve_head_assist_max_total_depth(state)
+    if requested_depth <= 0:
+        return 1
+    return max(1, min(requested_depth, cap))
+
+
+def _resolve_reachability_budget_seconds(requested_budget: float) -> float:
+    if requested_budget <= 0:
+        return 0.1
+    return min(_BASELINE_SEARCH_BUDGET_SECONDS_CAP, requested_budget)
+
+
+def _resolve_reachability_max_nodes(requested_nodes: int) -> int:
+    if requested_nodes <= 0:
+        return 10
+    return min(_BASELINE_SEARCH_MAX_NODES_CAP, requested_nodes)
+
+
+def _item_id_for_index(state: DerivationState, index: Optional[int]) -> Optional[str]:
+    if index is None:
+        return None
+    if index < 1 or index > state.basenum:
+        return None
+    item = state.base[index]
+    if isinstance(item, list) and len(item) > 0:
+        return str(item[0])
+    return None
+
+
+def _generate_numeration_with_unknown_token_fallback(
+    *,
+    grammar_id: str,
+    sentence: str,
+    legacy_root: Path,
+    tokens: Optional[list[str]],
+    split_mode: str,
+):
+    # 手動トークン指定時は利用者入力を優先し、分割モードフォールバックは行わない。
+    if tokens:
+        return generate_numeration_from_sentence(
+            grammar_id=grammar_id,
+            sentence=sentence,
+            legacy_root=legacy_root,
+            tokens=tokens,
+            split_mode=split_mode,
+        )
+
+    tried: set[str] = set()
+    ordered_modes: list[str] = [split_mode, "B", "C", "A"]
+    last_error: Optional[ValueError] = None
+    for mode in ordered_modes:
+        if mode in tried:
+            continue
+        tried.add(mode)
+        try:
+            return generate_numeration_from_sentence(
+                grammar_id=grammar_id,
+                sentence=sentence,
+                legacy_root=legacy_root,
+                tokens=tokens,
+                split_mode=mode,
+            )
+        except ValueError as exc:
+            last_error = exc
+            if not str(exc).startswith("Unknown token for lexicon lookup:"):
+                raise
+            continue
+    if last_error is not None:
+        raise last_error
+    raise ValueError("numeration generation failed")
+
+
+def _item_for_index(state: DerivationState, index: int) -> Optional[list[Any]]:
+    if index < 1 or index > state.basenum:
+        return None
+    row = state.base[index]
+    if not isinstance(row, list):
+        return None
+    return row
+
+
+def _item_category_for_index(state: DerivationState, index: int) -> str:
+    row = _item_for_index(state, index)
+    if row is None or len(row) < 2:
+        return ""
+    return str(row[1])
+
+
+def _item_surface_for_index(state: DerivationState, index: int) -> str:
+    row = _item_for_index(state, index)
+    if row is None or len(row) < 7:
+        return ""
+    return str(row[6]).strip()
+
+
+def _item_sy_features_for_index(state: DerivationState, index: int) -> list[str]:
+    row = _item_for_index(state, index)
+    if row is None or len(row) < 4 or not isinstance(row[3], list):
+        return []
+    return [str(value) for value in row[3] if value is not None and str(value) != ""]
+
+
+def _feature_role_tags(features: list[str]) -> set[str]:
+    tags: set[str] = set()
+    for raw in features:
+        parts = [part.strip() for part in raw.split(",")]
+        for part in parts:
+            if part in {"head", "nonhead"}:
+                tags.add(part)
+    return tags
+
+
+def _head_nonhead_indices(rule_name: str, left: int, right: int) -> tuple[Optional[int], Optional[int]]:
+    if rule_name == "RH-Merge":
+        return right, left
+    if rule_name in _DOUBLE_LEFT_HEADED_RULES:
+        return left, right
+    return None, None
+
+
+def _passes_nohead_constraint(
+    *,
+    state: DerivationState,
+    rule_name: str,
+    left: int,
+    right: int,
+) -> bool:
+    head_idx, nonhead_idx = _head_nonhead_indices(rule_name, left, right)
+    if head_idx is None or nonhead_idx is None:
+        return True
+    head_roles = _feature_role_tags(_item_sy_features_for_index(state, head_idx))
+    if head_roles == {"nonhead"}:
+        return False
+    nonhead_roles = _feature_role_tags(_item_sy_features_for_index(state, nonhead_idx))
+    if nonhead_roles == {"head"}:
+        return False
+    return True
+
+
+def _is_nominal_category(category: str) -> bool:
+    return category in {"N", "NP"}
+
+
+def _is_case_particle_item(state: DerivationState, index: int) -> bool:
+    if _item_category_for_index(state, index) != "J":
+        return False
+    surface = _item_surface_for_index(state, index)
+    return surface == "" or surface in _CASE_PARTICLE_SURFACES
+
+
+def _nearest_preceding_nominal_index(state: DerivationState, index: int) -> Optional[int]:
+    for candidate in range(index - 1, 0, -1):
+        if _is_nominal_category(_item_category_for_index(state, candidate)):
+            return candidate
+    return None
+
+
+def _is_case_particle_local_transition(
+    *,
+    state: DerivationState,
+    candidate: RuleCandidate,
+    left: int,
+    right: int,
+) -> bool:
+    if candidate.rule_kind != "double":
+        return False
+    if _is_case_particle_item(state, right) and _is_nominal_category(_item_category_for_index(state, left)):
+        j_index = right
+        noun_index = left
+    elif _is_case_particle_item(state, left) and _is_nominal_category(_item_category_for_index(state, right)):
+        j_index = left
+        noun_index = right
+    else:
+        return False
+    nearest_nominal = _nearest_preceding_nominal_index(state, j_index)
+    if nearest_nominal is not None and noun_index != nearest_nominal:
+        return False
+    return candidate.rule_name in {"LH-Merge", "J-Merge", "RH-Merge"}
+
+
+def _is_local_vt_transition(
+    *,
+    state: DerivationState,
+    candidate: RuleCandidate,
+    left: int,
+    right: int,
+) -> bool:
+    if candidate.rule_kind != "double":
+        return False
+    left_category = _item_category_for_index(state, left)
+    right_category = _item_category_for_index(state, right)
+    if {left_category, right_category} != {"V", "T"}:
+        return False
+    return abs(left - right) == 1
+
+
+def _build_tree_node(item: object) -> dict[str, Any]:
+    if not isinstance(item, list):
+        return {
+            "item_id": str(item),
+            "category": "",
+            "sy": [],
+            "sl": "",
+            "se": [],
+            "phono": "",
+            "children": [],
+        }
+    children: list[dict[str, Any]] = []
+    if len(item) > 7 and isinstance(item[7], list):
+        for child in item[7]:
+            if child == "zero":
+                continue
+            if isinstance(child, list):
+                children.append(_build_tree_node(child))
+    sy_values = item[3] if len(item) > 3 and isinstance(item[3], list) else []
+    se_values = item[5] if len(item) > 5 and isinstance(item[5], list) else []
+    return {
+        "item_id": str(item[0]) if len(item) > 0 else "",
+        "category": str(item[1]) if len(item) > 1 else "",
+        "sy": [str(v) for v in sy_values if v is not None and str(v) != ""],
+        "sl": str(item[4]) if len(item) > 4 and item[4] is not None else "",
+        "se": [str(v) for v in se_values if v is not None and str(v) != ""],
+        "phono": str(item[6]) if len(item) > 6 and item[6] is not None else "",
+        "children": children,
+    }
+
+
+def _select_tree_root(state: DerivationState) -> dict[str, Any]:
+    for index in range(1, state.basenum + 1):
+        item = state.base[index]
+        if item == "zero":
+            continue
+        return _build_tree_node(item)
+    return {
+        "item_id": "(empty)",
+        "category": "",
+        "sy": [],
+        "sl": "",
+        "se": [],
+        "phono": "",
+        "children": [],
+    }
+
+
+def _canonical_tree_signature(tree_root: dict[str, Any]) -> str:
+    return json.dumps(tree_root, ensure_ascii=False, sort_keys=True, separators=(",", ":"))
+
+
+def _resolve_rule_max_per_pair_bound(*, grammar_id: str, legacy_root: Path) -> int:
+    try:
+        catalog = load_rule_catalog(grammar_id=grammar_id, legacy_root=legacy_root)
+    except ValueError:
+        return 1
+    return max(1, len(catalog))
+
+
+def _upper_bound_pair_only_prefix_count(*, basenum: int, depth: int) -> int:
+    max_depth = min(max(0, depth), max(0, basenum - 1))
+    total = 0
+    term = 1
+    for step in range(0, max_depth):
+        current = basenum - step
+        term *= current * (current - 1)
+        total += term
+    return max(1, total)
+
+
+def _upper_bound_pair_rule_prefix_count(*, basenum: int, depth: int, rule_bound: int) -> int:
+    max_depth = min(max(0, depth), max(0, basenum - 1))
+    total = 0
+    term = 1
+    safe_rule_bound = max(1, rule_bound)
+    for step in range(0, max_depth):
+        current = basenum - step
+        term *= current * (current - 1) * safe_rule_bound
+        total += term
+    return max(1, total)
+
+
+def _coverage_percent(numerator: int, denominator: int) -> float:
+    if denominator <= 0:
+        return 0.0
+    ratio = (float(numerator) / float(denominator)) * 100.0
+    return min(100.0, round(ratio, 4))
+
+
+def _search_reachability(
+    *,
+    request: DerivationReachabilityRequest,
+    legacy_root: Path,
+    rh_version: str,
+    lh_version: str,
+    search_signature_mode: str,
+    progress_hook: Optional[Callable[[float, str, str], None]] = None,
+) -> _ReachabilityResultInternal:
+    max_evidences = _resolve_reachability_max_evidences(request.max_evidences)
+    max_depth = _resolve_reachability_max_depth(request.max_depth, state=request.state)
+    max_nodes = _resolve_reachability_max_nodes(request.max_nodes)
+    budget_seconds = _resolve_reachability_budget_seconds(request.budget_seconds)
+    deadline = time.perf_counter() + budget_seconds
+    started = time.perf_counter()
+
+    rule_max_bound = _resolve_rule_max_per_pair_bound(
+        grammar_id=request.state.grammar_id,
+        legacy_root=legacy_root,
+    )
+    upper_bound_a = _upper_bound_pair_only_prefix_count(
+        basenum=request.state.basenum,
+        depth=max_depth,
+    )
+    upper_bound_b = _upper_bound_pair_rule_prefix_count(
+        basenum=request.state.basenum,
+        depth=max_depth,
+        rule_bound=rule_max_bound,
+    )
+
+    transition_cache: dict[str, list[tuple[RuleCandidate, int, int, DerivationState]]] = {}
+    evidence_by_tree_sig: dict[str, _ReachabilityEvidenceInternal] = {}
+    goal_tree_sigs: set[str] = set()
+
+    expanded_nodes = 0
+    generated_nodes = 0
+    max_frontier = 0
+    max_depth_reached = 0
+    actions_attempted = 0
+    rule_max_observed = 0
+
+    aborted_reason: Optional[str] = None
+    progress_tick_interval = 200
+
+    def report_progress(phase: str, message: str) -> None:
+        if progress_hook is None:
+            return
+        percent = _coverage_percent(actions_attempted, upper_bound_a)
+        if phase != "finalizing":
+            percent = min(percent, 99.0)
+        progress_hook(percent, phase, message)
+
+    def dfs(
+        current: DerivationState,
+        remaining_depth: int,
+        path: list[_ReachabilityPathStep],
+    ) -> bool:
+        nonlocal expanded_nodes, generated_nodes, max_frontier, max_depth_reached
+        nonlocal actions_attempted, rule_max_observed, aborted_reason
+
+        max_depth_reached = max(max_depth_reached, len(path))
+        if time.perf_counter() >= deadline:
+            aborted_reason = "timeout"
+            return False
+        if actions_attempted >= max_nodes:
+            aborted_reason = "node_limit"
+            return False
+
+        if _is_grammatical_like_perl(current):
+            tree_root = _select_tree_root(current)
+            tree_sig = _canonical_tree_signature(tree_root)
+            goal_tree_sigs.add(tree_sig)
+            if tree_sig not in evidence_by_tree_sig and len(evidence_by_tree_sig) < max_evidences:
+                evidence_by_tree_sig[tree_sig] = _ReachabilityEvidenceInternal(
+                    steps=list(path),
+                    final_state=current.model_copy(deep=True),
+                    tree_signature=tree_sig,
+                )
+            return True
+
+        if remaining_depth <= 0:
+            return True
+
+        transitions = _enumerate_candidate_transitions(
+            state=current,
+            legacy_root=legacy_root,
+            rh_merge_version=rh_version,
+            lh_merge_version=lh_version,
+            state_signature_fn=_state_structural_signature,
+            cache=transition_cache,
+        )
+        ordered = sorted(transitions, key=_head_assist_transition_rank_key)
+        generated_nodes += len(ordered)
+        max_frontier = max(max_frontier, len(ordered))
+        # observed は「1 pair あたりで実際に使われた rule 種別数」の観測値として保持する。
+        # 遷移本数(全pair合計)を使うと上界(bound)比較の意味が崩れるため、rule番号のユニーク件数にする。
+        rule_max_observed = max(
+            rule_max_observed,
+            len({candidate.rule_number for candidate, _, _, _ in ordered}),
+        )
+        expanded_nodes += 1
+
+        for candidate, actual_left, actual_right, next_state in ordered:
+            if time.perf_counter() >= deadline:
+                aborted_reason = "timeout"
+                return False
+            if actions_attempted >= max_nodes:
+                aborted_reason = "node_limit"
+                return False
+            actions_attempted += 1
+            left_id = _item_id_for_index(current, actual_left)
+            right_id = _item_id_for_index(current, actual_right)
+            path.append(
+                _ReachabilityPathStep(
+                    rule_name=candidate.rule_name,
+                    rule_number=candidate.rule_number,
+                    rule_kind=candidate.rule_kind,
+                    left=actual_left,
+                    right=actual_right,
+                    check=candidate.check,
+                    left_id=left_id,
+                    right_id=right_id,
+                )
+            )
+            ok = dfs(next_state, remaining_depth - 1, path)
+            path.pop()
+            if not ok:
+                return False
+            if actions_attempted % progress_tick_interval == 0:
+                report_progress("enumerating", "到達候補を探索中")
+        return True
+
+    report_progress("enumerating", "探索を開始しました")
+    completed = dfs(request.state.model_copy(deep=True), max_depth, [])
+
+    if not completed:
+        status = "unknown"
+        reason = aborted_reason or "unknown"
+        count_status = "upper_bound_only"
+        goal_count_exact: Optional[int] = None
+        total_exact: Optional[int] = None
+    else:
+        if len(goal_tree_sigs) > 0:
+            status = "reachable"
+        else:
+            status = "unreachable"
+        reason = "completed"
+        count_status = "exact"
+        goal_count_exact = len(goal_tree_sigs)
+        total_exact = len(goal_tree_sigs)
+
+    elapsed_ms = int((time.perf_counter() - started) * 1000)
+    report_progress("finalizing", "結果を整形中")
+
+    count_basis = "packed_signature_v1" if search_signature_mode == "packed" else "structural_signature_v1"
+    evidences = sorted(
+        evidence_by_tree_sig.values(),
+        key=lambda row: (len(row.steps), row.tree_signature),
+    )
+    return _ReachabilityResultInternal(
+        status=status,
+        completed=completed,
+        reason=reason,
+        expanded_nodes=expanded_nodes,
+        generated_nodes=generated_nodes,
+        max_frontier=max_frontier,
+        max_depth_reached=max_depth_reached,
+        actions_attempted=actions_attempted,
+        rule_max_per_pair_observed=rule_max_observed,
+        elapsed_ms=elapsed_ms,
+        count_status=count_status,
+        goal_count_exact=goal_count_exact,
+        total_exact=total_exact,
+        total_upper_bound_a_pair_only=upper_bound_a,
+        total_upper_bound_b_pair_rulemax=upper_bound_b,
+        rule_max_per_pair_bound=rule_max_bound,
+        count_basis=count_basis,
+        tree_signature_basis="canonical_tree_v1",
+        evidences=evidences,
+    )
+
+
+def _build_reachability_response(
+    *,
+    request: DerivationReachabilityRequest,
+    internal: _ReachabilityResultInternal,
+) -> DerivationReachabilityResponse:
+    max_evidences = _resolve_reachability_max_evidences(request.max_evidences)
+    offset, limit = _resolve_reachability_page(
+        request.offset,
+        request.limit,
+        max_evidences=max_evidences,
+    )
+    evidences_capped = internal.evidences[:max_evidences]
+    page_rows = evidences_capped[offset : offset + limit]
+    shown_count = len(page_rows)
+
+    evidence_rows: list[ReachabilityEvidenceResponse] = []
+    for idx, row in enumerate(page_rows, start=offset + 1):
+        rule_sequence = [
+            ReachabilityRuleStepResponse(
+                step=step_no,
+                rule_name=step.rule_name,
+                rule_number=step.rule_number,
+                rule_kind=step.rule_kind,
+                left=step.left,
+                right=step.right,
+                check=step.check,
+                left_id=step.left_id,
+                right_id=step.right_id,
+            )
+            for step_no, step in enumerate(row.steps, start=1)
+        ]
+        evidence_rows.append(
+            ReachabilityEvidenceResponse(
+                rank=idx,
+                steps_to_goal=len(row.steps),
+                rule_sequence=rule_sequence,
+                tree_root=_select_tree_root(row.final_state),
+                process_text=(
+                    export_process_text_like_perl(row.final_state)
+                    if request.return_process_text
+                    else None
+                ),
+            )
+        )
+
+    shown_ratio_exact_percent: Optional[float] = None
+    if internal.total_exact is not None and internal.total_exact > 0:
+        shown_ratio_exact_percent = round((float(shown_count) / float(internal.total_exact)) * 100.0, 4)
+
+    metrics = ReachabilityMetricsResponse(
+        expanded_nodes=internal.expanded_nodes,
+        generated_nodes=internal.generated_nodes,
+        packed_nodes=0,
+        max_frontier=internal.max_frontier,
+        elapsed_ms=internal.elapsed_ms,
+        max_depth_reached=internal.max_depth_reached,
+        actions_attempted=internal.actions_attempted,
+    )
+    counts = ReachabilityCountsResponse(
+        count_unit="derivation_tree",
+        count_basis=internal.count_basis,
+        tree_signature_basis=internal.tree_signature_basis,
+        count_status=internal.count_status,
+        goal_count_exact=str(internal.goal_count_exact) if internal.goal_count_exact is not None else None,
+        total_exact=str(internal.total_exact) if internal.total_exact is not None else None,
+        total_upper_bound_a_pair_only=str(internal.total_upper_bound_a_pair_only),
+        total_upper_bound_b_pair_rulemax=str(internal.total_upper_bound_b_pair_rulemax),
+        rule_max_per_pair_bound=internal.rule_max_per_pair_bound,
+        rule_max_per_pair_observed=internal.rule_max_per_pair_observed,
+        shown_count=shown_count,
+        offset=offset,
+        limit=limit,
+        shown_ratio_exact_percent=shown_ratio_exact_percent,
+        coverage_upper_bound_a_percent=_coverage_percent(
+            internal.actions_attempted,
+            internal.total_upper_bound_a_pair_only,
+        ),
+        coverage_upper_bound_b_percent=_coverage_percent(
+            internal.actions_attempted,
+            internal.total_upper_bound_b_pair_rulemax,
+        ),
+        has_next=(offset + shown_count) < len(evidences_capped),
+    )
+    return DerivationReachabilityResponse(
+        status=internal.status,
+        completed=internal.completed,
+        reason=internal.reason,
+        metrics=metrics,
+        counts=counts,
+        evidences=evidence_rows,
+    )
+
+
+def _cleanup_reachability_jobs() -> None:
+    now = time.time()
+    with _REACHABILITY_JOBS_LOCK:
+        expired_ids = [
+            job_id
+            for job_id, row in _REACHABILITY_JOBS.items()
+            if (now - float(row.get("updated_at", row.get("created_at", now)))) > _HEAD_ASSIST_JOBS_TTL_SECONDS
+        ]
+        for job_id in expired_ids:
+            _REACHABILITY_JOBS.pop(job_id, None)
+
+
+def _set_reachability_job_progress(
+    *,
+    job_id: str,
+    percent: float,
+    phase: str,
+    message: str,
+) -> None:
+    with _REACHABILITY_JOBS_LOCK:
+        row = _REACHABILITY_JOBS.get(job_id)
+        if row is None:
+            return
+        row["progress"] = {
+            "percent": max(0.0, min(100.0, percent)),
+            "phase": phase,
+            "message": message,
+        }
+        row["updated_at"] = time.time()
+
+
+def _run_reachability_job(
+    *,
+    job_id: str,
+    request: DerivationReachabilityRequest,
+    legacy_root: Path,
+    rh_version: str,
+    lh_version: str,
+    search_signature_mode: str,
+) -> None:
+    try:
+        with _REACHABILITY_JOBS_LOCK:
+            row = _REACHABILITY_JOBS.get(job_id)
+            if row is None:
+                return
+            row["status"] = "running"
+            row["updated_at"] = time.time()
+
+        internal = _search_reachability(
+            request=request,
+            legacy_root=legacy_root,
+            rh_version=rh_version,
+            lh_version=lh_version,
+            search_signature_mode=search_signature_mode,
+            progress_hook=lambda percent, phase, message: _set_reachability_job_progress(
+                job_id=job_id,
+                percent=percent,
+                phase=phase,
+                message=message,
+            ),
+        )
+        full_result_request = request.model_copy(
+            update={
+                "offset": 0,
+                "limit": _resolve_reachability_max_evidences(request.max_evidences),
+            }
+        )
+        response = _build_reachability_response(
+            request=full_result_request,
+            internal=internal,
+        )
+        with _REACHABILITY_JOBS_LOCK:
+            row = _REACHABILITY_JOBS.get(job_id)
+            if row is None:
+                return
+            row["status"] = response.status
+            row["completed"] = response.completed
+            row["reason"] = response.reason
+            row["result"] = response
+            row["updated_at"] = time.time()
+            row["progress"] = {
+                "percent": 100.0,
+                "phase": "finalizing",
+                "message": "完了",
+            }
+    except Exception as exc:
+        with _REACHABILITY_JOBS_LOCK:
+            row = _REACHABILITY_JOBS.get(job_id)
+            if row is None:
+                return
+            row["status"] = "failed"
+            row["completed"] = False
+            row["reason"] = "failed"
+            row["error"] = str(exc)
+            row["updated_at"] = time.time()
+            row["progress"] = {
+                "percent": 100.0,
+                "phase": "finalizing",
+                "message": "失敗",
+            }
+
+
+def _get_reachability_job(job_id: str) -> dict[str, Any]:
+    _cleanup_reachability_jobs()
+    with _REACHABILITY_JOBS_LOCK:
+        row = _REACHABILITY_JOBS.get(job_id)
+        if row is None:
+            raise HTTPException(status_code=404, detail=f"Reachability job not found: {job_id}")
+        return dict(row)
 
 
 def _known_replay_sequence_for_state(state: DerivationState) -> Optional[list[tuple[str, str, str]]]:
@@ -1333,7 +2221,7 @@ def generate_numeration(request: SentenceNumerationGenerateRequest) -> SentenceN
         else _default_legacy_root()
     )
     try:
-        generated = generate_numeration_from_sentence(
+        generated = _generate_numeration_with_unknown_token_fallback(
             grammar_id=request.grammar_id,
             sentence=request.sentence,
             legacy_root=legacy_root,
@@ -1386,7 +2274,7 @@ def init_derivation_from_sentence(
         else _default_legacy_root()
     )
     try:
-        generated = generate_numeration_from_sentence(
+        generated = _generate_numeration_with_unknown_token_fallback(
             grammar_id=request.grammar_id,
             sentence=request.sentence,
             legacy_root=legacy_root,
@@ -1439,147 +2327,187 @@ def derivation_candidates(request: DerivationCandidatesRequest) -> list[RuleCand
         raise HTTPException(status_code=400, detail=str(exc)) from exc
 
 
-@router.post("/head-assist", response_model=list[HeadAssistSuggestionResponse])
-def derivation_head_assist(request: DerivationHeadAssistRequest) -> list[HeadAssistSuggestionResponse]:
+@router.post("/reachability", response_model=DerivationReachabilityResponse)
+def derivation_reachability(request: DerivationReachabilityRequest) -> DerivationReachabilityResponse:
     legacy_root = (
         Path(request.legacy_root).expanduser().resolve()
         if request.legacy_root
         else _default_legacy_root()
     )
     try:
-        top_k = max(1, min(request.top_k, 5))
-        before_unresolved = _count_uninterpretable_like_perl(request.state)
         profile = resolve_rule_versions(
             profile=get_grammar_profile(request.state.grammar_id),
             legacy_root=legacy_root,
         )
-        search_signature_mode = _resolve_head_assist_signature_mode(
-            request.search_signature_mode
-        )
+        search_signature_mode = _resolve_head_assist_signature_mode(request.search_signature_mode)
+        _resolve_head_assist_parallel_cores(request.parallel_cores)
         rh_version = request.rh_merge_version or profile.rh_merge_version
         lh_version = request.lh_merge_version or profile.lh_merge_version
-
-        transition_cache: dict[str, list[tuple[RuleCandidate, int, int, DerivationState]]] = {}
-        transitions = _enumerate_candidate_transitions(
-            state=request.state,
+        internal = _search_reachability(
+            request=request,
             legacy_root=legacy_root,
-            rh_merge_version=rh_version,
-            lh_merge_version=lh_version,
-            state_signature_fn=_state_structural_signature,
-            cache=transition_cache,
-        )
-
-        transition_rows: list[tuple[int, RuleCandidate, int, int, DerivationState, int, int, bool]] = []
-        for action_index, (candidate, actual_left, actual_right, next_state) in enumerate(transitions):
-            after_unresolved = _count_uninterpretable_like_perl(next_state)
-            unresolved_delta = before_unresolved - after_unresolved
-            transition_rows.append(
-                (
-                    action_index,
-                    candidate,
-                    actual_left,
-                    actual_right,
-                    next_state,
-                    after_unresolved,
-                    unresolved_delta,
-                    after_unresolved == 0,
-                )
-            )
-        transition_rows.sort(
-            key=lambda row: (
-                row[5],
-                row[4].basenum,
-                row[1].rule_number,
-                row[2],
-                row[3],
-                row[1].check if row[1].check is not None else 0,
-            )
-        )
-        root_search_limit = max(_HEAD_ASSIST_SEARCH_ROOT_LIMIT, top_k * 3)
-        root_transitions_for_search = [
-            (action_index, next_state, after_unresolved)
-            for (
-                action_index,
-                _candidate,
-                _actual_left,
-                _actual_right,
-                next_state,
-                after_unresolved,
-                _unresolved_delta,
-                _grammatical_after,
-            ) in transition_rows[:root_search_limit]
-        ]
-        parallel_cores = _resolve_head_assist_parallel_cores(request.parallel_cores)
-        max_total_depth = _resolve_head_assist_max_total_depth(request.state)
-        steps_by_first_action = _estimate_steps_by_first_action_parallel(
-            root_transitions=root_transitions_for_search,
-            legacy_root=legacy_root,
-            rh_merge_version=rh_version,
-            lh_merge_version=lh_version,
+            rh_version=rh_version,
+            lh_version=lh_version,
             search_signature_mode=search_signature_mode,
-            parallel_cores=parallel_cores,
-            max_total_depth=max_total_depth,
-            budget_seconds=_HEAD_ASSIST_SEARCH_BUDGET_SECONDS,
-            transition_cache=transition_cache,
         )
-        suggestions: list[HeadAssistSuggestionResponse] = []
-        for (
-            action_index,
-            candidate,
-            actual_left,
-            actual_right,
-            next_state,
-            after_unresolved,
-            unresolved_delta,
-            grammatical_after,
-        ) in transition_rows:
-            steps_to_goal = steps_by_first_action.get(action_index)
-            if steps_to_goal is None and grammatical_after:
-                steps_to_goal = 1
-            reachable = steps_to_goal is not None
-
-            suggestions.append(
-                HeadAssistSuggestionResponse(
-                    rank=0,
-                    rule_number=candidate.rule_number,
-                    rule_name=candidate.rule_name,
-                    rule_kind=candidate.rule_kind,
-                    left=actual_left,
-                    right=actual_right,
-                    check=candidate.check,
-                    unresolved_before=before_unresolved,
-                    unresolved_after=after_unresolved,
-                    unresolved_delta=unresolved_delta,
-                    grammatical_after=grammatical_after,
-                    basenum_before=request.state.basenum,
-                    basenum_after=next_state.basenum,
-                    reachable_grammatical=reachable,
-                    steps_to_grammatical=steps_to_goal,
-                )
-            )
-
-        suggestions.sort(
-            key=lambda row: (
-                0 if row.reachable_grammatical else 1,
-                row.steps_to_grammatical if row.steps_to_grammatical is not None else 10_000,
-                row.unresolved_after,
-                row.basenum_after,
-                -row.unresolved_delta,
-                row.rule_number,
-                row.left,
-                row.right,
-                row.check if row.check is not None else 0,
-            )
+        return _build_reachability_response(
+            request=request,
+            internal=internal,
         )
-        for idx, suggestion in enumerate(suggestions[:top_k], start=1):
-            suggestion.rank = idx
-        return suggestions[:top_k]
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
 
 
-@router.post("/head-assist/diagnose", response_model=DerivationReachabilityDiagnoseResponse)
-def derivation_head_assist_diagnose(
+@router.post("/reachability/jobs", response_model=DerivationReachabilityJobStartResponse)
+def derivation_reachability_jobs_start(
+    request: DerivationReachabilityRequest,
+) -> DerivationReachabilityJobStartResponse:
+    legacy_root = (
+        Path(request.legacy_root).expanduser().resolve()
+        if request.legacy_root
+        else _default_legacy_root()
+    )
+    try:
+        profile = resolve_rule_versions(
+            profile=get_grammar_profile(request.state.grammar_id),
+            legacy_root=legacy_root,
+        )
+        search_signature_mode = _resolve_head_assist_signature_mode(request.search_signature_mode)
+        _resolve_head_assist_parallel_cores(request.parallel_cores)
+        rh_version = request.rh_merge_version or profile.rh_merge_version
+        lh_version = request.lh_merge_version or profile.lh_merge_version
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+    _cleanup_reachability_jobs()
+    created_at = time.time()
+    job_id = uuid.uuid4().hex
+    with _REACHABILITY_JOBS_LOCK:
+        _REACHABILITY_JOBS[job_id] = {
+            "job_id": job_id,
+            "status": "queued",
+            "created_at": created_at,
+            "updated_at": created_at,
+            "progress": {
+                "percent": 0.0,
+                "phase": "queued",
+                "message": "キューに登録しました",
+            },
+            "request": request,
+            "legacy_root": legacy_root,
+            "rh_version": rh_version,
+            "lh_version": lh_version,
+            "search_signature_mode": search_signature_mode,
+            "result": None,
+            "reason": None,
+            "completed": None,
+            "error": None,
+        }
+
+    worker = threading.Thread(
+        target=_run_reachability_job,
+        kwargs={
+            "job_id": job_id,
+            "request": request,
+            "legacy_root": legacy_root,
+            "rh_version": rh_version,
+            "lh_version": lh_version,
+            "search_signature_mode": search_signature_mode,
+        },
+        daemon=True,
+    )
+    worker.start()
+    return DerivationReachabilityJobStartResponse(
+        job_id=job_id,
+        status="queued",
+        created_at=created_at,
+    )
+
+
+@router.get("/reachability/jobs/{job_id}", response_model=DerivationReachabilityJobStatusResponse)
+def derivation_reachability_job_status(job_id: str) -> DerivationReachabilityJobStatusResponse:
+    row = _get_reachability_job(job_id)
+    result = row.get("result")
+    metrics: Optional[ReachabilityMetricsResponse] = None
+    counts: Optional[ReachabilityCountsResponse] = None
+    if isinstance(result, DerivationReachabilityResponse):
+        metrics = result.metrics
+        counts = result.counts
+
+    progress = row.get("progress") or {"percent": 0.0, "phase": "queued", "message": "待機中"}
+    return DerivationReachabilityJobStatusResponse(
+        job_id=job_id,
+        status=str(row.get("status", "queued")),
+        created_at=float(row.get("created_at", time.time())),
+        updated_at=float(row.get("updated_at", time.time())),
+        progress=ReachabilityProgressResponse(
+            percent=float(progress.get("percent", 0.0)),
+            phase=str(progress.get("phase", "queued")),
+            message=str(progress.get("message", "待機中")),
+        ),
+        metrics=metrics,
+        counts=counts,
+        reason=(str(row["reason"]) if row.get("reason") is not None else None),
+        completed=(bool(row["completed"]) if row.get("completed") is not None else None),
+        error=(str(row["error"]) if row.get("error") is not None else None),
+    )
+
+
+@router.get("/reachability/jobs/{job_id}/evidences", response_model=DerivationReachabilityEvidencePageResponse)
+def derivation_reachability_job_evidences(
+    job_id: str,
+    offset: int = 0,
+    limit: int = 10,
+) -> DerivationReachabilityEvidencePageResponse:
+    row = _get_reachability_job(job_id)
+    result = row.get("result")
+    status = str(row.get("status", "queued"))
+    if not isinstance(result, DerivationReachabilityResponse):
+        raise HTTPException(status_code=409, detail="Reachability job has not finished yet.")
+
+    request_obj = row.get("request")
+    max_evidences = (
+        _resolve_reachability_max_evidences(request_obj.max_evidences)
+        if isinstance(request_obj, DerivationReachabilityRequest)
+        else _HEAD_ASSIST_MAX_EVIDENCES_CAP
+    )
+    resolved_offset, resolved_limit = _resolve_reachability_page(
+        offset,
+        limit,
+        max_evidences=max_evidences,
+    )
+    capped_rows = result.evidences[:max_evidences]
+    page_rows = capped_rows[resolved_offset : resolved_offset + resolved_limit]
+    shown_count = len(page_rows)
+
+    counts = result.counts.model_copy(deep=True)
+    counts.offset = resolved_offset
+    counts.limit = resolved_limit
+    counts.shown_count = shown_count
+    counts.has_next = (resolved_offset + shown_count) < len(capped_rows)
+    if counts.total_exact is not None:
+        try:
+            total_exact_int = int(counts.total_exact)
+        except ValueError:
+            total_exact_int = 0
+        counts.shown_ratio_exact_percent = (
+            round((float(shown_count) / float(total_exact_int)) * 100.0, 4)
+            if total_exact_int > 0
+            else None
+        )
+    else:
+        counts.shown_ratio_exact_percent = None
+
+    return DerivationReachabilityEvidencePageResponse(
+        job_id=job_id,
+        status=status,
+        counts=counts,
+        evidences=page_rows,
+    )
+
+
+@router.post("/reachability/diagnose", response_model=DerivationReachabilityDiagnoseResponse)
+def derivation_reachability_diagnose(
     request: DerivationReachabilityDiagnoseRequest,
 ) -> DerivationReachabilityDiagnoseResponse:
     legacy_root = (

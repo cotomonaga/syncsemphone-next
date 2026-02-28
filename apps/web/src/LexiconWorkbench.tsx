@@ -25,7 +25,9 @@ type LexiconWorkbenchProps = {
   grammarId: string;
 };
 
-type LexiconTab = "dictionary" | "numlinks" | "notes" | "versions" | "importexport";
+type LexiconTopTab = "items" | "edit" | "dictionary" | "importexport";
+type ListSortKey = "lexicon_id" | "entry" | "category";
+type SortOrder = "asc" | "desc";
 
 const VALUE_KINDS: ValueDictionaryKind[] = [
   "category",
@@ -33,6 +35,17 @@ const VALUE_KINDS: ValueDictionaryKind[] = [
   "sync_feature",
   "idslot",
   "semantic"
+];
+
+const MERGE_RULE_IDSLOT_VALUES = [
+  "id",
+  "zero",
+  "rel",
+  "0,23",
+  "0,24",
+  "2,22",
+  "2,24",
+  "2,27,target"
 ];
 
 const EMPTY_ITEM: LexiconExtItem = {
@@ -60,10 +73,140 @@ function normalizePredicateValue(parts: string[]): string {
   return row.join("|");
 }
 
+function normalizeIdslotValue(value: string): string {
+  return value.trim().replace(/,+$/, "");
+}
+
 function uniqueSorted(rows: string[]): string[] {
   return [...new Set(rows.filter((row) => row.trim() !== "").map((row) => row.trim()))].sort((a, b) =>
     a.localeCompare(b, "ja")
   );
+}
+
+function markdownInline(text: string): string {
+  return text.replace(/`([^`]+)`/g, "<code>$1</code>");
+}
+
+function renderMarkdownPreview(markdown: string): Array<JSX.Element> {
+  const normalized = markdown.replace(/\r\n/g, "\n");
+  const lines = normalized.split("\n");
+  const elements: Array<JSX.Element> = [];
+  let listItems: string[] = [];
+  let inCode = false;
+  let codeLines: string[] = [];
+  let key = 0;
+
+  const flushList = () => {
+    if (listItems.length === 0) {
+      return;
+    }
+    const rows = [...listItems];
+    listItems = [];
+    elements.push(
+      <ul key={`md-list-${key++}`}>
+        {rows.map((row, index) => (
+          <li key={`md-list-item-${key}-${index}`} dangerouslySetInnerHTML={{ __html: markdownInline(row) }} />
+        ))}
+      </ul>
+    );
+  };
+
+  const flushCode = () => {
+    if (codeLines.length === 0) {
+      return;
+    }
+    const body = codeLines.join("\n");
+    codeLines = [];
+    elements.push(
+      <pre key={`md-code-${key++}`} className="mono">
+        {body}
+      </pre>
+    );
+  };
+
+  for (const rawLine of lines) {
+    const line = rawLine ?? "";
+    const trimmed = line.trim();
+    if (trimmed.startsWith("```")) {
+      if (inCode) {
+        flushCode();
+        inCode = false;
+      } else {
+        flushList();
+        inCode = true;
+      }
+      continue;
+    }
+    if (inCode) {
+      codeLines.push(line);
+      continue;
+    }
+    if (trimmed === "") {
+      flushList();
+      elements.push(<div key={`md-empty-${key++}`} className="lexicon-md-gap" />);
+      continue;
+    }
+    if (trimmed.startsWith("- ")) {
+      listItems.push(trimmed.slice(2));
+      continue;
+    }
+    flushList();
+    if (trimmed.startsWith("### ")) {
+      elements.push(<h5 key={`md-h3-${key++}`}>{trimmed.slice(4)}</h5>);
+      continue;
+    }
+    if (trimmed.startsWith("## ")) {
+      elements.push(<h4 key={`md-h2-${key++}`}>{trimmed.slice(3)}</h4>);
+      continue;
+    }
+    if (trimmed.startsWith("# ")) {
+      elements.push(<h3 key={`md-h1-${key++}`}>{trimmed.slice(2)}</h3>);
+      continue;
+    }
+    elements.push(<p key={`md-p-${key++}`} dangerouslySetInnerHTML={{ __html: markdownInline(trimmed) }} />);
+  }
+  flushList();
+  if (inCode) {
+    flushCode();
+  }
+  if (elements.length === 0) {
+    elements.push(
+      <p key="md-empty-default" className="hint">
+        研究メモを入力すると、ここにMarkdownプレビューが表示されます。
+      </p>
+    );
+  }
+  return elements;
+}
+
+function extractLexiconScopedDiff(rawText: string, lexiconId: number, format: "csv" | "yaml"): string {
+  if (!rawText.trim() || lexiconId <= 0) {
+    return rawText;
+  }
+  if (format === "csv") {
+    const csvPattern = new RegExp(`^\\s*${lexiconId}\\s*(?:\\t|,)`);
+    const rows = rawText.split(/\r?\n/).filter((line) => csvPattern.test(line));
+    if (rows.length > 0) {
+      return rows.join("\n");
+    }
+    return rawText;
+  }
+  const lines = rawText.split(/\r?\n/);
+  const start = lines.findIndex((line) =>
+    /^\s*-?\s*lexicon_id:\s*\d+/.test(line) && line.includes(`lexicon_id: ${lexiconId}`)
+  );
+  if (start < 0) {
+    return rawText;
+  }
+  let end = start + 1;
+  while (end < lines.length) {
+    const line = lines[end];
+    if (/^\s*-?\s*lexicon_id:\s*\d+/.test(line) && !line.includes(`lexicon_id: ${lexiconId}`)) {
+      break;
+    }
+    end += 1;
+  }
+  return lines.slice(start, end).join("\n");
 }
 
 export default function LexiconWorkbench({ grammarId }: LexiconWorkbenchProps) {
@@ -73,10 +216,15 @@ export default function LexiconWorkbench({ grammarId }: LexiconWorkbenchProps) {
 
   const [query, setQuery] = useState("");
   const [page, setPage] = useState(1);
+  const [sortKey, setSortKey] = useState<ListSortKey>("lexicon_id");
+  const [sortOrder, setSortOrder] = useState<SortOrder>("asc");
   const [itemsPage, setItemsPage] = useState<LexiconExtItemsResponse | null>(null);
+  const [selectedListLexiconId, setSelectedListLexiconId] = useState<number | null>(null);
   const [selectedLexiconId, setSelectedLexiconId] = useState<number | null>(null);
   const [isNewItem, setIsNewItem] = useState(false);
   const [draft, setDraft] = useState<LexiconExtItem>(EMPTY_ITEM);
+  const [activeTopTab, setActiveTopTab] = useState<LexiconTopTab>("items");
+  const [grammarIdslotValues, setGrammarIdslotValues] = useState<string[]>([]);
 
   const [dictionaryKind, setDictionaryKind] = useState<ValueDictionaryKind>("category");
   const [dictionaryItems, setDictionaryItems] = useState<ValueDictionaryItem[]>([]);
@@ -115,7 +263,6 @@ export default function LexiconWorkbench({ grammarId }: LexiconWorkbenchProps) {
   const [csvPreview, setCsvPreview] = useState("");
   const [commitMessage, setCommitMessage] = useState("");
   const [runCompatibility, setRunCompatibility] = useState(true);
-  const [activeTab, setActiveTab] = useState<LexiconTab>("dictionary");
 
   const dictionaryByKind = useMemo(() => {
     const map = new Map<ValueDictionaryKind, string[]>();
@@ -126,7 +273,11 @@ export default function LexiconWorkbench({ grammarId }: LexiconWorkbenchProps) {
       if (!map.has(row.kind)) {
         map.set(row.kind, []);
       }
-      map.get(row.kind)?.push(row.display_value);
+      if (row.kind === "idslot") {
+        map.get(row.kind)?.push(normalizeIdslotValue(row.display_value));
+      } else {
+        map.get(row.kind)?.push(row.display_value);
+      }
     }
     for (const [kind, rows] of map.entries()) {
       map.set(kind, uniqueSorted(rows));
@@ -145,7 +296,7 @@ export default function LexiconWorkbench({ grammarId }: LexiconWorkbenchProps) {
         categories.push(row.category);
       }
       if (row.idslot) {
-        idslots.push(row.idslot);
+        idslots.push(normalizeIdslotValue(row.idslot));
       }
       for (const pred of row.predicates || []) {
         predicates.push(normalizePredicateValue(pred));
@@ -166,6 +317,15 @@ export default function LexiconWorkbench({ grammarId }: LexiconWorkbenchProps) {
     };
   }, [itemsPage]);
 
+  const idslotAllowSet = useMemo(() => {
+    return new Set(
+      uniqueSorted([
+        ...MERGE_RULE_IDSLOT_VALUES.map((row) => normalizeIdslotValue(row)),
+        ...grammarIdslotValues.map((row) => normalizeIdslotValue(row))
+      ])
+    );
+  }, [grammarIdslotValues]);
+
   const options = useMemo(() => {
     const fromDictionary = {
       categories: dictionaryByKind.get("category") || [],
@@ -174,14 +334,53 @@ export default function LexiconWorkbench({ grammarId }: LexiconWorkbenchProps) {
       idslots: dictionaryByKind.get("idslot") || [],
       semantics: dictionaryByKind.get("semantic") || []
     };
+    const draftIdslot = normalizeIdslotValue(draft.idslot);
+    const mergedIdslots = uniqueSorted([
+      ...fromDictionary.idslots.map((row) => normalizeIdslotValue(row)),
+      ...listDerivedOptions.idslots.map((row) => normalizeIdslotValue(row)),
+      ...grammarIdslotValues.map((row) => normalizeIdslotValue(row)),
+      draftIdslot
+    ]);
     return {
       categories: uniqueSorted([...fromDictionary.categories, ...listDerivedOptions.categories]),
       predicates: uniqueSorted([...fromDictionary.predicates, ...listDerivedOptions.predicates]),
       syncFeatures: uniqueSorted([...fromDictionary.syncFeatures, ...listDerivedOptions.syncFeatures]),
-      idslots: uniqueSorted([...fromDictionary.idslots, ...listDerivedOptions.idslots]),
+      idslots: mergedIdslots.filter(
+        (row) => row !== "" && (idslotAllowSet.has(row) || (draftIdslot !== "" && row === draftIdslot))
+      ),
       semantics: uniqueSorted([...fromDictionary.semantics, ...listDerivedOptions.semantics])
     };
-  }, [dictionaryByKind, listDerivedOptions]);
+  }, [dictionaryByKind, draft.idslot, grammarIdslotValues, idslotAllowSet, listDerivedOptions]);
+
+  const selectedDictionaryItem = dictionaryItems.find((row) => row.id === selectedDictionaryId) || null;
+  const currentLexiconId = Number(draft.lexicon_id || selectedLexiconId || 0);
+  const hasSelectedItem = currentLexiconId > 0;
+
+  const effectiveVersionItems = useMemo(() => {
+    if (versionItems.length > 0) {
+      return versionItems;
+    }
+    return [
+      {
+        revision_id: "working-tree-current",
+        author: "local",
+        date: new Date().toISOString(),
+        message: "current csv snapshot"
+      }
+    ];
+  }, [versionItems]);
+
+  const scopedVersionDiff = useMemo(
+    () => extractLexiconScopedDiff(versionDiffText, currentLexiconId, diffFormat),
+    [currentLexiconId, diffFormat, versionDiffText]
+  );
+
+  function sortArrow(key: ListSortKey): string {
+    if (sortKey !== key) {
+      return "⇅";
+    }
+    return sortOrder === "asc" ? "▲" : "▼";
+  }
 
   async function runTask(task: () => Promise<void>) {
     setLoading(true);
@@ -196,12 +395,38 @@ export default function LexiconWorkbench({ grammarId }: LexiconWorkbenchProps) {
     }
   }
 
-  async function refreshItems(nextPage = page, nextQuery = query) {
+  async function refreshItems(
+    nextPage = page,
+    nextQuery = query,
+    nextSort: ListSortKey = sortKey,
+    nextOrder: SortOrder = sortOrder
+  ) {
     const response = await apiGet<LexiconExtItemsResponse>(
-      `/v1/lexicon/${grammarId}/items?page=${nextPage}&page_size=50&q=${encodeURIComponent(nextQuery)}`
+      `/v1/lexicon/${grammarId}/items?page=${nextPage}&page_size=50&q=${encodeURIComponent(nextQuery)}&sort=${nextSort}&order=${nextOrder}`
     );
     setItemsPage(response);
     setPage(response.page);
+  }
+
+  async function refreshAllIdslotValues() {
+    let nextPage = 1;
+    const values = new Set<string>();
+    while (true) {
+      const response = await apiGet<LexiconExtItemsResponse>(
+        `/v1/lexicon/${grammarId}/items?page=${nextPage}&page_size=300&q=&sort=lexicon_id&order=asc`
+      );
+      for (const row of response.items) {
+        if (row.idslot) {
+          values.add(normalizeIdslotValue(row.idslot));
+        }
+      }
+      const totalPages = Math.max(1, Math.ceil(response.total_count / response.page_size));
+      if (nextPage >= totalPages) {
+        break;
+      }
+      nextPage += 1;
+    }
+    setGrammarIdslotValues(uniqueSorted([...values]));
   }
 
   async function refreshDictionary(kind: ValueDictionaryKind = dictionaryKind) {
@@ -211,8 +436,9 @@ export default function LexiconWorkbench({ grammarId }: LexiconWorkbenchProps) {
 
   async function loadItem(lexiconId: number) {
     const response = await apiGet<LexiconExtItemResponse>(`/v1/lexicon/${grammarId}/items/${lexiconId}`);
-    setDraft(response.item);
+    setDraft({ ...response.item, idslot: normalizeIdslotValue(response.item.idslot || "") });
     setSelectedLexiconId(lexiconId);
+    setSelectedListLexiconId(lexiconId);
     setIsNewItem(false);
   }
 
@@ -222,6 +448,7 @@ export default function LexiconWorkbench({ grammarId }: LexiconWorkbenchProps) {
       setNoteMarkdown("");
       setNoteRevisions([]);
       setNoteUpdatedAt(null);
+      setSelectedRevisionBody(null);
       return;
     }
     const [numLinksResponse, noteCurrent, noteRevisionsResponse] = await Promise.all([
@@ -244,7 +471,7 @@ export default function LexiconWorkbench({ grammarId }: LexiconWorkbenchProps) {
 
   useEffect(() => {
     void runTask(async () => {
-      await Promise.all([refreshItems(1, ""), refreshVersions(0)]);
+      await Promise.all([refreshItems(1, "", "lexicon_id", "asc"), refreshVersions(0), refreshAllIdslotValues()]);
       try {
         await refreshDictionary("category");
       } catch {
@@ -253,6 +480,9 @@ export default function LexiconWorkbench({ grammarId }: LexiconWorkbenchProps) {
       }
       setVersionOffset(0);
       setQuery("");
+      setSortKey("lexicon_id");
+      setSortOrder("asc");
+      setSelectedListLexiconId(null);
       setSelectedLexiconId(null);
       setIsNewItem(false);
       setDraft(EMPTY_ITEM);
@@ -263,6 +493,7 @@ export default function LexiconWorkbench({ grammarId }: LexiconWorkbenchProps) {
       setNoteMarkdown("");
       setNoteRevisions([]);
       setNoteUpdatedAt(null);
+      setActiveTopTab("items");
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [grammarId]);
@@ -279,37 +510,68 @@ export default function LexiconWorkbench({ grammarId }: LexiconWorkbenchProps) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [dictionaryKind]);
 
-  async function handleSelectItem(lexiconId: number) {
+  async function handleSearchItems() {
     await runTask(async () => {
-      await loadItem(lexiconId);
-      await refreshSelectedItemSidePanels(lexiconId);
-      setMessage(`語彙項目 ${lexiconId} を読み込みました。`);
+      await refreshItems(1, query, sortKey, sortOrder);
     });
   }
 
-  function startNewItem() {
-    const nextId =
-      Math.max(0, ...(itemsPage?.items || []).map((row) => Number(row.lexicon_id || 0))) + 1;
-    setDraft({ ...EMPTY_ITEM, lexicon_id: nextId });
-    setSelectedLexiconId(null);
-    setIsNewItem(true);
-    setNumLinks([]);
-    setNoteMarkdown("");
-    setNoteRevisions([]);
-    setNoteUpdatedAt(null);
-    setSelectedRevisionBody(null);
+  async function handleToggleSort(nextSort: ListSortKey) {
+    const nextOrder: SortOrder = sortKey === nextSort && sortOrder === "asc" ? "desc" : "asc";
+    setSortKey(nextSort);
+    setSortOrder(nextOrder);
+    await runTask(async () => {
+      await refreshItems(1, query, nextSort, nextOrder);
+    });
+  }
+
+  async function handleOpenSelectedItemForEdit() {
+    if (selectedListLexiconId === null) {
+      return;
+    }
+    await runTask(async () => {
+      await loadItem(selectedListLexiconId);
+      await refreshSelectedItemSidePanels(selectedListLexiconId);
+      setActiveTopTab("edit");
+      setMessage(`語彙項目 ${selectedListLexiconId} を読み込みました。`);
+    });
+  }
+
+  async function startNewItem() {
+    await runTask(async () => {
+      const latest = await apiGet<LexiconExtItemsResponse>(
+        `/v1/lexicon/${grammarId}/items?page=1&page_size=1&q=&sort=lexicon_id&order=desc`
+      );
+      const nextId = Number(latest.items[0]?.lexicon_id || 0) + 1;
+      setDraft({ ...EMPTY_ITEM, lexicon_id: nextId });
+      setSelectedLexiconId(null);
+      setSelectedListLexiconId(null);
+      setIsNewItem(true);
+      setNumLinks([]);
+      setNoteMarkdown("");
+      setNoteRevisions([]);
+      setNoteUpdatedAt(null);
+      setSelectedRevisionBody(null);
+      setVersionDiffText("");
+      setActiveTopTab("edit");
+    });
   }
 
   async function handleSaveItem() {
     await runTask(async () => {
+      const normalizedDraft = { ...draft, idslot: normalizeIdslotValue(draft.idslot || "") };
       if (isNewItem) {
-        const response = await apiPost<LexiconExtItemResponse>(`/v1/lexicon/${grammarId}/items`, draft);
+        const response = await apiPost<LexiconExtItemResponse>(`/v1/lexicon/${grammarId}/items`, normalizedDraft);
         const savedId = Number(response.item.lexicon_id);
         setSelectedLexiconId(savedId);
+        setSelectedListLexiconId(savedId);
         setIsNewItem(false);
-        setDraft(response.item);
-        await refreshItems(page, query);
-        await refreshSelectedItemSidePanels(savedId);
+        setDraft({ ...response.item, idslot: normalizeIdslotValue(response.item.idslot || "") });
+        await Promise.all([
+          refreshItems(page, query, sortKey, sortOrder),
+          refreshSelectedItemSidePanels(savedId),
+          refreshAllIdslotValues()
+        ]);
         setMessage(`語彙項目 ${savedId} を作成しました。`);
       } else {
         const currentId = Number(draft.lexicon_id || selectedLexiconId);
@@ -318,37 +580,47 @@ export default function LexiconWorkbench({ grammarId }: LexiconWorkbenchProps) {
         }
         const response = await apiPut<LexiconExtItemResponse>(
           `/v1/lexicon/${grammarId}/items/${currentId}`,
-          draft
+          normalizedDraft
         );
-        setDraft(response.item);
-        await refreshItems(page, query);
-        await refreshSelectedItemSidePanels(currentId);
+        setDraft({ ...response.item, idslot: normalizeIdslotValue(response.item.idslot || "") });
+        await Promise.all([
+          refreshItems(page, query, sortKey, sortOrder),
+          refreshSelectedItemSidePanels(currentId),
+          refreshAllIdslotValues()
+        ]);
         setMessage(`語彙項目 ${currentId} を更新しました。`);
       }
     });
   }
 
   async function handleDeleteItem() {
-    const currentId = Number(draft.lexicon_id || selectedLexiconId);
-    if (!currentId) {
+    const targetId = Number(draft.lexicon_id || selectedLexiconId);
+    if (!targetId) {
       setError("削除対象の語彙IDがありません。");
       return;
     }
     await runTask(async () => {
-      await apiDelete<{ deleted: boolean }>(`/v1/lexicon/${grammarId}/items/${currentId}`);
-      await refreshItems(page, query);
+      await apiDelete<{ deleted: boolean }>(`/v1/lexicon/${grammarId}/items/${targetId}`);
+      await Promise.all([refreshItems(page, query, sortKey, sortOrder), refreshAllIdslotValues()]);
       setSelectedLexiconId(null);
+      setSelectedListLexiconId(null);
       setIsNewItem(false);
       setDraft(EMPTY_ITEM);
       setNumLinks([]);
       setNoteMarkdown("");
       setNoteRevisions([]);
       setNoteUpdatedAt(null);
-      setMessage(`語彙項目 ${currentId} を削除しました。`);
+      setSelectedRevisionBody(null);
+      setVersionDiffText("");
+      setMessage(`語彙項目 ${targetId} を削除しました。`);
     });
   }
 
   function updateDraftField<K extends keyof LexiconExtItem>(key: K, value: LexiconExtItem[K]) {
+    if (key === "idslot") {
+      setDraft((prev) => ({ ...prev, [key]: normalizeIdslotValue(String(value || "")) as LexiconExtItem[K] }));
+      return;
+    }
     setDraft((prev) => ({ ...prev, [key]: value }));
   }
 
@@ -394,10 +666,11 @@ export default function LexiconWorkbench({ grammarId }: LexiconWorkbenchProps) {
       }
       await apiPost<ValueDictionaryItem>("/v1/lexicon/value-dictionary", {
         kind: dictionaryKind,
-        display_value: dictionaryCreateValue,
+        display_value:
+          dictionaryKind === "idslot" ? normalizeIdslotValue(dictionaryCreateValue) : dictionaryCreateValue,
         metadata_json: metadata
       });
-      await refreshDictionary(dictionaryKind);
+      await Promise.all([refreshDictionary(dictionaryKind), refreshAllIdslotValues()]);
       setDictionaryCreateValue("");
       setMessage("バリュー辞書に追加しました。");
     });
@@ -417,10 +690,11 @@ export default function LexiconWorkbench({ grammarId }: LexiconWorkbenchProps) {
         metadata = JSON.parse(dictionaryMetadataText);
       }
       await apiPut<ValueDictionaryItem>(`/v1/lexicon/value-dictionary/${selectedDictionaryId}`, {
-        display_value: selected.display_value,
+        display_value:
+          selected.kind === "idslot" ? normalizeIdslotValue(selected.display_value) : selected.display_value,
         metadata_json: metadata
       });
-      await refreshDictionary(dictionaryKind);
+      await Promise.all([refreshDictionary(dictionaryKind), refreshAllIdslotValues()]);
       setMessage("バリュー辞書を更新しました。");
     });
   }
@@ -431,7 +705,7 @@ export default function LexiconWorkbench({ grammarId }: LexiconWorkbenchProps) {
     }
     await runTask(async () => {
       await apiDelete<{ deleted: boolean }>(`/v1/lexicon/value-dictionary/${selectedDictionaryId}`);
-      await refreshDictionary(dictionaryKind);
+      await Promise.all([refreshDictionary(dictionaryKind), refreshAllIdslotValues()]);
       setSelectedDictionaryId(null);
       setDictionaryUsage(null);
       setMessage("バリュー辞書を削除しました。");
@@ -461,26 +735,29 @@ export default function LexiconWorkbench({ grammarId }: LexiconWorkbenchProps) {
           replacement_value_id: dictionaryReplaceTargetId
         }
       );
-      await Promise.all([refreshDictionary(dictionaryKind), refreshItems(page, query)]);
+      await Promise.all([
+        refreshDictionary(dictionaryKind),
+        refreshItems(page, query, sortKey, sortOrder),
+        refreshAllIdslotValues()
+      ]);
       setDictionaryUsage(null);
       setMessage("辞書値を一括置換しました。");
     });
   }
 
   async function handleCreateNumLink() {
-    const currentId = Number(draft.lexicon_id || selectedLexiconId);
-    if (!currentId) {
+    if (!hasSelectedItem) {
       return;
     }
     await runTask(async () => {
-      await apiPost<NumLinkItem>(`/v1/lexicon/${grammarId}/items/${currentId}/num-links`, {
+      await apiPost<NumLinkItem>(`/v1/lexicon/${grammarId}/items/${currentLexiconId}/num-links`, {
         num_path: numLinkForm.num_path,
         memo: numLinkForm.memo,
         slot_no: numLinkForm.slot_no.trim() === "" ? null : Number(numLinkForm.slot_no),
         idx_value: numLinkForm.idx_value,
         comment: numLinkForm.comment
       });
-      await refreshSelectedItemSidePanels(currentId);
+      await refreshSelectedItemSidePanels(currentLexiconId);
       setNumLinkForm({
         num_path: "",
         memo: "",
@@ -493,80 +770,73 @@ export default function LexiconWorkbench({ grammarId }: LexiconWorkbenchProps) {
   }
 
   async function handleUpdateNumLink(row: NumLinkItem) {
-    const currentId = Number(draft.lexicon_id || selectedLexiconId);
-    if (!currentId) {
+    if (!hasSelectedItem) {
       return;
     }
     await runTask(async () => {
-      await apiPut<NumLinkItem>(`/v1/lexicon/${grammarId}/items/${currentId}/num-links/${row.id}`, {
+      await apiPut<NumLinkItem>(`/v1/lexicon/${grammarId}/items/${currentLexiconId}/num-links/${row.id}`, {
         memo: row.memo,
         slot_no: row.slot_no ?? null,
         idx_value: row.idx_value,
         comment: row.comment
       });
-      await refreshSelectedItemSidePanels(currentId);
+      await refreshSelectedItemSidePanels(currentLexiconId);
       setMessage("num紐付けを更新しました。");
     });
   }
 
   async function handleDeleteNumLink(linkId: number) {
-    const currentId = Number(draft.lexicon_id || selectedLexiconId);
-    if (!currentId) {
+    if (!hasSelectedItem) {
       return;
     }
     await runTask(async () => {
-      await apiDelete<{ deleted: boolean }>(
-        `/v1/lexicon/${grammarId}/items/${currentId}/num-links/${linkId}`
-      );
-      await refreshSelectedItemSidePanels(currentId);
+      await apiDelete<{ deleted: boolean }>(`/v1/lexicon/${grammarId}/items/${currentLexiconId}/num-links/${linkId}`);
+      await refreshSelectedItemSidePanels(currentLexiconId);
       setMessage("num紐付けを削除しました。");
     });
   }
 
   async function handleSaveNote() {
-    const currentId = Number(draft.lexicon_id || selectedLexiconId);
-    if (!currentId) {
+    if (!hasSelectedItem) {
       return;
     }
     await runTask(async () => {
-      const response = await apiPut<NoteCurrentResponse>(`/v1/lexicon/${grammarId}/items/${currentId}/notes`, {
+      const response = await apiPut<NoteCurrentResponse>(`/v1/lexicon/${grammarId}/items/${currentLexiconId}/notes`, {
         markdown: noteMarkdown,
         author: noteAuthor,
         change_summary: noteSummary
       });
       setNoteUpdatedAt(response.updated_at || null);
-      await refreshSelectedItemSidePanels(currentId);
+      await refreshSelectedItemSidePanels(currentLexiconId);
       setNoteSummary("");
       setMessage("研究メモを保存しました。");
     });
   }
 
   async function handleOpenRevision(revisionId: number) {
-    const currentId = Number(draft.lexicon_id || selectedLexiconId);
-    if (!currentId) {
+    if (!hasSelectedItem) {
       return;
     }
     await runTask(async () => {
       const response = await apiGet<NoteRevisionResponse>(
-        `/v1/lexicon/${grammarId}/items/${currentId}/notes/revisions/${revisionId}`
+        `/v1/lexicon/${grammarId}/items/${currentLexiconId}/notes/revisions/${revisionId}`
       );
       setSelectedRevisionBody(response);
     });
   }
 
   async function handleRestoreRevision(revisionId: number) {
-    const currentId = Number(draft.lexicon_id || selectedLexiconId);
-    if (!currentId) {
+    if (!hasSelectedItem) {
       return;
     }
     await runTask(async () => {
       const response = await apiPost<NoteCurrentResponse>(
-        `/v1/lexicon/${grammarId}/items/${currentId}/notes/revisions/${revisionId}/restore`,
+        `/v1/lexicon/${grammarId}/items/${currentLexiconId}/notes/revisions/${revisionId}/restore`,
         {}
       );
       setNoteMarkdown(response.markdown);
       setNoteUpdatedAt(response.updated_at || null);
-      await refreshSelectedItemSidePanels(currentId);
+      await refreshSelectedItemSidePanels(currentLexiconId);
       setMessage("履歴を復元しました。");
     });
   }
@@ -576,6 +846,11 @@ export default function LexiconWorkbench({ grammarId }: LexiconWorkbenchProps) {
       return;
     }
     await runTask(async () => {
+      if (selectedRevisionId === "working-tree-current") {
+        const response = await apiGet<LexiconExportResponse>(`/v1/lexicon/${grammarId}?format=${diffFormat}`);
+        setVersionDiffText(response.content_text);
+        return;
+      }
       const response = await apiGet<LexiconVersionDiffResponse>(
         `/v1/lexicon/${grammarId}/versions/${selectedRevisionId}/diff?format=${diffFormat}`
       );
@@ -637,73 +912,131 @@ export default function LexiconWorkbench({ grammarId }: LexiconWorkbenchProps) {
       setCsvPreview(response.committed_csv_text);
       setYamlErrors(response.errors);
       setCommitMessage(response.message);
-      await refreshItems(page, query);
+      await Promise.all([
+        refreshItems(page, query, sortKey, sortOrder),
+        refreshVersions(versionOffset),
+        refreshAllIdslotValues()
+      ]);
       setMessage("Lexiconを保存しました。");
     });
   }
 
-  const selectedDictionaryItem = dictionaryItems.find((row) => row.id === selectedDictionaryId) || null;
-  const hasSelectedItem = Number(draft.lexicon_id || selectedLexiconId || 0) > 0;
-
   return (
     <div className="lexicon-workbench" data-testid="lexicon-workbench">
       <div className="lexicon-workbench-header">
-        <h2>7. 語彙の編集</h2>
-        <p className="hint">語彙項目中心の3ペイン。選択式編集・辞書管理・研究メモ/num紐付けを統合しています。</p>
+        <h2>語彙の編集</h2>
+        <p className="hint">
+          タブで「語彙項目一覧 / 語彙項目編集 / バリュー辞書 / CSV/YAML」を切り替えます。検索は
+          <code>category:iA</code> 形式にも対応します。
+        </p>
       </div>
 
       {error && <p className="alert">{error}</p>}
       {message && <p className="hint">{message}</p>}
 
-      <div className="lexicon-three-pane">
-        <section className="lexicon-pane">
+      <div className="row lexicon-main-tab-row">
+        <button
+          type="button"
+          className={activeTopTab === "items" ? "renew-step-btn active" : "renew-step-btn"}
+          onClick={() => setActiveTopTab("items")}
+        >
+          語彙項目一覧
+        </button>
+        <button
+          type="button"
+          className={activeTopTab === "edit" ? "renew-step-btn active" : "renew-step-btn"}
+          onClick={() => setActiveTopTab("edit")}
+        >
+          語彙項目編集
+        </button>
+        <button
+          type="button"
+          className={activeTopTab === "dictionary" ? "renew-step-btn active" : "renew-step-btn"}
+          onClick={() => setActiveTopTab("dictionary")}
+        >
+          バリュー辞書
+        </button>
+        <button
+          type="button"
+          className={activeTopTab === "importexport" ? "renew-step-btn active" : "renew-step-btn"}
+          onClick={() => setActiveTopTab("importexport")}
+        >
+          CSV/YAML
+        </button>
+      </div>
+
+      {activeTopTab === "items" && (
+        <section className="lexicon-pane" data-testid="lexicon-items-tab">
           <div className="lexicon-pane-header">
             <h3>語彙項目一覧</h3>
-            <button type="button" onClick={() => void runTask(() => refreshItems(page, query))} disabled={loading}>
+            <button
+              type="button"
+              onClick={() => void runTask(() => refreshItems(page, query, sortKey, sortOrder))}
+              disabled={loading}
+            >
               再読込
             </button>
           </div>
           <div className="row">
             <input
               aria-label="Lexicon Search"
-              placeholder="entry/phono/id で検索"
+              placeholder="entry/phono/id を部分一致検索。例: category:iA"
               value={query}
               onChange={(event) => setQuery(event.target.value)}
-            />
-            <button
-              type="button"
-              disabled={loading}
-              onClick={() => {
-                void runTask(async () => {
-                  await refreshItems(1, query);
-                });
+              onKeyDown={(event) => {
+                if (event.key === "Enter") {
+                  event.preventDefault();
+                  void handleSearchItems();
+                }
               }}
-            >
+            />
+            <button type="button" disabled={loading} onClick={() => void handleSearchItems()}>
               検索
             </button>
-            <button type="button" disabled={loading} onClick={startNewItem}>
-              新規
-            </button>
+            {selectedListLexiconId !== null && (
+              <button type="button" disabled={loading} onClick={() => void handleOpenSelectedItemForEdit()}>
+                編集
+              </button>
+            )}
           </div>
           <div className="inspect-table-wrap">
             <table>
               <thead>
                 <tr>
-                  <th>id</th>
-                  <th>entry</th>
-                  <th>category</th>
+                  <th>
+                    <button
+                      type="button"
+                      className="lexicon-sort-btn"
+                      onClick={() => void handleToggleSort("lexicon_id")}
+                    >
+                      id <span className="lexicon-sort-arrow">{sortArrow("lexicon_id")}</span>
+                    </button>
+                  </th>
+                  <th>
+                    <button type="button" className="lexicon-sort-btn" onClick={() => void handleToggleSort("entry")}>
+                      entry <span className="lexicon-sort-arrow">{sortArrow("entry")}</span>
+                    </button>
+                  </th>
+                  <th>
+                    <button
+                      type="button"
+                      className="lexicon-sort-btn"
+                      onClick={() => void handleToggleSort("category")}
+                    >
+                      category <span className="lexicon-sort-arrow">{sortArrow("category")}</span>
+                    </button>
+                  </th>
                 </tr>
               </thead>
               <tbody>
                 {(itemsPage?.items || []).map((row) => {
-                  const isActive = Number(row.lexicon_id) === Number(draft.lexicon_id || selectedLexiconId);
+                  const id = Number(row.lexicon_id);
+                  const isActive = id === selectedListLexiconId;
                   return (
                     <tr
                       key={`lex-row-${row.lexicon_id}`}
                       className={isActive ? "lexicon-row-active" : ""}
-                      onClick={() => {
-                        void handleSelectItem(Number(row.lexicon_id));
-                      }}
+                      onClick={() => setSelectedListLexiconId(id)}
                     >
                       <td>{row.lexicon_id}</td>
                       <td>{row.entry}</td>
@@ -720,7 +1053,7 @@ export default function LexiconWorkbench({ grammarId }: LexiconWorkbenchProps) {
               disabled={loading || page <= 1}
               onClick={() => {
                 void runTask(async () => {
-                  await refreshItems(page - 1, query);
+                  await refreshItems(page - 1, query, sortKey, sortOrder);
                 });
               }}
             >
@@ -739,7 +1072,7 @@ export default function LexiconWorkbench({ grammarId }: LexiconWorkbenchProps) {
               }
               onClick={() => {
                 void runTask(async () => {
-                  await refreshItems(page + 1, query);
+                  await refreshItems(page + 1, query, sortKey, sortOrder);
                 });
               }}
             >
@@ -747,11 +1080,16 @@ export default function LexiconWorkbench({ grammarId }: LexiconWorkbenchProps) {
             </button>
           </div>
         </section>
+      )}
 
-        <section className="lexicon-pane">
+      {activeTopTab === "edit" && (
+        <section className="lexicon-pane" data-testid="lexicon-edit-tab">
           <div className="lexicon-pane-header">
             <h3>語彙項目編集</h3>
             <div className="row">
+              <button type="button" onClick={() => void startNewItem()} disabled={loading}>
+                新規作成
+              </button>
               <button type="button" onClick={() => void handleSaveItem()} disabled={loading}>
                 保存
               </button>
@@ -760,6 +1098,10 @@ export default function LexiconWorkbench({ grammarId }: LexiconWorkbenchProps) {
               </button>
             </div>
           </div>
+
+          {!hasSelectedItem && !isNewItem && (
+            <p className="hint">語彙項目一覧で項目を選択して「編集」を押すと、ここで詳細を編集できます。</p>
+          )}
 
           <div className="form-grid">
             <label>
@@ -804,7 +1146,7 @@ export default function LexiconWorkbench({ grammarId }: LexiconWorkbenchProps) {
               </select>
             </label>
             <label>
-              idslot
+              id_slot
               <select
                 aria-label="lexicon-idslot-select"
                 value={draft.idslot}
@@ -933,327 +1275,172 @@ export default function LexiconWorkbench({ grammarId }: LexiconWorkbenchProps) {
               onChange={(event) => updateDraftField("note", event.target.value)}
             />
           </label>
-        </section>
 
-        <section className="lexicon-pane">
-          <div className="row lexicon-tab-row">
-            <button
-              type="button"
-              className={activeTab === "dictionary" ? "renew-step-btn active" : "renew-step-btn"}
-              onClick={() => setActiveTab("dictionary")}
-            >
-              辞書
-            </button>
-            <button
-              type="button"
-              className={activeTab === "numlinks" ? "renew-step-btn active" : "renew-step-btn"}
-              onClick={() => setActiveTab("numlinks")}
-            >
-              num紐付け
-            </button>
-            <button
-              type="button"
-              className={activeTab === "notes" ? "renew-step-btn active" : "renew-step-btn"}
-              onClick={() => setActiveTab("notes")}
-            >
-              研究メモ
-            </button>
-            <button
-              type="button"
-              className={activeTab === "versions" ? "renew-step-btn active" : "renew-step-btn"}
-              onClick={() => setActiveTab("versions")}
-            >
-              版管理
-            </button>
-            <button
-              type="button"
-              className={activeTab === "importexport" ? "renew-step-btn active" : "renew-step-btn"}
-              onClick={() => setActiveTab("importexport")}
-            >
-              CSV/YAML
-            </button>
-          </div>
-
-          {activeTab === "dictionary" && (
-            <div data-testid="lexicon-dictionary-tab">
-              <h3>バリュー辞書</h3>
-              <div className="row">
-                <label>
-                  kind
-                  <select
-                    aria-label="dictionary-kind-select"
-                    value={dictionaryKind}
-                    onChange={(event) => setDictionaryKind(event.target.value as ValueDictionaryKind)}
-                  >
-                    {VALUE_KINDS.map((kind) => (
-                      <option key={`dict-kind-${kind}`} value={kind}>
-                        {kind}
-                      </option>
-                    ))}
-                  </select>
-                </label>
-                <button type="button" onClick={() => void runTask(() => refreshDictionary(dictionaryKind))} disabled={loading}>
-                  更新
-                </button>
-              </div>
-              <div className="inspect-table-wrap">
-                <table>
-                  <thead>
-                    <tr>
-                      <th>id</th>
-                      <th>value</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {dictionaryItems.map((row) => (
-                      <tr
-                        key={`dict-row-${row.id}`}
-                        className={selectedDictionaryId === row.id ? "lexicon-row-active" : ""}
-                        onClick={() => {
-                          setSelectedDictionaryId(row.id);
-                          setDictionaryMetadataText(JSON.stringify(row.metadata_json || {}, null, 2));
-                        }}
-                      >
-                        <td>{row.id}</td>
-                        <td>{row.display_value}</td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-
-              <label>
-                新規値
-                <input
-                  aria-label="dictionary-new-value"
-                  value={dictionaryCreateValue}
-                  onChange={(event) => setDictionaryCreateValue(event.target.value)}
-                />
-              </label>
-              <label>
-                metadata(JSON)
-                <textarea
-                  aria-label="dictionary-metadata-input"
-                  rows={3}
-                  value={dictionaryMetadataText}
-                  onChange={(event) => setDictionaryMetadataText(event.target.value)}
-                />
-              </label>
-              <div className="row">
-                <button type="button" onClick={() => void handleCreateDictionaryValue()} disabled={loading || !dictionaryCreateValue.trim()}>
-                  追加
-                </button>
-                <button type="button" onClick={() => void handleUpdateDictionaryValue()} disabled={loading || selectedDictionaryId === null}>
-                  更新
-                </button>
-                <button type="button" onClick={() => void handleDeleteDictionaryValue()} disabled={loading || selectedDictionaryId === null}>
-                  削除
-                </button>
-              </div>
-              <div className="row">
-                <button type="button" onClick={() => void handleLoadDictionaryUsage()} disabled={loading || selectedDictionaryId === null}>
-                  使用件数
-                </button>
-                <select
-                  aria-label="dictionary-replace-target"
-                  value={dictionaryReplaceTargetId ?? ""}
-                  onChange={(event) =>
-                    setDictionaryReplaceTargetId(event.target.value ? Number(event.target.value) : null)
-                  }
-                >
-                  <option value="">(置換先)</option>
-                  {dictionaryItems
-                    .filter((row) => row.id !== selectedDictionaryId)
-                    .map((row) => (
-                      <option key={`dict-replace-${row.id}`} value={row.id}>
-                        {row.display_value}
-                      </option>
-                    ))}
-                </select>
-                <button
-                  type="button"
-                  onClick={() => void handleReplaceDictionaryValue()}
-                  disabled={loading || selectedDictionaryId === null || dictionaryReplaceTargetId === null}
-                >
-                  一括置換
-                </button>
-              </div>
-              {selectedDictionaryItem && (
-                <p className="hint">選択中: {selectedDictionaryItem.display_value}</p>
-              )}
-              {dictionaryUsage && (
-                <pre className="mono">
-                  total_usages: {dictionaryUsage.total_usages}
-                  {"\n"}
-                  {JSON.stringify(dictionaryUsage.usages_by_grammar, null, 2)}
-                </pre>
-              )}
+          <div className="lexicon-multi-field" data-testid="lexicon-numlinks-embedded">
+            <div className="lexicon-multi-header">
+              <h4>num紐付け</h4>
             </div>
-          )}
-
-          {activeTab === "numlinks" && (
-            <div data-testid="lexicon-numlinks-tab">
-              <h3>num紐付け</h3>
-              {!hasSelectedItem ? (
-                <p className="hint">語彙項目を選択してください。</p>
-              ) : (
-                <>
-                  <div className="form-grid">
-                    <label>
-                      num_path
-                      <input
-                        aria-label="num-link-path-input"
-                        value={numLinkForm.num_path}
-                        onChange={(event) => setNumLinkForm((prev) => ({ ...prev, num_path: event.target.value }))}
-                      />
-                    </label>
-                    <label>
-                      memo
-                      <input
-                        value={numLinkForm.memo}
-                        onChange={(event) => setNumLinkForm((prev) => ({ ...prev, memo: event.target.value }))}
-                      />
-                    </label>
-                    <label>
-                      slot
-                      <input
-                        value={numLinkForm.slot_no}
-                        onChange={(event) => setNumLinkForm((prev) => ({ ...prev, slot_no: event.target.value }))}
-                      />
-                    </label>
-                    <label>
-                      idx
-                      <input
-                        value={numLinkForm.idx_value}
-                        onChange={(event) => setNumLinkForm((prev) => ({ ...prev, idx_value: event.target.value }))}
-                      />
-                    </label>
-                  </div>
+            {!hasSelectedItem ? (
+              <p className="hint">保存済みの語彙項目を選択すると設定できます。</p>
+            ) : (
+              <>
+                <div className="form-grid">
                   <label>
-                    comment
-                    <textarea
-                      rows={2}
-                      value={numLinkForm.comment}
-                      onChange={(event) => setNumLinkForm((prev) => ({ ...prev, comment: event.target.value }))}
+                    num_path
+                    <input
+                      aria-label="num-link-path-input"
+                      value={numLinkForm.num_path}
+                      onChange={(event) => setNumLinkForm((prev) => ({ ...prev, num_path: event.target.value }))}
                     />
                   </label>
-                  <button type="button" onClick={() => void handleCreateNumLink()} disabled={loading || !numLinkForm.num_path.trim()}>
-                    追加
-                  </button>
-                  <div className="inspect-table-wrap">
-                    <table>
-                      <thead>
-                        <tr>
-                          <th>path</th>
-                          <th>memo</th>
-                          <th>slot/idx</th>
-                          <th>操作</th>
+                  <label>
+                    memo
+                    <input
+                      value={numLinkForm.memo}
+                      onChange={(event) => setNumLinkForm((prev) => ({ ...prev, memo: event.target.value }))}
+                    />
+                  </label>
+                  <label>
+                    slot
+                    <input
+                      value={numLinkForm.slot_no}
+                      onChange={(event) => setNumLinkForm((prev) => ({ ...prev, slot_no: event.target.value }))}
+                    />
+                  </label>
+                  <label>
+                    idx
+                    <input
+                      value={numLinkForm.idx_value}
+                      onChange={(event) => setNumLinkForm((prev) => ({ ...prev, idx_value: event.target.value }))}
+                    />
+                  </label>
+                </div>
+                <label>
+                  comment
+                  <textarea
+                    rows={2}
+                    value={numLinkForm.comment}
+                    onChange={(event) => setNumLinkForm((prev) => ({ ...prev, comment: event.target.value }))}
+                  />
+                </label>
+                <button
+                  type="button"
+                  onClick={() => void handleCreateNumLink()}
+                  disabled={loading || !numLinkForm.num_path.trim()}
+                >
+                  追加
+                </button>
+                <div className="inspect-table-wrap">
+                  <table>
+                    <thead>
+                      <tr>
+                        <th>path</th>
+                        <th>memo</th>
+                        <th>slot/idx</th>
+                        <th>操作</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {numLinks.map((row) => (
+                        <tr key={`num-link-${row.id}`}>
+                          <td>{row.num_path}</td>
+                          <td>{row.memo}</td>
+                          <td>
+                            {row.slot_no ?? "-"} / {row.idx_value || "-"}
+                          </td>
+                          <td>
+                            <button type="button" onClick={() => void handleUpdateNumLink(row)} disabled={loading}>
+                              保存
+                            </button>
+                            <button type="button" onClick={() => void handleDeleteNumLink(row.id)} disabled={loading}>
+                              削除
+                            </button>
+                          </td>
                         </tr>
-                      </thead>
-                      <tbody>
-                        {numLinks.map((row) => (
-                          <tr key={`num-link-${row.id}`}>
-                            <td>{row.num_path}</td>
-                            <td>{row.memo}</td>
-                            <td>
-                              {row.slot_no ?? "-"} / {row.idx_value || "-"}
-                            </td>
-                            <td>
-                              <button type="button" onClick={() => void handleUpdateNumLink(row)} disabled={loading}>
-                                保存
-                              </button>
-                              <button type="button" onClick={() => void handleDeleteNumLink(row.id)} disabled={loading}>
-                                削除
-                              </button>
-                            </td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                  </div>
-                </>
-              )}
-            </div>
-          )}
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </>
+            )}
+          </div>
 
-          {activeTab === "notes" && (
-            <div data-testid="lexicon-notes-tab">
-              <h3>研究メモ</h3>
-              {!hasSelectedItem ? (
-                <p className="hint">語彙項目を選択してください。</p>
-              ) : (
-                <>
+          <div className="lexicon-multi-field" data-testid="lexicon-notes-embedded">
+            <div className="lexicon-multi-header">
+              <h4>研究メモ（Markdown）</h4>
+            </div>
+            {!hasSelectedItem ? (
+              <p className="hint">保存済みの語彙項目を選択すると設定できます。</p>
+            ) : (
+              <>
+                <div className="lexicon-note-editor-grid">
                   <label>
                     markdown
                     <textarea
                       aria-label="note-markdown-input"
-                      rows={7}
+                      rows={12}
                       value={noteMarkdown}
                       onChange={(event) => setNoteMarkdown(event.target.value)}
                     />
                   </label>
-                  <div className="row">
-                    <label>
-                      author
-                      <input
-                        value={noteAuthor}
-                        onChange={(event) => setNoteAuthor(event.target.value)}
-                      />
-                    </label>
-                    <label>
-                      change summary
-                      <input
-                        value={noteSummary}
-                        onChange={(event) => setNoteSummary(event.target.value)}
-                      />
-                    </label>
+                  <div className="lexicon-markdown-preview">
+                    <div className="lexicon-markdown-preview-title">プレビュー</div>
+                    <div className="lexicon-markdown-preview-body">{renderMarkdownPreview(noteMarkdown)}</div>
                   </div>
-                  <div className="row">
-                    <button type="button" onClick={() => void handleSaveNote()} disabled={loading}>
-                      保存
-                    </button>
-                    <span className="mono">{noteUpdatedAt ? `updated: ${noteUpdatedAt}` : "updated: -"}</span>
-                  </div>
-                  <div className="inspect-table-wrap">
-                    <table>
-                      <thead>
-                        <tr>
-                          <th>rev</th>
-                          <th>author</th>
-                          <th>summary</th>
-                          <th>操作</th>
+                </div>
+                <div className="row">
+                  <label>
+                    author
+                    <input value={noteAuthor} onChange={(event) => setNoteAuthor(event.target.value)} />
+                  </label>
+                  <label>
+                    change summary
+                    <input value={noteSummary} onChange={(event) => setNoteSummary(event.target.value)} />
+                  </label>
+                </div>
+                <div className="row">
+                  <button type="button" onClick={() => void handleSaveNote()} disabled={loading}>
+                    保存
+                  </button>
+                  <span className="mono">{noteUpdatedAt ? `updated: ${noteUpdatedAt}` : "updated: -"}</span>
+                </div>
+                <div className="inspect-table-wrap">
+                  <table>
+                    <thead>
+                      <tr>
+                        <th>rev</th>
+                        <th>author</th>
+                        <th>summary</th>
+                        <th>操作</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {noteRevisions.map((row) => (
+                        <tr key={`note-rev-${row.id}`}>
+                          <td>{row.revision_no}</td>
+                          <td>{row.author}</td>
+                          <td>{row.change_summary}</td>
+                          <td>
+                            <button type="button" onClick={() => void handleOpenRevision(row.id)} disabled={loading}>
+                              表示
+                            </button>
+                            <button type="button" onClick={() => void handleRestoreRevision(row.id)} disabled={loading}>
+                              復元
+                            </button>
+                          </td>
                         </tr>
-                      </thead>
-                      <tbody>
-                        {noteRevisions.map((row) => (
-                          <tr key={`note-rev-${row.id}`}>
-                            <td>{row.revision_no}</td>
-                            <td>{row.author}</td>
-                            <td>{row.change_summary}</td>
-                            <td>
-                              <button type="button" onClick={() => void handleOpenRevision(row.id)} disabled={loading}>
-                                表示
-                              </button>
-                              <button type="button" onClick={() => void handleRestoreRevision(row.id)} disabled={loading}>
-                                復元
-                              </button>
-                            </td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                  </div>
-                  {selectedRevisionBody && (
-                    <pre className="mono">{selectedRevisionBody.markdown}</pre>
-                  )}
-                </>
-              )}
-            </div>
-          )}
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+                {selectedRevisionBody && <pre className="mono">{selectedRevisionBody.markdown}</pre>}
+              </>
+            )}
+          </div>
 
-          {activeTab === "versions" && (
-            <div data-testid="lexicon-versions-tab">
-              <h3>CSV/YAML 版管理</h3>
+          <div className="lexicon-multi-field" data-testid="lexicon-item-versions-embedded">
+            <div className="lexicon-multi-header">
+              <h4>版管理（語彙項目単位）</h4>
               <div className="row">
                 <button
                   type="button"
@@ -1278,99 +1465,238 @@ export default function LexiconWorkbench({ grammarId }: LexiconWorkbenchProps) {
                   次へ
                 </button>
               </div>
-              <div className="inspect-table-wrap">
-                <table>
-                  <thead>
-                    <tr>
-                      <th>revision</th>
-                      <th>author</th>
-                      <th>message</th>
+            </div>
+            <p className="hint">
+              選択中語彙ID: {hasSelectedItem ? currentLexiconId : "(未選択)"} / 現在CSVを基準に版管理を開始しています。
+            </p>
+            <div className="inspect-table-wrap">
+              <table>
+                <thead>
+                  <tr>
+                    <th>revision</th>
+                    <th>author</th>
+                    <th>message</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {effectiveVersionItems.map((row) => (
+                    <tr
+                      key={`version-${row.revision_id}`}
+                      className={selectedRevisionId === row.revision_id ? "lexicon-row-active" : ""}
+                      onClick={() => setSelectedRevisionId(row.revision_id)}
+                    >
+                      <td>{row.revision_id === "working-tree-current" ? "current" : row.revision_id.slice(0, 12)}</td>
+                      <td>{row.author}</td>
+                      <td>{row.message}</td>
                     </tr>
-                  </thead>
-                  <tbody>
-                    {versionItems.map((row) => (
-                      <tr
-                        key={`version-${row.revision_id}`}
-                        className={selectedRevisionId === row.revision_id ? "lexicon-row-active" : ""}
-                        onClick={() => setSelectedRevisionId(row.revision_id)}
-                      >
-                        <td>{row.revision_id.slice(0, 12)}</td>
-                        <td>{row.author}</td>
-                        <td>{row.message}</td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-              <div className="row">
-                <select
-                  aria-label="version-diff-format"
-                  value={diffFormat}
-                  onChange={(event) => setDiffFormat(event.target.value as "csv" | "yaml")}
-                >
-                  <option value="csv">csv</option>
-                  <option value="yaml">yaml</option>
-                </select>
-                <button type="button" onClick={() => void handleLoadDiff()} disabled={loading || !selectedRevisionId}>
-                  差分を表示
-                </button>
-              </div>
-              <pre className="mono" data-testid="lexicon-version-diff-output">{versionDiffText}</pre>
+                  ))}
+                </tbody>
+              </table>
             </div>
-          )}
+            <div className="row">
+              <select
+                aria-label="version-diff-format"
+                value={diffFormat}
+                onChange={(event) => setDiffFormat(event.target.value as "csv" | "yaml")}
+              >
+                <option value="csv">csv</option>
+                <option value="yaml">yaml</option>
+              </select>
+              <button type="button" onClick={() => void handleLoadDiff()} disabled={loading || !selectedRevisionId}>
+                差分を表示
+              </button>
+            </div>
+            <pre className="mono" data-testid="lexicon-version-diff-output">
+              {scopedVersionDiff}
+            </pre>
+          </div>
+        </section>
+      )}
 
-          {activeTab === "importexport" && (
-            <div data-testid="lexicon-importexport-tab">
-              <h3>CSV/YAML 入出力</h3>
-              <div className="row">
-                <select
-                  aria-label="lexicon-import-export-format"
-                  value={importExportFormat}
-                  onChange={(event) => setImportExportFormat(event.target.value as "yaml" | "csv")}
-                >
-                  <option value="yaml">yaml</option>
-                  <option value="csv">csv</option>
-                </select>
-                <button type="button" onClick={() => void handleLoadImportExport()} disabled={loading}>
-                  読込
-                </button>
-              </div>
-              <pre className="mono" data-testid="lexicon-importexport-output">{importExportText}</pre>
-              <label>
-                YAML入力
-                <textarea
-                  aria-label="lexicon-yaml-input"
-                  rows={6}
-                  value={yamlInput}
-                  onChange={(event) => setYamlInput(event.target.value)}
-                />
-              </label>
-              <div className="row">
-                <button type="button" onClick={() => void handleValidateYaml()} disabled={loading || !yamlInput.trim()}>
-                  Validate
-                </button>
-                <button type="button" onClick={() => void handleImportYaml()} disabled={loading || !yamlInput.trim()}>
-                  Import
-                </button>
-                <button type="button" onClick={() => void handleCommitYaml()} disabled={loading || !yamlInput.trim()}>
-                  Commit
-                </button>
-              </div>
-              <label>
-                <input
-                  type="checkbox"
-                  checked={runCompatibility}
-                  onChange={(event) => setRunCompatibility(event.target.checked)}
-                />
-                compatibility test を実行
-              </label>
-              {yamlErrors.length > 0 && <pre className="mono">{yamlErrors.join("\n")}</pre>}
-              <p className="hint">{commitMessage}</p>
-              <pre className="mono" data-testid="lexicon-csv-preview-output">{csvPreview}</pre>
-            </div>
+      {activeTopTab === "dictionary" && (
+        <section className="lexicon-pane" data-testid="lexicon-dictionary-tab">
+          <div className="lexicon-pane-header">
+            <h3>バリュー辞書</h3>
+            <button type="button" onClick={() => void runTask(() => refreshDictionary(dictionaryKind))} disabled={loading}>
+              更新
+            </button>
+          </div>
+          <div className="row">
+            <label>
+              kind
+              <select
+                aria-label="dictionary-kind-select"
+                value={dictionaryKind}
+                onChange={(event) => setDictionaryKind(event.target.value as ValueDictionaryKind)}
+              >
+                {VALUE_KINDS.map((kind) => (
+                  <option key={`dict-kind-${kind}`} value={kind}>
+                    {kind}
+                  </option>
+                ))}
+              </select>
+            </label>
+          </div>
+          <div className="inspect-table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>id</th>
+                  <th>value</th>
+                </tr>
+              </thead>
+              <tbody>
+                {dictionaryItems.map((row) => (
+                  <tr
+                    key={`dict-row-${row.id}`}
+                    className={selectedDictionaryId === row.id ? "lexicon-row-active" : ""}
+                    onClick={() => {
+                      setSelectedDictionaryId(row.id);
+                      setDictionaryMetadataText(JSON.stringify(row.metadata_json || {}, null, 2));
+                    }}
+                  >
+                    <td>{row.id}</td>
+                    <td>{row.display_value}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+          <label>
+            新規値
+            <input
+              aria-label="dictionary-new-value"
+              value={dictionaryCreateValue}
+              onChange={(event) => setDictionaryCreateValue(event.target.value)}
+            />
+          </label>
+          <label>
+            metadata(JSON)
+            <textarea
+              aria-label="dictionary-metadata-input"
+              rows={3}
+              value={dictionaryMetadataText}
+              onChange={(event) => setDictionaryMetadataText(event.target.value)}
+            />
+          </label>
+          <div className="row">
+            <button
+              type="button"
+              onClick={() => void handleCreateDictionaryValue()}
+              disabled={loading || !dictionaryCreateValue.trim()}
+            >
+              追加
+            </button>
+            <button
+              type="button"
+              onClick={() => void handleUpdateDictionaryValue()}
+              disabled={loading || selectedDictionaryId === null}
+            >
+              更新
+            </button>
+            <button
+              type="button"
+              onClick={() => void handleDeleteDictionaryValue()}
+              disabled={loading || selectedDictionaryId === null}
+            >
+              削除
+            </button>
+          </div>
+          <div className="row">
+            <button
+              type="button"
+              onClick={() => void handleLoadDictionaryUsage()}
+              disabled={loading || selectedDictionaryId === null}
+            >
+              使用件数
+            </button>
+            <select
+              aria-label="dictionary-replace-target"
+              value={dictionaryReplaceTargetId ?? ""}
+              onChange={(event) => setDictionaryReplaceTargetId(event.target.value ? Number(event.target.value) : null)}
+            >
+              <option value="">(置換先)</option>
+              {dictionaryItems
+                .filter((row) => row.id !== selectedDictionaryId)
+                .map((row) => (
+                  <option key={`dict-replace-${row.id}`} value={row.id}>
+                    {row.display_value}
+                  </option>
+                ))}
+            </select>
+            <button
+              type="button"
+              onClick={() => void handleReplaceDictionaryValue()}
+              disabled={loading || selectedDictionaryId === null || dictionaryReplaceTargetId === null}
+            >
+              一括置換
+            </button>
+          </div>
+          {selectedDictionaryItem && <p className="hint">選択中: {selectedDictionaryItem.display_value}</p>}
+          {dictionaryUsage && (
+            <pre className="mono">
+              total_usages: {dictionaryUsage.total_usages}
+              {"\n"}
+              {JSON.stringify(dictionaryUsage.usages_by_grammar, null, 2)}
+            </pre>
           )}
         </section>
-      </div>
+      )}
+
+      {activeTopTab === "importexport" && (
+        <section className="lexicon-pane" data-testid="lexicon-importexport-tab">
+          <h3>CSV/YAML 入出力</h3>
+          <div className="row">
+            <select
+              aria-label="lexicon-import-export-format"
+              value={importExportFormat}
+              onChange={(event) => setImportExportFormat(event.target.value as "yaml" | "csv")}
+            >
+              <option value="yaml">yaml</option>
+              <option value="csv">csv</option>
+            </select>
+            <button type="button" onClick={() => void handleLoadImportExport()} disabled={loading}>
+              読込
+            </button>
+          </div>
+          <pre className="mono" data-testid="lexicon-importexport-output">
+            {importExportText}
+          </pre>
+          <label>
+            YAML入力
+            <textarea
+              aria-label="lexicon-yaml-input"
+              rows={8}
+              value={yamlInput}
+              onChange={(event) => setYamlInput(event.target.value)}
+            />
+          </label>
+          <div className="row">
+            <button type="button" onClick={() => void handleValidateYaml()} disabled={loading || !yamlInput.trim()}>
+              Validate
+            </button>
+            <button type="button" onClick={() => void handleImportYaml()} disabled={loading || !yamlInput.trim()}>
+              Import
+            </button>
+            <button type="button" onClick={() => void handleCommitYaml()} disabled={loading || !yamlInput.trim()}>
+              Commit
+            </button>
+          </div>
+          <label>
+            <input
+              type="checkbox"
+              checked={runCompatibility}
+              onChange={(event) => setRunCompatibility(event.target.checked)}
+            />
+            compatibility test を実行
+          </label>
+          {yamlErrors.length > 0 && <pre className="mono">{yamlErrors.join("\n")}</pre>}
+          <p className="hint">{commitMessage}</p>
+          <pre className="mono" data-testid="lexicon-csv-preview-output">
+            {csvPreview}
+          </pre>
+        </section>
+      )}
     </div>
   );
 }

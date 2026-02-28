@@ -99,11 +99,13 @@ def _eval_feature_17(
 
 
 def _normalize_sy(values: list[str]) -> list[str]:
-    return ["" if value is None else str(value) for value in values]
+    normalized = ["" if value is None else str(value) for value in values]
+    return [value for value in normalized if value != ""]
 
 
 def _normalize_sem(values: list[str]) -> list[str]:
-    return ["" if value is None else str(value) for value in values]
+    normalized = ["" if value is None else str(value) for value in values]
+    return [value for value in normalized if value != ""]
 
 
 def _parse_attr_value(raw: str) -> tuple[str, str]:

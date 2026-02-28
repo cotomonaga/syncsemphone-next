@@ -481,17 +481,41 @@ def list_lexicon_items(
     page: int = Query(default=1, ge=1),
     page_size: int = Query(default=50, ge=1, le=300),
     q: str = Query(default=""),
+    sort: Literal["lexicon_id", "entry", "category"] = Query(default="lexicon_id"),
+    order: Literal["asc", "desc"] = Query(default="asc"),
 ) -> LexiconItemsResponse:
     root = _default_legacy_root()
     entries = list(load_legacy_lexicon(legacy_root=root, grammar_id=grammar_id).values())
     if q.strip():
-        needle = q.strip().casefold()
-        entries = [
-            row
-            for row in entries
-            if needle in row.entry.casefold() or needle in row.phono.casefold() or needle in str(row.lexicon_id)
-        ]
-    entries.sort(key=lambda row: row.lexicon_id)
+        category_filter: Optional[str] = None
+        text_tokens: list[str] = []
+        for token in q.strip().split():
+            lowered = token.casefold()
+            if lowered.startswith("category:"):
+                category_filter = token.split(":", 1)[1].strip()
+            else:
+                text_tokens.append(token)
+
+        if category_filter:
+            category_needle = category_filter.casefold()
+            entries = [row for row in entries if category_needle in row.category.casefold()]
+
+        if text_tokens:
+            text_needles = [token.casefold() for token in text_tokens if token.strip()]
+
+            def _match_row(row: LexiconEntry) -> bool:
+                haystack = f"{row.entry}\n{row.phono}\n{row.category}\n{row.lexicon_id}".casefold()
+                return all(needle in haystack for needle in text_needles)
+
+            entries = [row for row in entries if _match_row(row)]
+
+    reverse = order == "desc"
+    if sort == "entry":
+        entries.sort(key=lambda row: (row.entry.casefold(), row.lexicon_id), reverse=reverse)
+    elif sort == "category":
+        entries.sort(key=lambda row: (row.category.casefold(), row.lexicon_id), reverse=reverse)
+    else:
+        entries.sort(key=lambda row: row.lexicon_id, reverse=reverse)
     total = len(entries)
     start = (page - 1) * page_size
     items = entries[start:start + page_size]

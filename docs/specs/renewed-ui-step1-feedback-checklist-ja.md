@@ -259,6 +259,19 @@
 - [x] `S2-HDA-25` Perl既知7手をPythonで逐次リプレイし、各手で候補存在・遷移結果・未解釈数を照合する。
 - [x] `S2-HDA-26` DPOR/TTを無効化した深さ制限完全探索（baseline）を追加し、深さ7で既知手順の再発見可否を固定する（単純IDDFSで `2,000,004` ノード時点でも depth=4 探索中、再発見不可）。
 
+## 46. 語彙編集ページ再構成（タブ化・検索/ソート・項目統合）
+- [x] `LEX-UI-13` 語彙編集ページ見出しを `語彙の編集` に統一し、App上部の `Lexicon` ステップタブ表示を廃止する。
+- [x] `LEX-UI-14` 語彙編集ページを上部タブ構成へ変更し、`語彙項目一覧 / 語彙項目編集 / バリュー辞書 / CSV/YAML` を切替表示にする。`num紐付け`・`研究メモ`・`版管理` は語彙項目編集内へ統合する。
+- [x] `LEX-UI-15` 語彙項目一覧の検索入力で Enter 実行を有効化し、`category:iA` 形式の絞り込み（entry部分一致併用）を可能にする。一覧下の `新規` ボタンは撤去する。
+- [x] `LEX-UI-16` 語彙項目一覧の `id/entry/category` に昇順降順トグル（矢印表示）を追加し、行選択後に `編集` ボタンを表示して語彙項目編集タブへ遷移できるようにする。
+- [x] `LEX-UI-17` `id_slot` 候補をマージ規則実使用値（`id/zero/rel/0,23/0,24/2,22/2,24/2,27,target`）とCSV実在値に制限し、末尾カンマの揺れは正規化して不要値を除外する。
+- [x] `LEX-API-08` `/v1/lexicon/{grammar_id}/items` に `sort/order` と `q=category:*` 絞り込みを追加し、UIの検索・ソートをAPI契約でサポートする。
+
+## 47. Step2 到達判定の再安定化（unknown回避）
+- [x] `S2-HDA-33` `候補を提案` から起動する reachability job の探索予算を UI 側で明示（`budget_seconds=30`, `max_nodes=2_000_000`, `max_depth=28`）し、`ジョンがメアリをスケートボードで追いかけた` が `unknown` に振れにくい設定へ戻す。
+- [x] `S2-REG-17` Web回帰テストで reachability job 起動payloadに上記探索予算が含まれることを固定する。
+- [x] `S2-REG-18` API回帰テストで `ジョンがを読んだ` が高予算でも `unreachable`（語彙属性/入力条件由来）になることを固定する。
+
 ## 46. 到達判定の運用経路回帰（文入力 -> Step2）
 - [x] `S2-REG-12` `init/from-sentence`（文入力）で生成した `ジョンがメアリをスケートボードで追いかけた` の state に対し、`/v1/derivation/reachability` が `reachable` を返すことをAPIテストで固定する。
 - [x] `S2-REG-13` Playwright実機で `【Step.1】Numerationの形成 -> Numerationを形成 -> 【Step.2】候補を提案` を実行し、到達判定が `reachable` になることを確認する。

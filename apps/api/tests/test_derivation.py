@@ -356,6 +356,37 @@ def test_derivation_reachability_jobs_reaches_usagi_ga_iru_with_auto_tense_suppl
     assert terminal["completed"] is True
 
 
+def test_derivation_init_from_sentence_marks_john_ga_wo_yonda_as_unreachable() -> None:
+    client = TestClient(app)
+    initialized = client.post(
+        "/v1/derivation/init/from-sentence",
+        json={
+            "grammar_id": "imi01",
+            "sentence": "ジョンがを読んだ",
+            "split_mode": "A",
+            "legacy_root": str(_legacy_root()),
+        },
+    )
+    assert initialized.status_code == 200
+
+    reachability = client.post(
+        "/v1/derivation/reachability",
+        json={
+            "state": initialized.json()["state"],
+            "max_evidences": 20,
+            "offset": 0,
+            "limit": 10,
+            "budget_seconds": 30.0,
+            "max_nodes": 2_000_000,
+            "legacy_root": str(_legacy_root()),
+        },
+    )
+    assert reachability.status_code == 200
+    body = reachability.json()
+    assert body["status"] == "unreachable"
+    assert body["completed"] is True
+
+
 @pytest.mark.parametrize(
     ("tense_label", "grammar_id", "sentence", "expected_tokens", "source_num_relpath"),
     [

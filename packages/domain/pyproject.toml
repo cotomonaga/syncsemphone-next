@@ -6,9 +6,9 @@ build-backend = "setuptools.build_meta"
 name = "syncsemphone-next-domain"
 version = "0.1.0"
 description = "Domain layer for syncsemphone-next"
-requires-python = ">=3.12"
+requires-python = ">=3.9"
 dependencies = [
-  "pydantic>=2.8.0",
+  "pydantic==2.8.0",
   "SudachiPy",
   "SudachiDict-core",
   "PyYAML",
@@ -16,7 +16,7 @@ dependencies = [
 
 [project.optional-dependencies]
 dev = [
-  "pytest>=8.3.0",
+  "pytest==8.3.0",
 ]
 
 [tool.pytest.ini_options]

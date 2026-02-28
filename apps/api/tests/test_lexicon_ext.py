@@ -424,6 +424,56 @@ def test_lexicon_ext_items_crud(monkeypatch) -> None:
         assert delete_response.json()["deleted"] is True
 
 
+def test_lexicon_ext_items_supports_query_category_and_sort(monkeypatch) -> None:
+    client = TestClient(app)
+    with TemporaryDirectory() as tmpdir:
+        legacy_root = Path(tmpdir)
+        _seed_lexicon_csv(legacy_root / "lexicon-all.csv")
+        monkeypatch.setattr(lexicon_ext, "_default_legacy_root", lambda: legacy_root)
+
+        payloads = [
+            {
+                "lexicon_id": 2,
+                "entry": "ccc",
+                "phono": "ccc",
+                "category": "N",
+                "predicates": [],
+                "sync_features": [],
+                "idslot": "id",
+                "semantics": [],
+                "note": "",
+            },
+            {
+                "lexicon_id": 3,
+                "entry": "aaa",
+                "phono": "aaa",
+                "category": "iA",
+                "predicates": [],
+                "sync_features": [],
+                "idslot": "id",
+                "semantics": [],
+                "note": "",
+            },
+        ]
+        for payload in payloads:
+            response = client.post("/v1/lexicon/imi03/items", json=payload)
+            assert response.status_code == 200
+
+        by_entry = client.get("/v1/lexicon/imi03/items?sort=entry&order=asc")
+        assert by_entry.status_code == 200
+        assert by_entry.json()["items"][0]["entry"] == "aaa"
+
+        category_only = client.get("/v1/lexicon/imi03/items?q=category:iA")
+        assert category_only.status_code == 200
+        assert category_only.json()["total_count"] == 1
+        assert category_only.json()["items"][0]["entry"] == "aaa"
+
+        category_and_text = client.get("/v1/lexicon/imi03/items?q=category:iA+aa")
+        assert category_and_text.status_code == 200
+        assert category_and_text.json()["total_count"] == 1
+        assert category_and_text.json()["items"][0]["entry"] == "aaa"
+
+
 def test_lexicon_ext_metadata_endpoints(monkeypatch) -> None:
     client = TestClient(app)
     monkeypatch.setenv("DATABASE_URL", "postgresql://test:test@localhost:5432/test")

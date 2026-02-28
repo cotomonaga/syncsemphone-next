@@ -253,6 +253,23 @@
 - `LEX-REG-03`: Playwright E2Eに `lexicon workbench shows 3-pane editing tabs` を追加し、実ブラウザ導線を固定した。
 - `LEX-API-07`: メタDB URL 未設定時に `value-dictionary / num-links / notes / note-revisions` の読取APIを空結果フォールバックに変更し、`Metadata DB URL is missing...` による画面停止を解消した。
 - `UI-PERSIST-01`: `localStorage(syncsemphone-next:ui-state:v1)` へ `uiMode/renewPanel/workflowStarted/grammarId/setupGrammarId/step1EntryMode` を保存し、再読込時に復元するようにした（test環境では無効）。
+- `LEX-UI-13..17 / LEX-API-08`: 語彙編集ページを上部タブ構成へ再編し、一覧検索Enter・`category:*` フィルタ・列ソート・編集導線・`id_slot` 候補制限（実使用値＋CSV実在値）を実装した。
+- `S2-HDA-33 / S2-REG-17`: Step2 `候補を提案` の reachability job 起動パラメータに探索予算（`budget_seconds=30`, `max_nodes=2_000_000`, `max_depth=28`）を明示し、Web回帰で固定した。
+- `S2-REG-18`: API回帰 `test_derivation_init_from_sentence_marks_john_ga_wo_yonda_as_unreachable` を追加し、`ジョンがを読んだ` が高予算でも `unreachable` になることを固定した。
+
+## 追加対応表（2026-02-28）
+
+| ID | 実装内容 | 実装先 | 検証 |
+|---|---|---|---|
+| LEX-UI-13 | 語彙編集見出しを `語彙の編集` へ変更し、App上部の `Lexicon` ステップタブを非表示化 | `apps/web/src/LexiconWorkbench.tsx`, `apps/web/src/App.tsx` | `vitest`, Playwright |
+| LEX-UI-14 | 語彙編集を上部タブ切替へ変更し、`num紐付け/研究メモ/版管理` を語彙項目編集内へ統合（Markdownプレビュー付き） | `apps/web/src/LexiconWorkbench.tsx`, `apps/web/src/styles.css` | `vitest`, Playwright |
+| LEX-UI-15 | 一覧検索を Enter 実行対応し、`category:iA` 絞り込み検索を有効化。一覧下 `新規` ボタンを撤去 | `apps/web/src/LexiconWorkbench.tsx`, `apps/api/app/api/v1/lexicon_ext.py` | `vitest`, `pytest` |
+| LEX-UI-16 | 一覧 `id/entry/category` ソート矢印トグルを追加し、行選択後の `編集` ボタンで編集タブへ遷移 | `apps/web/src/LexiconWorkbench.tsx`, `apps/web/src/styles.css` | `vitest`, Playwright |
+| LEX-UI-17 | `id_slot` 候補をマージ規則実使用値 + CSV実在値へ制限し、末尾カンマ揺れを正規化 | `apps/web/src/LexiconWorkbench.tsx` | `vitest` |
+| LEX-API-08 | `/v1/lexicon/{grammar_id}/items` に `sort/order` と `category:*` フィルタを追加 | `apps/api/app/api/v1/lexicon_ext.py`, `apps/api/tests/test_lexicon_ext.py` | `pytest` |
+| S2-HDA-33 | Step2 `候補を提案` の reachability job 起動時に探索予算（30秒 / 200万ノード / 深さ28）を明示して `unknown` 回避を図る | `apps/web/src/App.tsx` | `vitest`, Playwright |
+| S2-REG-17 | Web回帰で reachability job payload の探索予算値を固定する | `apps/web/src/__tests__/App.test.tsx` | `vitest` |
+| S2-REG-18 | `ジョンがを読んだ` を high budget で評価しても `unreachable` であることをAPI回帰に固定する | `apps/api/tests/test_derivation.py` | `pytest` |
 
 ## API追加（S1-GRM-02）
 - `GET /v1/reference/grammars/{grammar_id}/rule-sources`

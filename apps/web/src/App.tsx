@@ -141,7 +141,7 @@ const RENEW_MENUS: Array<{
   {
     key: "lexicon",
     label: "語彙の編集",
-    steps: [{ key: "lexicon", label: "Lexicon" }]
+    steps: [{ key: "lexicon", label: "語彙の編集" }]
   }
 ];
 
@@ -1973,6 +1973,9 @@ export default function App() {
         max_evidences: 50,
         offset: 0,
         limit: reachabilityLimit,
+        budget_seconds: 30.0,
+        max_nodes: 2_000_000,
+        max_depth: 28,
         return_process_text: true
       });
       setReachabilityJobId(start.job_id);
@@ -2782,18 +2785,20 @@ export default function App() {
           </aside>
 
           <section className="renew-main">
-            <div className="renew-topnav">
-              {activeRenewMenu.steps.map((step) => (
-                <button
-                  key={`step-${step.key}`}
-                  type="button"
-                  className={renewPanel === step.key ? "renew-step-btn active" : "renew-step-btn"}
-                  onClick={() => setRenewPanel(step.key)}
-                >
-                  {step.label}
-                </button>
-              ))}
-            </div>
+            {activeRenewMenu.key !== "lexicon" && (
+              <div className="renew-topnav">
+                {activeRenewMenu.steps.map((step) => (
+                  <button
+                    key={`step-${step.key}`}
+                    type="button"
+                    className={renewPanel === step.key ? "renew-step-btn active" : "renew-step-btn"}
+                    onClick={() => setRenewPanel(step.key)}
+                  >
+                    {step.label}
+                  </button>
+                ))}
+              </div>
+            )}
 
           <main
             className={uiMode === "renewed" ? "grid renewed-grid" : "grid legacy-grid"}
