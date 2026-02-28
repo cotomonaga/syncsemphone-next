@@ -281,6 +281,12 @@
   - 成果物: [lexicon-idslot-audit-ja.md](/Users/tomonaga/Documents/syncsemphoneIMI/syncsemphone-next/docs/specs/lexicon-idslot-audit-ja.md)
 - [x] `LEX-API-09` メタDB未設定時でも `value-dictionary` 一覧が空停止しないよう、Lexicon実データ由来のフォールバック辞書を返す。
 
+## 59. 語彙編集フォローアップ（可読性・辞書編集・説明補強）
+- [x] `LEX-UI-19` 語彙項目一覧の行内 `編集` ボタンが白地白文字にならないよう、他ボタンと同系統の可読配色へ統一する。
+- [x] `LEX-RPT-02` `id_slot` 値（`0,24` / `2,22` / `2,24` / `2,27,target`）が実際にどのマージ処理で読まれるかを、コード参照付きで追記する。
+- [x] `LEX-UI-20` バリュー辞書で既存項目選択時に `値` 入力へ自動反映し、そのまま `更新` できるUXへ修正する（`metadata(JSON)` 入力は撤去）。
+- [x] `LEX-API-10` `使用語彙を表示` の結果を `lexicon_id / entry` を含む明示的な一覧に変更し、メタDB未設定時のフォールバック経路でも返却する。
+
 ## 46. 到達判定の運用経路回帰（文入力 -> Step2）
 - [x] `S2-REG-12` `init/from-sentence`（文入力）で生成した `ジョンがメアリをスケートボードで追いかけた` の state に対し、`/v1/derivation/reachability` が `reachable` を返すことをAPIテストで固定する。
 - [x] `S2-REG-13` Playwright実機で `【Step.1】Numerationの形成 -> Numerationを形成 -> 【Step.2】候補を提案` を実行し、到達判定が `reachable` になることを確認する。

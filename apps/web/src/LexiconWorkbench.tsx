@@ -227,10 +227,10 @@ export default function LexiconWorkbench({ grammarId }: LexiconWorkbenchProps) {
 
   const [dictionaryKind, setDictionaryKind] = useState<ValueDictionaryKind>("category");
   const [dictionaryItems, setDictionaryItems] = useState<ValueDictionaryItem[]>([]);
+  const [dictionarySource, setDictionarySource] = useState<"db" | "lexicon_fallback">("db");
   const [selectedDictionaryId, setSelectedDictionaryId] = useState<number | null>(null);
   const [dictionaryUsage, setDictionaryUsage] = useState<ValueDictionaryUsageResponse | null>(null);
   const [dictionaryCreateValue, setDictionaryCreateValue] = useState("");
-  const [dictionaryMetadataText, setDictionaryMetadataText] = useState("{}");
   const [dictionaryReplaceTargetId, setDictionaryReplaceTargetId] = useState<number | null>(null);
 
   const [numLinks, setNumLinks] = useState<NumLinkItem[]>([]);
@@ -431,6 +431,7 @@ export default function LexiconWorkbench({ grammarId }: LexiconWorkbenchProps) {
   async function refreshDictionary(kind: ValueDictionaryKind = dictionaryKind) {
     const response = await apiGet<ValueDictionaryListResponse>(`/v1/lexicon/value-dictionary?kind=${kind}`);
     setDictionaryItems(response.items);
+    setDictionarySource(response.source || "db");
   }
 
   async function loadItem(lexiconId: number) {
@@ -531,13 +532,6 @@ export default function LexiconWorkbench({ grammarId }: LexiconWorkbenchProps) {
       setActiveTopTab("edit");
       setMessage(`語彙項目 ${lexiconId} を読み込みました。`);
     });
-  }
-
-  async function handleOpenSelectedItemForEdit() {
-    if (selectedListLexiconId === null) {
-      return;
-    }
-    await openItemForEdit(selectedListLexiconId);
   }
 
   async function startNewItem() {
@@ -663,18 +657,15 @@ export default function LexiconWorkbench({ grammarId }: LexiconWorkbenchProps) {
 
   async function handleCreateDictionaryValue() {
     await runTask(async () => {
-      let metadata: Record<string, unknown> = {};
-      if (dictionaryMetadataText.trim() !== "") {
-        metadata = JSON.parse(dictionaryMetadataText);
-      }
       await apiPost<ValueDictionaryItem>("/v1/lexicon/value-dictionary", {
         kind: dictionaryKind,
         display_value:
           dictionaryKind === "idslot" ? normalizeIdslotValue(dictionaryCreateValue) : dictionaryCreateValue,
-        metadata_json: metadata
+        metadata_json: {}
       });
       await Promise.all([refreshDictionary(dictionaryKind), refreshAllIdslotValues()]);
       setDictionaryCreateValue("");
+      setSelectedDictionaryId(null);
       setMessage("バリュー辞書に追加しました。");
     });
   }
@@ -688,14 +679,9 @@ export default function LexiconWorkbench({ grammarId }: LexiconWorkbenchProps) {
       if (!selected) {
         throw new Error("更新対象の辞書値が見つかりません。");
       }
-      let metadata: Record<string, unknown> = selected.metadata_json || {};
-      if (dictionaryMetadataText.trim() !== "") {
-        metadata = JSON.parse(dictionaryMetadataText);
-      }
       await apiPut<ValueDictionaryItem>(`/v1/lexicon/value-dictionary/${selectedDictionaryId}`, {
-        display_value:
-          selected.kind === "idslot" ? normalizeIdslotValue(selected.display_value) : selected.display_value,
-        metadata_json: metadata
+        display_value: selected.kind === "idslot" ? normalizeIdslotValue(dictionaryCreateValue) : dictionaryCreateValue,
+        metadata_json: selected.metadata_json || {}
       });
       await Promise.all([refreshDictionary(dictionaryKind), refreshAllIdslotValues()]);
       setMessage("バリュー辞書を更新しました。");
@@ -710,6 +696,7 @@ export default function LexiconWorkbench({ grammarId }: LexiconWorkbenchProps) {
       await apiDelete<{ deleted: boolean }>(`/v1/lexicon/value-dictionary/${selectedDictionaryId}`);
       await Promise.all([refreshDictionary(dictionaryKind), refreshAllIdslotValues()]);
       setSelectedDictionaryId(null);
+      setDictionaryCreateValue("");
       setDictionaryUsage(null);
       setMessage("バリュー辞書を削除しました。");
     });
@@ -743,6 +730,7 @@ export default function LexiconWorkbench({ grammarId }: LexiconWorkbenchProps) {
         refreshItems(page, query, sortKey, sortOrder),
         refreshAllIdslotValues()
       ]);
+      setDictionaryReplaceTargetId(null);
       setDictionaryUsage(null);
       setMessage("辞書値を一括置換しました。");
     });
@@ -1566,7 +1554,9 @@ export default function LexiconWorkbench({ grammarId }: LexiconWorkbenchProps) {
                     className={selectedDictionaryId === row.id ? "lexicon-row-active" : ""}
                     onClick={() => {
                       setSelectedDictionaryId(row.id);
-                      setDictionaryMetadataText(JSON.stringify(row.metadata_json || {}, null, 2));
+                      setDictionaryCreateValue(row.display_value);
+                      setDictionaryReplaceTargetId(null);
+                      setDictionaryUsage(null);
                     }}
                   >
                     <td>{row.id}</td>
@@ -1577,20 +1567,11 @@ export default function LexiconWorkbench({ grammarId }: LexiconWorkbenchProps) {
             </table>
           </div>
           <label>
-            新規値
+            値
             <input
               aria-label="dictionary-new-value"
               value={dictionaryCreateValue}
               onChange={(event) => setDictionaryCreateValue(event.target.value)}
-            />
-          </label>
-          <label>
-            metadata(JSON)
-            <textarea
-              aria-label="dictionary-metadata-input"
-              rows={3}
-              value={dictionaryMetadataText}
-              onChange={(event) => setDictionaryMetadataText(event.target.value)}
             />
           </label>
           <div className="row">
@@ -1599,12 +1580,12 @@ export default function LexiconWorkbench({ grammarId }: LexiconWorkbenchProps) {
               onClick={() => void handleCreateDictionaryValue()}
               disabled={loading || !dictionaryCreateValue.trim()}
             >
-              追加
+              新規追加
             </button>
             <button
               type="button"
               onClick={() => void handleUpdateDictionaryValue()}
-              disabled={loading || selectedDictionaryId === null}
+              disabled={loading || selectedDictionaryId === null || !dictionaryCreateValue.trim()}
             >
               更新
             </button>
@@ -1622,7 +1603,7 @@ export default function LexiconWorkbench({ grammarId }: LexiconWorkbenchProps) {
               onClick={() => void handleLoadDictionaryUsage()}
               disabled={loading || selectedDictionaryId === null}
             >
-              使用件数
+              使用語彙を表示
             </button>
             <select
               aria-label="dictionary-replace-target"
@@ -1646,13 +1627,50 @@ export default function LexiconWorkbench({ grammarId }: LexiconWorkbenchProps) {
               一括置換
             </button>
           </div>
-          {selectedDictionaryItem && <p className="hint">選択中: {selectedDictionaryItem.display_value}</p>}
+          {selectedDictionaryItem && (
+            <p className="hint">
+              選択中: {selectedDictionaryItem.display_value}
+              {" / "}
+              source: {dictionarySource}
+            </p>
+          )}
           {dictionaryUsage && (
-            <pre className="mono">
-              total_usages: {dictionaryUsage.total_usages}
-              {"\n"}
-              {JSON.stringify(dictionaryUsage.usages_by_grammar, null, 2)}
-            </pre>
+            <>
+              <p className="hint">
+                total_usages: {dictionaryUsage.total_usages}
+                {" / "}
+                source: {dictionaryUsage.source || dictionarySource}
+              </p>
+              <div className="inspect-table-wrap">
+                <table>
+                  <thead>
+                    <tr>
+                      <th>grammar</th>
+                      <th>lexicon_id</th>
+                      <th>entry</th>
+                      <th>category</th>
+                      <th>matches</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {dictionaryUsage.usage_lexicon_items.map((row) => (
+                      <tr key={`dict-usage-${row.grammar_id}-${row.lexicon_id}`}>
+                        <td>{row.grammar_id}</td>
+                        <td>{row.lexicon_id}</td>
+                        <td>{row.entry}</td>
+                        <td>{row.category}</td>
+                        <td>{row.match_count}</td>
+                      </tr>
+                    ))}
+                    {dictionaryUsage.usage_lexicon_items.length === 0 && (
+                      <tr>
+                        <td colSpan={5}>一致する語彙項目はありません。</td>
+                      </tr>
+                    )}
+                  </tbody>
+                </table>
+              </div>
+            </>
           )}
         </section>
       )}

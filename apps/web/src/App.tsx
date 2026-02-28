@@ -1987,10 +1987,15 @@ export default function App() {
         return;
       }
 
+      const terminalStatus: ReachabilityResponse["status"] =
+        terminal.status === "reachable" || terminal.status === "unreachable" || terminal.status === "unknown"
+          ? terminal.status
+          : "unknown";
+
       setReachabilityResult({
-        status: terminal.status,
+        status: terminalStatus,
         completed: Boolean(terminal.completed),
-        reason: terminal.reason ?? terminal.status,
+        reason: terminal.reason ?? terminalStatus,
         metrics: terminal.metrics ?? {
           expanded_nodes: 0,
           generated_nodes: 0,
@@ -2022,7 +2027,7 @@ export default function App() {
         evidences: []
       });
       await loadReachabilityEvidencePage(start.job_id, 0, reachabilityLimit);
-      setReachabilityMessage(`到達判定: ${terminal.status}`);
+      setReachabilityMessage(`到達判定: ${terminalStatus}`);
     });
   }
 

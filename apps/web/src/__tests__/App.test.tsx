@@ -106,6 +106,7 @@ function maybeCommonResponse(url: string): Response | null {
   if (url.includes("/v1/lexicon/value-dictionary?kind=category")) {
     return jsonResponse({
       body: {
+        source: "lexicon_fallback",
         items: [
           {
             id: 1,
@@ -2010,5 +2011,88 @@ describe("App", () => {
     expect(await screen.findByTestId("lexicon-dictionary-tab")).toBeInTheDocument();
     await user.click(screen.getByRole("button", { name: "CSV/YAML" }));
     expect(await screen.findByTestId("lexicon-importexport-tab")).toBeInTheDocument();
+  });
+
+  it("autofills dictionary value, updates existing item, and shows usage lexicon rows", async () => {
+    const calls: Array<{ url: string; method: string; body?: string }> = [];
+    vi.spyOn(globalThis, "fetch").mockImplementation(async (input, init) => {
+      const url = String(input);
+      const method = String(init?.method || "GET").toUpperCase();
+      const body = typeof init?.body === "string" ? init.body : undefined;
+      calls.push({ url, method, body });
+
+      const common = maybeCommonResponse(url);
+      if (common) {
+        return common;
+      }
+      if (url.endsWith("/v1/lexicon/value-dictionary/1") && method === "PUT") {
+        return jsonResponse({
+          body: {
+            id: 1,
+            kind: "category",
+            normalized_value: "n2",
+            display_value: "N2",
+            metadata_json: {},
+            created_at: "2026-02-28T00:00:00+00:00",
+            updated_at: "2026-02-28T00:01:00+00:00"
+          }
+        });
+      }
+      if (url.endsWith("/v1/lexicon/value-dictionary/1/usages") && method === "GET") {
+        return jsonResponse({
+          body: {
+            source: "lexicon_fallback",
+            id: 1,
+            kind: "category",
+            display_value: "N",
+            total_usages: 1,
+            usages_by_grammar: { imi01: 1 },
+            usage_lexicon_items: [
+              {
+                grammar_id: "imi01",
+                lexicon_id: 60,
+                entry: "ジョン",
+                category: "N",
+                match_count: 1
+              }
+            ]
+          }
+        });
+      }
+      throw new Error(`unexpected url: ${url}`);
+    });
+
+    const user = userEvent.setup();
+    render(<App />);
+
+    await user.click(await screen.findByRole("button", { name: "語彙の編集" }));
+    await user.click(await screen.findByRole("button", { name: "バリュー辞書" }));
+    expect(await screen.findByTestId("lexicon-dictionary-tab")).toBeInTheDocument();
+
+    expect(screen.queryByText("metadata(JSON)")).not.toBeInTheDocument();
+
+    const dictionaryTab = await screen.findByTestId("lexicon-dictionary-tab");
+    const row = within(dictionaryTab).getByText("1").closest("tr");
+    expect(row).not.toBeNull();
+    await user.click(row!);
+    const valueInput = await screen.findByLabelText("dictionary-new-value");
+    expect(valueInput).toHaveValue("N");
+
+    await user.clear(valueInput);
+    await user.type(valueInput, "N2");
+    const updateButtons = within(dictionaryTab).getAllByRole("button", { name: "更新" });
+    await user.click(updateButtons[updateButtons.length - 1]);
+    expect(
+      calls.some(
+        (call) =>
+          call.url.endsWith("/v1/lexicon/value-dictionary/1") &&
+          call.method === "PUT" &&
+          (call.body || "").includes('"display_value":"N2"')
+      )
+    ).toBe(true);
+
+    await user.click(within(dictionaryTab).getByRole("button", { name: "使用語彙を表示" }));
+    expect(await within(dictionaryTab).findByText("ジョン")).toBeInTheDocument();
+    expect(await within(dictionaryTab).findByText("60")).toBeInTheDocument();
   });
 });

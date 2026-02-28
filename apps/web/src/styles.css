@@ -1193,6 +1193,13 @@ td {
   border-radius: 8px;
   border: 1px solid var(--line);
   background: #f3f6fa;
+  color: var(--ink);
+}
+
+.lexicon-row-edit-btn:hover:not(:disabled) {
+  background: #e8eef6;
+  color: var(--ink);
+  transform: none;
 }
 
 .lexicon-multi-field {

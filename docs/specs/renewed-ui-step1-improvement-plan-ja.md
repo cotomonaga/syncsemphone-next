@@ -260,6 +260,10 @@
 - `LEX-UI-18`: 語彙項目一覧の `編集` ボタンを選択行右端セルへ移動し、一覧上部の操作密度を下げた。
 - `S2-UI-05`: Step2 の `やり直し` を単一ボタンへ統合し、`候補を提案` 左に固定配置した。
 - `LEX-API-09`: メタDB未設定時の `value-dictionary` をLexicon実データ由来でフォールバック返却するよう修正した。
+- `LEX-UI-19`: 語彙項目一覧の行内 `編集` ボタン配色を調整し、白地白文字の可読性崩れを解消した。
+- `LEX-RPT-02`: `id_slot` 値（`0,24` / `2,22` / `2,24` / `2,27,target`）の実処理参照箇所を監査レポートへ追記した。
+- `LEX-UI-20`: バリュー辞書で行選択時に `値` 入力へ自動反映し、既存項目の更新を即時実行できるよう修正した。`metadata(JSON)` 入力は撤去した。
+- `LEX-API-10`: `使用語彙を表示` を `lexicon_id / entry` を含む一覧へ変更し、メタDB未設定時フォールバックでも返却するようにした。
 
 ## 追加対応表（2026-02-28）
 
@@ -275,6 +279,10 @@
 | LEX-UI-18 | 語彙項目一覧の `編集` ボタンを選択行右端セルへ移動（一覧上部から撤去） | `apps/web/src/LexiconWorkbench.tsx`, `apps/web/src/styles.css`, `apps/web/src/__tests__/App.test.tsx` | `vitest`, Playwright |
 | S2-UI-05 | Step2 の `やり直し` を各行から撤去し、`候補を提案` 左の単一ボタンへ統合 | `apps/web/src/App.tsx`, `apps/web/src/__tests__/App.test.tsx` | `vitest`, Playwright |
 | LEX-API-09 | メタDB未設定時 `value-dictionary` を Lexicon 実データ由来でフォールバック返却 | `apps/api/app/api/v1/lexicon_ext.py`, `apps/api/tests/test_lexicon_ext.py` | `pytest` |
+| LEX-UI-19 | 語彙項目一覧の行内 `編集` ボタンを可読配色へ修正（白地白文字を解消） | `apps/web/src/styles.css` | `vitest`, Playwright |
+| LEX-RPT-02 | `id_slot` 各値が実際に参照されるマージ処理をコード根拠付きで追記 | `docs/specs/lexicon-idslot-audit-ja.md` | 文書レビュー |
+| LEX-UI-20 | バリュー辞書行選択時に `値` へ自動入力し、既存項目を直接更新可能にする。`metadata(JSON)` 入力は廃止 | `apps/web/src/LexiconWorkbench.tsx`, `apps/web/src/types.ts` | `vitest`, Playwright |
+| LEX-API-10 | `使用語彙を表示` で `lexicon_id/entry` を返し、フォールバックでも利用可能にする | `apps/api/app/api/v1/lexicon_ext.py`, `apps/api/tests/test_lexicon_ext.py` | `pytest` |
 | S2-HDA-33 | Step2 `候補を提案` の reachability job 起動時に探索予算（30秒 / 200万ノード / 深さ28）を明示して `unknown` 回避を図る | `apps/web/src/App.tsx` | `vitest`, Playwright |
 | S2-REG-17 | Web回帰で reachability job payload の探索予算値を固定する | `apps/web/src/__tests__/App.test.tsx` | `vitest` |
 | S2-REG-18 | `ジョンがを読んだ` を high budget で評価しても `unreachable` であることをAPI回帰に固定する | `apps/api/tests/test_derivation.py` | `pytest` |

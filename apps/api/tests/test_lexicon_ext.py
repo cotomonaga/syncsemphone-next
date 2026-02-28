@@ -575,21 +575,43 @@ def test_lexicon_ext_read_endpoints_degrade_when_meta_db_missing(monkeypatch) ->
     monkeypatch.delenv("SYNCSEMPHONE_META_DB_URL", raising=False)
     monkeypatch.delenv("SYNCSEMPHONE_DATABASE_URL", raising=False)
     monkeypatch.delenv("DATABASE_URL", raising=False)
+    with TemporaryDirectory() as tmpdir:
+        legacy_root = Path(tmpdir)
+        _seed_lexicon_csv(legacy_root / "lexicon-all.csv")
+        monkeypatch.setattr(lexicon_ext, "_default_legacy_root", lambda: legacy_root)
 
-    dictionary = client.get("/v1/lexicon/value-dictionary?kind=category")
-    assert dictionary.status_code == 200
-    assert dictionary.json()["items"]
-    assert any(row["display_value"] == "ジョン" for row in dictionary.json()["items"]) is False
-    assert any(row["display_value"] == "N" for row in dictionary.json()["items"])
+        dictionary = client.get("/v1/lexicon/value-dictionary?kind=category")
+        assert dictionary.status_code == 200
+        assert dictionary.json()["source"] == "lexicon_fallback"
+        assert dictionary.json()["items"]
+        assert any(row["display_value"] == "N" for row in dictionary.json()["items"])
+        category_id = next(row["id"] for row in dictionary.json()["items"] if row["display_value"] == "N")
 
-    num_links = client.get("/v1/lexicon/imi01/items/60/num-links")
-    assert num_links.status_code == 200
-    assert num_links.json()["items"] == []
+        usage = client.get(f"/v1/lexicon/value-dictionary/{category_id}/usages")
+        assert usage.status_code == 200
+        assert usage.json()["source"] == "lexicon_fallback"
+        assert usage.json()["total_usages"] >= 1
+        assert any(row["lexicon_id"] == 1 for row in usage.json()["usage_lexicon_items"])
+        assert any(row["entry"] == "ジョン" for row in usage.json()["usage_lexicon_items"])
 
-    note = client.get("/v1/lexicon/imi01/items/60/notes")
-    assert note.status_code == 200
-    assert note.json()["markdown"] == ""
+        updated = client.put(
+            f"/v1/lexicon/value-dictionary/{category_id}",
+            json={"display_value": "NN", "metadata_json": {}},
+        )
+        assert updated.status_code == 200
+        assert updated.json()["display_value"] == "NN"
+        item = client.get("/v1/lexicon/imi01/items/1")
+        assert item.status_code == 200
+        assert item.json()["item"]["category"] == "NN"
 
-    revisions = client.get("/v1/lexicon/imi01/items/60/notes/revisions")
-    assert revisions.status_code == 200
-    assert revisions.json()["items"] == []
+        num_links = client.get("/v1/lexicon/imi01/items/60/num-links")
+        assert num_links.status_code == 200
+        assert num_links.json()["items"] == []
+
+        note = client.get("/v1/lexicon/imi01/items/60/notes")
+        assert note.status_code == 200
+        assert note.json()["markdown"] == ""
+
+        revisions = client.get("/v1/lexicon/imi01/items/60/notes/revisions")
+        assert revisions.status_code == 200
+        assert revisions.json()["items"] == []

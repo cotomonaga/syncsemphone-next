@@ -63,6 +63,7 @@ class ValueDictionaryItem(BaseModel):
 
 
 class ValueDictionaryListResponse(BaseModel):
+    source: Literal["db", "lexicon_fallback"] = "db"
     items: list[ValueDictionaryItem]
 
 
@@ -78,11 +79,13 @@ class ValueDictionaryUpdateRequest(BaseModel):
 
 
 class ValueDictionaryUsageResponse(BaseModel):
+    source: Literal["db", "lexicon_fallback"] = "db"
     id: int
     kind: ValueKind
     display_value: str
     total_usages: int
     usages_by_grammar: dict[str, int]
+    usage_lexicon_items: list[dict[str, Any]] = Field(default_factory=list)
 
 
 class ValueDictionaryReplaceRequest(BaseModel):
@@ -268,6 +271,50 @@ def _build_fallback_value_dictionary(kind: Optional[ValueKind], legacy_root: Pat
     return items
 
 
+def _resolve_fallback_value_item(*, value_id: int, legacy_root: Path) -> Optional[ValueDictionaryItem]:
+    items = _build_fallback_value_dictionary(kind=None, legacy_root=legacy_root)
+    for item in items:
+        if item.id == value_id:
+            return item
+    return None
+
+
+def _collect_value_usage_lexicon_items(kind: ValueKind, display_value: str, legacy_root: Path) -> list[dict[str, Any]]:
+    rows: list[dict[str, Any]] = []
+    for grammar_id in _iter_grammar_ids():
+        try:
+            entries = load_legacy_lexicon(legacy_root=legacy_root, grammar_id=grammar_id)
+        except Exception:
+            continue
+        for entry in entries.values():
+            match_count = 0
+            if kind == "category":
+                match_count = 1 if entry.category == display_value else 0
+            elif kind == "idslot":
+                match_count = 1 if _normalize_idslot(entry.idslot) == _normalize_idslot(display_value) else 0
+            elif kind == "sync_feature":
+                match_count = sum(1 for row in entry.sync_features if row == display_value)
+            elif kind == "semantic":
+                match_count = sum(1 for row in entry.semantics if row == display_value)
+            elif kind == "predicate":
+                needle = display_value
+                match_count = sum(
+                    1 for pred in entry.predicates if "|".join([pred[0], pred[1], pred[2]]) == needle
+                )
+            if match_count > 0:
+                rows.append(
+                    {
+                        "grammar_id": grammar_id,
+                        "lexicon_id": int(entry.lexicon_id),
+                        "entry": str(entry.entry),
+                        "category": str(entry.category),
+                        "match_count": int(match_count),
+                    }
+                )
+    rows.sort(key=lambda row: (row["grammar_id"], row["lexicon_id"]))
+    return rows
+
+
 def _parse_utc(ts: Any) -> str:
     if ts is None:
         return ""
@@ -442,7 +489,7 @@ def _count_value_usages(kind: ValueKind, display_value: str, legacy_root: Path) 
             if kind == "category":
                 count += 1 if entry.category == display_value else 0
             elif kind == "idslot":
-                count += 1 if entry.idslot == display_value else 0
+                count += 1 if _normalize_idslot(entry.idslot) == _normalize_idslot(display_value) else 0
             elif kind == "sync_feature":
                 count += sum(1 for row in entry.sync_features if row == display_value)
             elif kind == "semantic":
@@ -644,7 +691,10 @@ def list_value_dictionary(
     kind: Optional[ValueKind] = Query(default=None),
 ) -> ValueDictionaryListResponse:
     if _meta_db_url_optional() is None:
-        return ValueDictionaryListResponse(items=_build_fallback_value_dictionary(kind=kind, legacy_root=_default_legacy_root()))
+        return ValueDictionaryListResponse(
+            source="lexicon_fallback",
+            items=_build_fallback_value_dictionary(kind=kind, legacy_root=_default_legacy_root()),
+        )
     with _meta_conn() as conn:
         with conn.cursor() as cur:
             if kind:
@@ -666,7 +716,7 @@ def list_value_dictionary(
                     """
                 )
             rows = [_to_value_item(row) for row in cur.fetchall()]
-    return ValueDictionaryListResponse(items=rows)
+    return ValueDictionaryListResponse(source="db", items=rows)
 
 
 @router.post("/value-dictionary", response_model=ValueDictionaryItem)
@@ -688,6 +738,32 @@ def create_value_dictionary(request: ValueDictionaryCreateRequest) -> ValueDicti
 
 @router.put("/value-dictionary/{value_id}", response_model=ValueDictionaryItem)
 def update_value_dictionary(value_id: int, request: ValueDictionaryUpdateRequest) -> ValueDictionaryItem:
+    if _meta_db_url_optional() is None:
+        legacy_root = _default_legacy_root()
+        fallback_item = _resolve_fallback_value_item(value_id=value_id, legacy_root=legacy_root)
+        if not fallback_item:
+            raise HTTPException(status_code=404, detail=f"Value dictionary item not found: {value_id}")
+        old_value = fallback_item.display_value
+        new_value = request.display_value
+        if fallback_item.kind == "idslot":
+            new_value = _normalize_idslot(new_value)
+            old_value = _normalize_idslot(old_value)
+        _replace_value_in_entries(
+            kind=fallback_item.kind,
+            old_value=old_value,
+            new_value=new_value,
+            legacy_root=legacy_root,
+        )
+        return ValueDictionaryItem(
+            id=fallback_item.id,
+            kind=fallback_item.kind,
+            normalized_value=_normalize_value(new_value),
+            display_value=new_value,
+            metadata_json={},
+            created_at="",
+            updated_at="",
+        )
+
     normalized = _normalize_value(request.display_value)
     with _meta_conn() as conn:
         with conn.cursor() as cur:
@@ -716,6 +792,27 @@ def update_value_dictionary(value_id: int, request: ValueDictionaryUpdateRequest
 
 @router.get("/value-dictionary/{value_id}/usages", response_model=ValueDictionaryUsageResponse)
 def get_value_dictionary_usages(value_id: int) -> ValueDictionaryUsageResponse:
+    if _meta_db_url_optional() is None:
+        legacy_root = _default_legacy_root()
+        fallback_item = _resolve_fallback_value_item(value_id=value_id, legacy_root=legacy_root)
+        if not fallback_item:
+            raise HTTPException(status_code=404, detail=f"Value dictionary item not found: {value_id}")
+        usages = _count_value_usages(kind=fallback_item.kind, display_value=fallback_item.display_value, legacy_root=legacy_root)
+        usage_rows = _collect_value_usage_lexicon_items(
+            kind=fallback_item.kind,
+            display_value=fallback_item.display_value,
+            legacy_root=legacy_root,
+        )
+        return ValueDictionaryUsageResponse(
+            source="lexicon_fallback",
+            id=fallback_item.id,
+            kind=fallback_item.kind,
+            display_value=fallback_item.display_value,
+            total_usages=sum(usages.values()),
+            usages_by_grammar=usages,
+            usage_lexicon_items=usage_rows,
+        )
+
     with _meta_conn() as conn:
         with conn.cursor() as cur:
             cur.execute(
@@ -732,12 +829,15 @@ def get_value_dictionary_usages(value_id: int) -> ValueDictionaryUsageResponse:
     kind = row[1]
     display_value = row[2]
     usages = _count_value_usages(kind=kind, display_value=display_value, legacy_root=_default_legacy_root())
+    usage_rows = _collect_value_usage_lexicon_items(kind=kind, display_value=display_value, legacy_root=_default_legacy_root())
     return ValueDictionaryUsageResponse(
+        source="db",
         id=int(row[0]),
         kind=kind,
         display_value=display_value,
         total_usages=sum(usages.values()),
         usages_by_grammar=usages,
+        usage_lexicon_items=usage_rows,
     )
 
 

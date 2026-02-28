@@ -358,15 +358,26 @@ export type ValueDictionaryItem = {
 };
 
 export type ValueDictionaryListResponse = {
+  source?: "db" | "lexicon_fallback";
   items: ValueDictionaryItem[];
 };
 
+export type ValueDictionaryUsageLexiconItem = {
+  grammar_id: string;
+  lexicon_id: number;
+  entry: string;
+  category: string;
+  match_count: number;
+};
+
 export type ValueDictionaryUsageResponse = {
+  source?: "db" | "lexicon_fallback";
   id: number;
   kind: ValueDictionaryKind;
   display_value: string;
   total_usages: number;
   usages_by_grammar: Record<string, number>;
+  usage_lexicon_items: ValueDictionaryUsageLexiconItem[];
 };
 
 export type NumLinkItem = {
