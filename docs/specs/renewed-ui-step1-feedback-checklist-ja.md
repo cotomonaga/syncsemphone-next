@@ -264,8 +264,10 @@
 - [x] `LEX-UI-14` 語彙編集ページを上部タブ構成へ変更し、`語彙項目一覧 / 語彙項目編集 / バリュー辞書 / CSV/YAML` を切替表示にする。`num紐付け`・`研究メモ`・`版管理` は語彙項目編集内へ統合する。
 - [x] `LEX-UI-15` 語彙項目一覧の検索入力で Enter 実行を有効化し、`category:iA` 形式の絞り込み（entry部分一致併用）を可能にする。一覧下の `新規` ボタンは撤去する。
 - [x] `LEX-UI-16` 語彙項目一覧の `id/entry/category` に昇順降順トグル（矢印表示）を追加し、行選択後に `編集` ボタンを表示して語彙項目編集タブへ遷移できるようにする。
-- [x] `LEX-UI-17` `id_slot` 候補をマージ規則実使用値（`id/zero/rel/0,23/0,24/2,22/2,24/2,27,target`）とCSV実在値に制限し、末尾カンマの揺れは正規化して不要値を除外する。
+- [x] `LEX-UI-17` `id_slot` 候補をマージ規則実使用値（`id/zero/rel/0,24/2,22/2,24/2,27,target`）とCSV実在値に制限し、末尾カンマの揺れは正規化して不要値を除外する。
 - [x] `LEX-API-08` `/v1/lexicon/{grammar_id}/items` に `sort/order` と `q=category:*` 絞り込みを追加し、UIの検索・ソートをAPI契約でサポートする。
+- [x] `LEX-RPT-01` `id_slot` の実測一覧（CSV実在値）と役割説明（コード根拠付き）を監査レポートとして出力する。
+  - 成果物: [lexicon-idslot-audit-ja.md](/Users/tomonaga/Documents/syncsemphoneIMI/syncsemphone-next/docs/specs/lexicon-idslot-audit-ja.md)
 
 ## 47. Step2 到達判定の再安定化（unknown回避）
 - [x] `S2-HDA-33` `候補を提案` から起動する reachability job の探索予算を UI 側で明示（`budget_seconds=30`, `max_nodes=2_000_000`, `max_depth=28`）し、`ジョンがメアリをスケートボードで追いかけた` が `unknown` に振れにくい設定へ戻す。

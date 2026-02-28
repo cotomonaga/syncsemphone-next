@@ -207,6 +207,67 @@ def _normalize_value(raw: str) -> str:
     return " ".join(raw.strip().split()).casefold()
 
 
+def _normalize_idslot(raw: str) -> str:
+    return raw.strip().rstrip(",")
+
+
+def _fallback_grammar_ids() -> list[str]:
+    static_ids = ["imi01", "imi02", "imi03"]
+    dynamic_ids: list[str] = []
+    try:
+        dynamic_ids = [entry.grammar_id for entry in load_legacy_grammar_entries() if entry.grammar_id.startswith("imi")]
+    except Exception:
+        dynamic_ids = []
+    return sorted(set(static_ids + dynamic_ids))
+
+
+def _dictionary_values_from_entry(entry: LexiconEntry, kind: ValueKind) -> list[str]:
+    if kind == "category":
+        return [entry.category] if entry.category.strip() else []
+    if kind == "predicate":
+        return ["|".join(part.strip() for part in row) for row in entry.predicates if any(part.strip() for part in row)]
+    if kind == "sync_feature":
+        return [row.strip() for row in entry.sync_features if row.strip()]
+    if kind == "idslot":
+        normalized = _normalize_idslot(entry.idslot)
+        return [normalized] if normalized else []
+    if kind == "semantic":
+        return [row.strip() for row in entry.semantics if row.strip()]
+    return []
+
+
+def _build_fallback_value_dictionary(kind: Optional[ValueKind], legacy_root: Path) -> list[ValueDictionaryItem]:
+    target_kinds: list[ValueKind] = [kind] if kind else ["category", "predicate", "sync_feature", "idslot", "semantic"]
+    values_by_kind: dict[ValueKind, set[str]] = {target_kind: set() for target_kind in target_kinds}
+
+    for grammar_id in _fallback_grammar_ids():
+        try:
+            entries = load_legacy_lexicon(legacy_root=legacy_root, grammar_id=grammar_id)
+        except Exception:
+            continue
+        for entry in entries.values():
+            for target_kind in target_kinds:
+                values_by_kind[target_kind].update(_dictionary_values_from_entry(entry, target_kind))
+
+    items: list[ValueDictionaryItem] = []
+    next_id = 1
+    for target_kind in target_kinds:
+        for display_value in sorted(values_by_kind[target_kind], key=lambda row: row.casefold()):
+            items.append(
+                ValueDictionaryItem(
+                    id=next_id,
+                    kind=target_kind,
+                    normalized_value=_normalize_value(display_value),
+                    display_value=display_value,
+                    metadata_json={},
+                    created_at="",
+                    updated_at="",
+                )
+            )
+            next_id += 1
+    return items
+
+
 def _parse_utc(ts: Any) -> str:
     if ts is None:
         return ""
@@ -583,7 +644,7 @@ def list_value_dictionary(
     kind: Optional[ValueKind] = Query(default=None),
 ) -> ValueDictionaryListResponse:
     if _meta_db_url_optional() is None:
-        return ValueDictionaryListResponse(items=[])
+        return ValueDictionaryListResponse(items=_build_fallback_value_dictionary(kind=kind, legacy_root=_default_legacy_root()))
     with _meta_conn() as conn:
         with conn.cursor() as cur:
             if kind:

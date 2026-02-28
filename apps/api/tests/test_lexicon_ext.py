@@ -578,7 +578,9 @@ def test_lexicon_ext_read_endpoints_degrade_when_meta_db_missing(monkeypatch) ->
 
     dictionary = client.get("/v1/lexicon/value-dictionary?kind=category")
     assert dictionary.status_code == 200
-    assert dictionary.json()["items"] == []
+    assert dictionary.json()["items"]
+    assert any(row["display_value"] == "ジョン" for row in dictionary.json()["items"]) is False
+    assert any(row["display_value"] == "N" for row in dictionary.json()["items"])
 
     num_links = client.get("/v1/lexicon/imi01/items/60/num-links")
     assert num_links.status_code == 200

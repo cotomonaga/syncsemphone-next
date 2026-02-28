@@ -3583,12 +3583,6 @@ export default function App() {
                         <button onClick={() => handleExecuteCandidate(candidate)} disabled={loading}>
                           実行
                         </button>
-                        <button
-                          onClick={handleUndoStep2Execute}
-                          disabled={loading || step2UndoStack.length === 0}
-                        >
-                          やりなおし
-                        </button>
                       </div>
                     </td>
                   </tr>
@@ -3605,12 +3599,6 @@ export default function App() {
                     <td>
                       <div className="step2-candidate-actions">
                         <button disabled>実行</button>
-                        <button
-                          onClick={handleUndoStep2Execute}
-                          disabled={loading || step2UndoStack.length === 0}
-                        >
-                          やりなおし
-                        </button>
                       </div>
                     </td>
                   </tr>
@@ -3619,6 +3607,9 @@ export default function App() {
             </table>
 
           <div className="row">
+            <button onClick={handleUndoStep2Execute} disabled={loading || step2UndoStack.length === 0}>
+              やり直し
+            </button>
             <button onClick={handleHeadAssist} disabled={!state}>
               候補を提案
             </button>

@@ -1182,6 +1182,19 @@ td {
   background: #edf6ff;
 }
 
+.lexicon-row-action-cell {
+  text-align: right;
+  width: 110px;
+}
+
+.lexicon-row-edit-btn {
+  font-size: 0.78rem;
+  padding: 3px 10px;
+  border-radius: 8px;
+  border: 1px solid var(--line);
+  background: #f3f6fa;
+}
+
 .lexicon-multi-field {
   border: 1px solid var(--line);
   border-radius: 10px;

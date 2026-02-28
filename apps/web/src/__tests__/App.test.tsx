@@ -584,7 +584,7 @@ describe("App", () => {
       expect(screen.getByTestId("current-history")).toHaveTextContent("([x5-1 x6-1] LH-Merge)");
     });
 
-    await user.click(screen.getByRole("button", { name: "やりなおし" }));
+    await user.click(screen.getByRole("button", { name: "やり直し" }));
     await waitFor(() => {
       expect(screen.getByTestId("current-history")).toHaveTextContent("(empty)");
     });
@@ -1992,8 +1992,11 @@ describe("App", () => {
     expect(await screen.findByTestId("lexicon-items-tab")).toBeInTheDocument();
 
     const row = await screen.findByText("ジョン");
-    await user.click(row);
-    await user.click(screen.getByRole("button", { name: "編集" }));
+    const rowElement = row.closest("tr");
+    expect(rowElement).not.toBeNull();
+    await user.click(rowElement!);
+    const editButton = within(rowElement!).getByRole("button", { name: "編集" });
+    await user.click(editButton);
     expect(await screen.findByTestId("lexicon-edit-tab")).toBeInTheDocument();
     const categorySelect = await screen.findByLabelText("lexicon-category-select");
     expect(categorySelect).toBeInTheDocument();
@@ -2001,6 +2004,7 @@ describe("App", () => {
     expect(within(categorySelect).queryByRole("option", { name: "iA" })).not.toBeInTheDocument();
     const idSlotSelect = await screen.findByLabelText("lexicon-idslot-select");
     expect(within(idSlotSelect).queryByRole("option", { name: "0,22" })).not.toBeInTheDocument();
+    expect(within(idSlotSelect).queryByRole("option", { name: "0,23" })).not.toBeInTheDocument();
 
     await user.click(screen.getByRole("button", { name: "バリュー辞書" }));
     expect(await screen.findByTestId("lexicon-dictionary-tab")).toBeInTheDocument();

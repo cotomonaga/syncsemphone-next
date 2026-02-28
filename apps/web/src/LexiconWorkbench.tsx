@@ -41,7 +41,6 @@ const MERGE_RULE_IDSLOT_VALUES = [
   "id",
   "zero",
   "rel",
-  "0,23",
   "0,24",
   "2,22",
   "2,24",
@@ -525,16 +524,20 @@ export default function LexiconWorkbench({ grammarId }: LexiconWorkbenchProps) {
     });
   }
 
+  async function openItemForEdit(lexiconId: number) {
+    await runTask(async () => {
+      await loadItem(lexiconId);
+      await refreshSelectedItemSidePanels(lexiconId);
+      setActiveTopTab("edit");
+      setMessage(`語彙項目 ${lexiconId} を読み込みました。`);
+    });
+  }
+
   async function handleOpenSelectedItemForEdit() {
     if (selectedListLexiconId === null) {
       return;
     }
-    await runTask(async () => {
-      await loadItem(selectedListLexiconId);
-      await refreshSelectedItemSidePanels(selectedListLexiconId);
-      setActiveTopTab("edit");
-      setMessage(`語彙項目 ${selectedListLexiconId} を読み込みました。`);
-    });
+    await openItemForEdit(selectedListLexiconId);
   }
 
   async function startNewItem() {
@@ -993,11 +996,6 @@ export default function LexiconWorkbench({ grammarId }: LexiconWorkbenchProps) {
             <button type="button" disabled={loading} onClick={() => void handleSearchItems()}>
               検索
             </button>
-            {selectedListLexiconId !== null && (
-              <button type="button" disabled={loading} onClick={() => void handleOpenSelectedItemForEdit()}>
-                編集
-              </button>
-            )}
           </div>
           <div className="inspect-table-wrap">
             <table>
@@ -1026,6 +1024,7 @@ export default function LexiconWorkbench({ grammarId }: LexiconWorkbenchProps) {
                       category <span className="lexicon-sort-arrow">{sortArrow("category")}</span>
                     </button>
                   </th>
+                  <th />
                 </tr>
               </thead>
               <tbody>
@@ -1041,6 +1040,21 @@ export default function LexiconWorkbench({ grammarId }: LexiconWorkbenchProps) {
                       <td>{row.lexicon_id}</td>
                       <td>{row.entry}</td>
                       <td>{row.category}</td>
+                      <td className="lexicon-row-action-cell">
+                        {isActive && (
+                          <button
+                            type="button"
+                            className="lexicon-row-edit-btn"
+                            disabled={loading}
+                            onClick={(event) => {
+                              event.stopPropagation();
+                              void openItemForEdit(id);
+                            }}
+                          >
+                            編集
+                          </button>
+                        )}
+                      </td>
                     </tr>
                   );
                 })}
