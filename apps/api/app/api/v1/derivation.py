@@ -1853,16 +1853,13 @@ def _search_reachability(
 
         current_partner_counts = partner_counts(current)
 
-        descriptors = list(
-            _iter_action_descriptors(
-                state=current,
-                legacy_root=legacy_root,
-                rh_merge_version=rh_version,
-                lh_merge_version=lh_version,
-                profile_ns=timing_ns,
-            )
+        descriptors = _iter_action_descriptors(
+            state=current,
+            legacy_root=legacy_root,
+            rh_merge_version=rh_version,
+            lh_merge_version=lh_version,
+            profile_ns=timing_ns,
         )
-        bucket["candidates_raw"] += len(descriptors)
         decreasing_rows: list[
             tuple[RuleCandidate, int, int, DerivationState, int, int, int, int, int, int, int]
         ] = []
@@ -1875,6 +1872,7 @@ def _search_reachability(
         sibling_seen_structural: set[str] = set()
         post_filter_started_ns = time.perf_counter_ns()
         for descriptor in descriptors:
+            bucket["candidates_raw"] += 1
             materialized = _materialize_action_descriptor(
                 state=current,
                 descriptor=descriptor,

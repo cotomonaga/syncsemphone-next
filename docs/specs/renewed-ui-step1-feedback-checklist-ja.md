@@ -520,3 +520,7 @@
 - [x] `S2-HDA-48` lazy path の dominance 署名を structural 固定にし、packed は比較用メトリクスに限定する。
 - [x] `S2-PROF-05` leaf best-sample（残差サマリ）を `metrics.leaf_stats.best_samples` として返し、残差要因の切り分け材料を追加する。
 - [x] `S2-REG-25` `apps/api/tests/test_derivation.py` 全件通過を再確認する。
+
+## 90. Reachability DFSホットパスのdescriptorストリーム化（list除去）
+- [x] `S2-HDA-49` `_search_reachability` 内の `descriptors = list(_iter_action_descriptors(...))` を撤去し、iterator 直処理に変更して descriptor 一括構築コストを除去する。
+- [x] `S2-REG-26` 上記変更後に `apps/api/tests/test_derivation.py` 全件通過を再確認する。

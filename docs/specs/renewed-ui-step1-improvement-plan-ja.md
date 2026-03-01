@@ -400,6 +400,8 @@
 | S2-HDA-48 | lazy path の dominance 署名を structural 固定にする（packed は比較メトリクス用途） | `apps/api/app/api/v1/derivation.py` | `pytest`, A/B実測 |
 | S2-PROF-05 | `metrics.leaf_stats.best_samples` を追加し、best leaf の残差サマリ（deficit_33/25 等）を返す | `apps/api/app/api/v1/derivation.py` | `pytest`, A/B実測 |
 | S2-REG-25 | 変更後に `apps/api/tests/test_derivation.py` 全件通過を再確認する | `apps/api/tests/test_derivation.py` | `python3 -m pytest tests/test_derivation.py -q` |
+| S2-HDA-49 | `_search_reachability` の DFS ホットパスから `descriptors=list(...)` を除去し、`_iter_action_descriptors` iterator を逐次消費する実装へ置換する | `apps/api/app/api/v1/derivation.py` | `pytest`, A/B実測 |
+| S2-REG-26 | 上記ストリーム化後に `apps/api/tests/test_derivation.py` 全件通過を再確認する | `apps/api/tests/test_derivation.py` | `python3 -m pytest tests/test_derivation.py -q` |
 
 ## API追加（S1-GRM-02）
 - `GET /v1/reference/grammars/{grammar_id}/rule-sources`
