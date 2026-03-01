@@ -448,6 +448,16 @@ class _ReachabilityPathStep:
     right_id: Optional[str]
 
 
+@dataclass(frozen=True)
+class _ActionDescriptor:
+    candidate: RuleCandidate
+    left: int
+    right: int
+    distance: int
+    local_priority: int
+    cheap_overlap: int
+
+
 @dataclass
 class _ReachabilityEvidenceInternal:
     steps: list[_ReachabilityPathStep]
@@ -739,28 +749,44 @@ def _execute_candidate_for_assist(
     return actual_left, actual_right, next_state
 
 
-def _enumerate_candidate_transitions(
+def _enumerate_action_descriptors(
     *,
     state: DerivationState,
     legacy_root: Path,
     rh_merge_version: str,
     lh_merge_version: str,
     state_signature_fn: Callable[[DerivationState], str],
-    cache: dict[str, list[tuple[RuleCandidate, int, int, DerivationState]]],
-) -> list[tuple[RuleCandidate, int, int, DerivationState]]:
+    cache: dict[str, list[_ActionDescriptor]],
+    profile_ns: Optional[dict[str, int]] = None,
+) -> list[_ActionDescriptor]:
     state_key = state_signature_fn(state)
     cached = cache.get(state_key)
     if cached is not None:
         return cached
 
-    transitions: list[tuple[RuleCandidate, int, int, DerivationState]] = []
+    descriptors: list[_ActionDescriptor] = []
     seen_actions: set[tuple[int, str, str, int, int, int]] = set()
+    empty_sets = (set(), set(), set(), set())
+    partner_sets_by_index: dict[int, tuple[set[str], set[str], set[str], set[str]]] = {}
+    for index in range(1, state.basenum + 1):
+        row = _item_for_index(state, index)
+        if row is None:
+            continue
+        partner_sets_by_index[index] = _collect_item_partner_labels(row)
 
     # 1) double rules: enumerate only distinct left/right pairs.
     for left in range(1, state.basenum + 1):
         for right in range(1, state.basenum + 1):
+            pair_started_ns = time.perf_counter_ns()
+            pair_rule_expand_ns = 0
+            pair_cheap_extract_ns = 0
             if left == right:
+                if profile_ns is not None:
+                    profile_ns["pairs_scan"] = profile_ns.get("pairs_scan", 0) + (
+                        time.perf_counter_ns() - pair_started_ns
+                    )
                 continue
+            rule_expand_started_ns = time.perf_counter_ns()
             candidates = list_merge_candidates(
                 state=state,
                 left=left,
@@ -769,6 +795,7 @@ def _enumerate_candidate_transitions(
                 rh_merge_version=rh_merge_version,
                 lh_merge_version=lh_merge_version,
             )
+            pair_rule_expand_ns += time.perf_counter_ns() - rule_expand_started_ns
             for candidate in candidates:
                 if candidate.rule_kind != "double":
                     continue
@@ -794,20 +821,55 @@ def _enumerate_candidate_transitions(
                 if action_key in seen_actions:
                     continue
                 seen_actions.add(action_key)
-                try:
-                    _, _, next_state = _execute_candidate_for_assist(
-                        state=state,
+                cheap_started_ns = time.perf_counter_ns()
+                left_d33, left_d25, left_p33, left_p25 = partner_sets_by_index.get(
+                    actual_left,
+                    empty_sets,
+                )
+                right_d33, right_d25, right_p33, right_p25 = partner_sets_by_index.get(
+                    actual_right,
+                    empty_sets,
+                )
+                cheap_overlap = (
+                    len(left_d33.intersection(right_p33))
+                    + len(right_d33.intersection(left_p33))
+                    + len(left_d25.intersection(right_p25))
+                    + len(right_d25.intersection(left_p25))
+                )
+                local_priority = 2
+                if _is_case_particle_local_transition(
+                    state=state,
+                    candidate=candidate,
+                    left=actual_left,
+                    right=actual_right,
+                ):
+                    local_priority = 0
+                elif _is_local_vt_transition(
+                    state=state,
+                    candidate=candidate,
+                    left=actual_left,
+                    right=actual_right,
+                ):
+                    local_priority = 1
+                descriptors.append(
+                    _ActionDescriptor(
                         candidate=candidate,
-                        fallback_left=left,
-                        fallback_right=right,
-                        rh_merge_version=rh_merge_version,
-                        lh_merge_version=lh_merge_version,
+                        left=actual_left,
+                        right=actual_right,
+                        distance=abs(actual_left - actual_right),
+                        local_priority=local_priority,
+                        cheap_overlap=cheap_overlap,
                     )
-                except ValueError:
-                    continue
-                if state_signature_fn(next_state) == state_key:
-                    continue
-                transitions.append((candidate, actual_left, actual_right, next_state))
+                )
+                pair_cheap_extract_ns += time.perf_counter_ns() - cheap_started_ns
+            if profile_ns is not None:
+                pair_elapsed_ns = time.perf_counter_ns() - pair_started_ns
+                pair_scan_ns = max(0, pair_elapsed_ns - pair_rule_expand_ns - pair_cheap_extract_ns)
+                profile_ns["pairs_scan"] = profile_ns.get("pairs_scan", 0) + pair_scan_ns
+                profile_ns["rule_expand"] = profile_ns.get("rule_expand", 0) + pair_rule_expand_ns
+                profile_ns["cheap_feature_extract"] = (
+                    profile_ns.get("cheap_feature_extract", 0) + pair_cheap_extract_ns
+                )
 
     # 2) single rules: enumerate per index using (idx, idx).
     # imi系（imi01/02/03）は二項規則中心の到達探索を優先し、
@@ -815,6 +877,8 @@ def _enumerate_candidate_transitions(
     allow_single_rules = (not state.grammar_id.startswith("imi")) and state.basenum <= 2
     if allow_single_rules:
         for index in range(1, state.basenum + 1):
+            pair_started_ns = time.perf_counter_ns()
+            pair_rule_expand_ns = 0
             candidates = list_merge_candidates(
                 state=state,
                 left=index,
@@ -823,6 +887,7 @@ def _enumerate_candidate_transitions(
                 rh_merge_version=rh_merge_version,
                 lh_merge_version=lh_merge_version,
             )
+            pair_rule_expand_ns += time.perf_counter_ns() - pair_started_ns
             for candidate in candidates:
                 if candidate.rule_kind != "single":
                     continue
@@ -837,20 +902,113 @@ def _enumerate_candidate_transitions(
                 if action_key in seen_actions:
                     continue
                 seen_actions.add(action_key)
-                try:
-                    _, _, next_state = _execute_candidate_for_assist(
-                        state=state,
+                descriptors.append(
+                    _ActionDescriptor(
                         candidate=candidate,
-                        fallback_left=index,
-                        fallback_right=index,
-                        rh_merge_version=rh_merge_version,
-                        lh_merge_version=lh_merge_version,
+                        left=index,
+                        right=index,
+                        distance=0,
+                        local_priority=2,
+                        cheap_overlap=0,
                     )
-                except ValueError:
-                    continue
-                if state_signature_fn(next_state) == state_key:
-                    continue
-                transitions.append((candidate, index, index, next_state))
+                )
+            if profile_ns is not None:
+                profile_ns["rule_expand"] = profile_ns.get("rule_expand", 0) + pair_rule_expand_ns
+                profile_ns["pairs_scan"] = profile_ns.get("pairs_scan", 0) + max(
+                    0,
+                    (time.perf_counter_ns() - pair_started_ns) - pair_rule_expand_ns,
+                )
+
+    descriptors = sorted(
+        descriptors,
+        key=lambda row: (
+            -row.cheap_overlap,
+            row.local_priority,
+            row.distance,
+            row.candidate.rule_number,
+            row.left,
+            row.right,
+            row.candidate.check if row.candidate.check is not None else 0,
+        ),
+    )
+    cache[state_key] = descriptors
+    return descriptors
+
+
+def _materialize_action_descriptor(
+    *,
+    state: DerivationState,
+    descriptor: _ActionDescriptor,
+    rh_merge_version: str,
+    lh_merge_version: str,
+    state_signature_fn: Callable[[DerivationState], str],
+    state_signature: Optional[str] = None,
+    profile_ns: Optional[dict[str, int]] = None,
+) -> Optional[tuple[RuleCandidate, int, int, DerivationState]]:
+    state_key = state_signature if state_signature is not None else state_signature_fn(state)
+    try:
+        execute_started_ns = time.perf_counter_ns()
+        actual_left, actual_right, next_state = _execute_candidate_for_assist(
+            state=state,
+            candidate=descriptor.candidate,
+            fallback_left=descriptor.left,
+            fallback_right=descriptor.right,
+            rh_merge_version=rh_merge_version,
+            lh_merge_version=lh_merge_version,
+        )
+        if profile_ns is not None:
+            profile_ns["execute_double_merge"] = profile_ns.get("execute_double_merge", 0) + (
+                time.perf_counter_ns() - execute_started_ns
+            )
+    except ValueError:
+        return None
+    signature_started_ns = time.perf_counter_ns()
+    if state_signature_fn(next_state) == state_key:
+        if profile_ns is not None:
+            profile_ns["next_signature"] = profile_ns.get("next_signature", 0) + (
+                time.perf_counter_ns() - signature_started_ns
+            )
+        return None
+    if profile_ns is not None:
+        profile_ns["next_signature"] = profile_ns.get("next_signature", 0) + (
+            time.perf_counter_ns() - signature_started_ns
+        )
+    return (descriptor.candidate, actual_left, actual_right, next_state)
+
+
+def _enumerate_candidate_transitions(
+    *,
+    state: DerivationState,
+    legacy_root: Path,
+    rh_merge_version: str,
+    lh_merge_version: str,
+    state_signature_fn: Callable[[DerivationState], str],
+    cache: dict[str, list[tuple[RuleCandidate, int, int, DerivationState]]],
+) -> list[tuple[RuleCandidate, int, int, DerivationState]]:
+    state_key = state_signature_fn(state)
+    cached = cache.get(state_key)
+    if cached is not None:
+        return cached
+
+    descriptors = _enumerate_action_descriptors(
+        state=state,
+        legacy_root=legacy_root,
+        rh_merge_version=rh_merge_version,
+        lh_merge_version=lh_merge_version,
+        state_signature_fn=state_signature_fn,
+        cache={},
+    )
+    transitions: list[tuple[RuleCandidate, int, int, DerivationState]] = []
+    for descriptor in descriptors:
+        materialized = _materialize_action_descriptor(
+            state=state,
+            descriptor=descriptor,
+            rh_merge_version=rh_merge_version,
+            lh_merge_version=lh_merge_version,
+            state_signature_fn=state_signature_fn,
+        )
+        if materialized is not None:
+            transitions.append(materialized)
 
     cache[state_key] = transitions
     return transitions
@@ -1502,7 +1660,6 @@ def _search_reachability(
         rule_bound=rule_max_bound,
     )
 
-    transition_cache: dict[str, list[tuple[RuleCandidate, int, int, DerivationState]]] = {}
     evidence_by_tree_sig: dict[str, _ReachabilityEvidenceInternal] = {}
     goal_tree_sigs: set[str] = set()
     search_signature_fn = (
@@ -1520,12 +1677,18 @@ def _search_reachability(
     partner_counts_cache: dict[int, tuple[dict[str, int], dict[str, int], dict[str, int], dict[str, int]]] = {}
     partner_deficit_cache: dict[int, int] = {}
     timing_ns: dict[str, int] = {
-        "enumerate_transitions": 0,
-        "sort_and_rank": 0,
-        "unresolved_count": 0,
+        "pairs_scan": 0,
+        "rule_expand": 0,
+        "cheap_feature_extract": 0,
+        "execute_double_merge": 0,
+        "next_unresolved": 0,
+        "next_signature": 0,
+        "post_filter": 0,
+        "descriptor_sort": 0,
+        "sibling_exact_dedup": 0,
         "partner_counts": 0,
-        "sibling_dedup": 0,
     }
+    descriptor_cache: dict[str, list[_ActionDescriptor]] = {}
     layer_stats: dict[int, dict[str, int]] = {}
     leaf_unresolved_hist: dict[int, int] = {}
     leaf_unresolved_min: Optional[int] = None
@@ -1548,7 +1711,7 @@ def _search_reachability(
             return cached
         started_ns = time.perf_counter_ns()
         value = _count_uninterpretable_like_perl(state)
-        timing_ns["unresolved_count"] += time.perf_counter_ns() - started_ns
+        timing_ns["next_unresolved"] += time.perf_counter_ns() - started_ns
         unresolved_count_cache[state_obj_id] = value
         return value
 
@@ -1652,6 +1815,7 @@ def _search_reachability(
             return True
 
         current_sig = search_signature_fn(current)
+        current_structural_sig = _state_structural_signature(current)
         sig_bucket = explored_by_signature.get(current_sig)
         if sig_bucket is not None:
             for seen_streak, seen_remaining in sig_bucket.items():
@@ -1673,17 +1837,16 @@ def _search_reachability(
 
         current_partner_counts = partner_counts(current)
 
-        enumerate_started_ns = time.perf_counter_ns()
-        transitions = _enumerate_candidate_transitions(
+        descriptors = _enumerate_action_descriptors(
             state=current,
             legacy_root=legacy_root,
             rh_merge_version=rh_version,
             lh_merge_version=lh_version,
             state_signature_fn=_state_structural_signature,
-            cache=transition_cache,
+            cache=descriptor_cache,
+            profile_ns=timing_ns,
         )
-        timing_ns["enumerate_transitions"] += time.perf_counter_ns() - enumerate_started_ns
-        bucket["candidates_raw"] += len(transitions)
+        bucket["candidates_raw"] += len(descriptors)
         decreasing_rows: list[
             tuple[RuleCandidate, int, int, DerivationState, int, int, int, int, int, int, int]
         ] = []
@@ -1693,7 +1856,20 @@ def _search_reachability(
         worsening_rows: list[
             tuple[RuleCandidate, int, int, DerivationState, int, int, int, int, int, int, int]
         ] = []
-        for candidate, actual_left, actual_right, next_state in transitions:
+        post_filter_started_ns = time.perf_counter_ns()
+        for descriptor in descriptors:
+            materialized = _materialize_action_descriptor(
+                state=current,
+                descriptor=descriptor,
+                rh_merge_version=rh_version,
+                lh_merge_version=lh_version,
+                state_signature_fn=_state_structural_signature,
+                state_signature=current_structural_sig,
+                profile_ns=timing_ns,
+            )
+            if materialized is None:
+                continue
+            candidate, actual_left, actual_right, next_state = materialized
             next_unresolved = unresolved_count(next_state)
             delta_unresolved = next_unresolved - current_unresolved
             next_partner_counts = partner_counts(next_state)
@@ -1850,6 +2026,7 @@ def _search_reachability(
         else:
             filtered = worsening_rows
         bucket["after_worsening_cap"] += len(filtered)
+        timing_ns["post_filter"] += time.perf_counter_ns() - post_filter_started_ns
 
         # imi系の case-local / vt-local は hard prune ではなく優先順で扱う。
         ordered = sorted(
@@ -1869,7 +2046,7 @@ def _search_reachability(
                 row[0].check if row[0].check is not None else 0,
             ),
         )
-        timing_ns["sort_and_rank"] += time.perf_counter_ns() - sort_started_ns
+        timing_ns["descriptor_sort"] += time.perf_counter_ns() - sort_started_ns
 
         dedup_started_ns = time.perf_counter_ns()
         deduped: dict[str, tuple[RuleCandidate, int, int, DerivationState, int, int, int, int, int, int, int]] = {}
@@ -1879,7 +2056,7 @@ def _search_reachability(
                 continue
             deduped[next_sig] = row
         ordered = list(deduped.values())
-        timing_ns["sibling_dedup"] += time.perf_counter_ns() - dedup_started_ns
+        timing_ns["sibling_exact_dedup"] += time.perf_counter_ns() - dedup_started_ns
         bucket["unique_next_structural"] += len(deduped)
         bucket["after_sibling_dedup"] += len(ordered)
 

@@ -392,6 +392,9 @@
 | S2-HDA-44 | 再訪抑制を streak 支配（小さい `zero_delta_streak` が大きい streak を支配）へ強化する | `apps/api/app/api/v1/derivation.py` | `pytest`, API実測 |
 | S2-REG-24 | `apps/api/tests/test_derivation.py` 全件通過を再確認する | `apps/api/tests/test_derivation.py` | `python3 -m pytest tests/test_derivation.py -q` |
 | S2-RCH-26 | 長文 `imi01`（ふわふわ…）の `structural/packed` A/B を同条件で取得し、到達状況とleaf分布を比較する | 調査ログ（API直叩き） | CLI実測 |
+| S2-HDA-45 | Reachability候補列挙を `enumerate_action_descriptors`（cheap情報）と `materialize_action_descriptor`（実行後情報）に分離する | `apps/api/app/api/v1/derivation.py` | `pytest`, API実測 |
+| S2-PROF-04 | `timing_ms` を `pairs_scan/rule_expand/cheap_feature_extract/execute_double_merge/next_signature/post_filter/descriptor_sort` へ細分化する | `apps/api/app/api/v1/derivation.py` | `pytest`, A/B実測 |
+| DOC-RCH-02 | 分離後のA/B計測値を `reachability-ab-profile-20260301.md` に記録更新する | `docs/specs/reachability-ab-profile-20260301.md` | 文書レビュー |
 
 ## API追加（S1-GRM-02）
 - `GET /v1/reference/grammars/{grammar_id}/rule-sources`

@@ -508,3 +508,8 @@
 - [x] `S2-HDA-44` 再訪抑制を `(signature,streak)` 個別判定から「小さい `zero_delta_streak` が大きい streak を支配する」判定に強化する。
 - [x] `S2-REG-24` `apps/api/tests/test_derivation.py` 全件通過で回帰がないことを確認する。
 - [x] `S2-RCH-26` 長文 `imi01`（ふわふわ…）で `structural/packed` A/B を実測し、`max_depth=12到達済み・timeout継続・leaf unresolved最小=9` を確認する。
+
+## 88. Reachability候補列挙の二層化（descriptor / materialize）
+- [x] `S2-HDA-45` 候補列挙を `enumerate_action_descriptors` と `materialize_action_descriptor` に分離し、cheap情報と実行後情報の境界を明確化する。
+- [x] `S2-PROF-04` `timing_ms` を `pairs_scan/rule_expand/cheap_feature_extract/execute_double_merge/next_signature/post_filter/descriptor_sort` に細分化する。
+- [x] `DOC-RCH-02` A/B計測結果を `reachability-ab-profile-20260301.md` に更新し、分離後の支配時間を記録する。
