@@ -3,84 +3,70 @@
 対象: `imi01 / ふわふわしたわたあめを食べているひつじと話しているうさぎがいる`
 条件: `budget_seconds=60`, `max_nodes=2_200_000`, `max_depth=24`, `auto_add_ga_phi=true`
 
-## 0. 変更点（今回）
-- 候補列挙を二層化:
-  - `enumerate_action_descriptors(...)`
-  - `materialize_action_descriptor(...)`
-- 同一親の兄弟 `next structural signature` を1件へ圧縮
-- `zero_delta_streak` 支配再訪抑制を導入
-- `timing_ms` を詳細化（pairs/rule_expand/execute/signature など）
+## 0. 実装段階
 
-## 1. 結果（structural / packed）
+### Stage-A
+- descriptor/materialize 分離前（旧実装）
+
+### Stage-B
+- descriptor/materialize 分離後
+- `iter_action_descriptors` 導入（pair schedule 順に rule_expand）
+- sibling dedup の順序を `execute -> signature -> dedup -> unresolved/partner` へ前倒し
+- dominance は structural 固定
+- leaf best sample（残差サマリ）を追加
+
+## 1. Stage-B 実測（最新）
 
 ### structural
 - status: `unknown(timeout)`
-- expanded: `60595`
-- generated: `60921`
-- actions_attempted: `60597`
+- expanded: `66875`
+- generated: `67224`
+- actions_attempted: `66874`
 - max_frontier: `79`
 - max_depth_reached: `12`
 - evidences: `0`
+- timing(ms):
+  - rule_expand: `37438.582`
+  - execute_double_merge: `15926.539`
+  - post_filter: `17665.472`
+  - descriptor_sort: `62.254`
+- leaf: `min=9`, `max=11`
 
 ### packed
 - status: `unknown(timeout)`
-- expanded: `47235`
-- generated: `70860`
-- actions_attempted: `70541`
+- expanded: `67940`
+- generated: `68285`
+- actions_attempted: `67939`
 - max_frontier: `79`
 - max_depth_reached: `12`
 - evidences: `0`
+- timing(ms):
+  - rule_expand: `36797.919`
+  - execute_double_merge: `16472.163`
+  - post_filter: `18206.735`
+  - descriptor_sort: `63.422`
+- leaf: `min=9`, `max=11`
 
-## 2. time 内訳（ms）
+## 2. best leaf サンプル（上位）
 
-### structural
-- pairs_scan: `437.064`
-- rule_expand: `34563.335`
-- cheap_feature_extract: `179.329`
-- execute_double_merge: `15018.122`
-- next_unresolved: `1138.477`
-- next_signature: `1097.490`
-- post_filter: `19107.680`
-- descriptor_sort: `56.439`
-- sibling_exact_dedup: `1022.276`
-- partner_counts: `1444.593`
+- unresolved=`9`, history_len=`12`
+- `deficit_33={}` / `deficit_25={}`
+- `demand_33_total=4`, `provider_33_total=4`
+- `demand_25_total=0`, `provider_25_total=0`
 
-### packed
-- pairs_scan: `371.527`
-- rule_expand: `29133.144`
-- cheap_feature_extract: `193.538`
-- execute_double_merge: `17866.587`
-- next_unresolved: `1272.278`
-- next_signature: `1289.039`
-- post_filter: `22440.633`
-- descriptor_sort: `56.855`
-- sibling_exact_dedup: `1178.066`
-- partner_counts: `1545.033`
+解釈:
+- 33/25 の不足そのものは best leaf で既に解消されている。
+- にもかかわらず unresolved が 9 残るため、残差の主因は 33/25 以外（例: sy 側の別制約）にある可能性が高い。
 
-## 3. leaf 診断（basenum=1）
-
-### structural
-- leaf count: `32798`
-- unresolved min/max: `9 / 12`
-- histogram: `{9:13523, 10:15468, 11:3806, 12:1}`
-
-### packed
-- leaf count: `35720`
-- unresolved min/max: `9 / 12`
-- histogram: `{9:13408, 10:17001, 11:5308, 12:3}`
-
-## 4. 解釈
+## 3. 結論（現時点）
 
 1. 深さ不足ではない
-- `max_depth_reached=12` に到達しており、imi01の導出上限（basenum 13→1）には届いている。
+- `max_depth_reached=12` は維持。
 
-2. 支配時間は `rule_expand` + `execute_double_merge` + `post_filter`
-- 単純な sort 改善では効果が薄く、候補展開コストと実行後評価の削減が必要。
+2. 支配時間は依然 `rule_expand`（最大）
+- lazy 化の第一段（descriptor iterator）だけでは、rule_expand 支配をまだ崩せていない。
 
-3. 現状順序では leaf 最良が `unresolved=9` から下がらない
-- 到達証拠（unresolved=0）へ近づいていないため、
-  次は descriptor 順序（cheap overlap）と materialize 数の制御（lazy化）を実測で詰める必要がある。
-
-4. packed/structural の差は「現予算で第一支配項ではない」
-- 両者とも timeout。署名粒度の優劣断定は保留。
+3. 次の焦点
+- imi fast path（RH/LH double 専用 expander）で `rule_expand` を直接削る。
+- best leaf の残差ラベルを 33/25 以外（sy由来）まで展開し、grammar/lexicon 側要因と探索順要因を分離する。
 

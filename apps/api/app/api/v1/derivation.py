@@ -12,7 +12,7 @@ import time
 import uuid
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any, Callable, Optional
+from typing import Any, Callable, Iterator, Optional
 
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel, Field
@@ -749,22 +749,14 @@ def _execute_candidate_for_assist(
     return actual_left, actual_right, next_state
 
 
-def _enumerate_action_descriptors(
+def _iter_action_descriptors(
     *,
     state: DerivationState,
     legacy_root: Path,
     rh_merge_version: str,
     lh_merge_version: str,
-    state_signature_fn: Callable[[DerivationState], str],
-    cache: dict[str, list[_ActionDescriptor]],
     profile_ns: Optional[dict[str, int]] = None,
-) -> list[_ActionDescriptor]:
-    state_key = state_signature_fn(state)
-    cached = cache.get(state_key)
-    if cached is not None:
-        return cached
-
-    descriptors: list[_ActionDescriptor] = []
+) -> Iterator[_ActionDescriptor]:
     seen_actions: set[tuple[int, str, str, int, int, int]] = set()
     empty_sets = (set(), set(), set(), set())
     partner_sets_by_index: dict[int, tuple[set[str], set[str], set[str], set[str]]] = {}
@@ -774,11 +766,11 @@ def _enumerate_action_descriptors(
             continue
         partner_sets_by_index[index] = _collect_item_partner_labels(row)
 
-    # 1) double rules: enumerate only distinct left/right pairs.
+    pair_schedule: list[tuple[int, int, int, int, int]] = []
+    # 1) cheap pair schedule (rule展開前)。
     for left in range(1, state.basenum + 1):
         for right in range(1, state.basenum + 1):
             pair_started_ns = time.perf_counter_ns()
-            pair_rule_expand_ns = 0
             pair_cheap_extract_ns = 0
             if left == right:
                 if profile_ns is not None:
@@ -786,99 +778,107 @@ def _enumerate_action_descriptors(
                         time.perf_counter_ns() - pair_started_ns
                     )
                 continue
-            rule_expand_started_ns = time.perf_counter_ns()
-            candidates = list_merge_candidates(
-                state=state,
-                left=left,
-                right=right,
-                legacy_root=legacy_root,
-                rh_merge_version=rh_merge_version,
-                lh_merge_version=lh_merge_version,
+            cheap_started_ns = time.perf_counter_ns()
+            left_d33, left_d25, left_p33, left_p25 = partner_sets_by_index.get(
+                left,
+                empty_sets,
             )
-            pair_rule_expand_ns += time.perf_counter_ns() - rule_expand_started_ns
-            for candidate in candidates:
-                if candidate.rule_kind != "double":
-                    continue
-                actual_left = candidate.left if candidate.left is not None else left
-                actual_right = candidate.right if candidate.right is not None else right
-                if actual_left == actual_right:
-                    continue
-                if not _passes_nohead_constraint(
-                    state=state,
-                    rule_name=candidate.rule_name,
-                    left=actual_left,
-                    right=actual_right,
-                ):
-                    continue
-                action_key = (
-                    candidate.rule_number,
-                    candidate.rule_name,
-                    candidate.rule_kind,
-                    actual_left,
-                    actual_right,
-                    candidate.check if candidate.check is not None else -1,
-                )
-                if action_key in seen_actions:
-                    continue
-                seen_actions.add(action_key)
-                cheap_started_ns = time.perf_counter_ns()
-                left_d33, left_d25, left_p33, left_p25 = partner_sets_by_index.get(
-                    actual_left,
-                    empty_sets,
-                )
-                right_d33, right_d25, right_p33, right_p25 = partner_sets_by_index.get(
-                    actual_right,
-                    empty_sets,
-                )
-                cheap_overlap = (
-                    len(left_d33.intersection(right_p33))
-                    + len(right_d33.intersection(left_p33))
-                    + len(left_d25.intersection(right_p25))
-                    + len(right_d25.intersection(left_p25))
-                )
-                local_priority = 2
-                if _is_case_particle_local_transition(
-                    state=state,
-                    candidate=candidate,
-                    left=actual_left,
-                    right=actual_right,
+            right_d33, right_d25, right_p33, right_p25 = partner_sets_by_index.get(
+                right,
+                empty_sets,
+            )
+            cheap_overlap = (
+                len(left_d33.intersection(right_p33))
+                + len(right_d33.intersection(left_p33))
+                + len(left_d25.intersection(right_p25))
+                + len(right_d25.intersection(left_p25))
+            )
+            distance = abs(left - right)
+            local_priority = 2
+            if distance == 1:
+                if (
+                    _item_category_for_index(state, left) == "J"
+                    and _item_category_for_index(state, right) == "N"
+                    and _item_surface_for_index(state, left) in _CASE_PARTICLE_SURFACES
+                ) or (
+                    _item_category_for_index(state, right) == "J"
+                    and _item_category_for_index(state, left) == "N"
+                    and _item_surface_for_index(state, right) in _CASE_PARTICLE_SURFACES
                 ):
                     local_priority = 0
-                elif _is_local_vt_transition(
-                    state=state,
-                    candidate=candidate,
-                    left=actual_left,
-                    right=actual_right,
+                elif (
+                    _item_category_for_index(state, left) in {"V", "T"}
+                    and _item_category_for_index(state, right) in {"V", "T"}
                 ):
                     local_priority = 1
-                descriptors.append(
-                    _ActionDescriptor(
-                        candidate=candidate,
-                        left=actual_left,
-                        right=actual_right,
-                        distance=abs(actual_left - actual_right),
-                        local_priority=local_priority,
-                        cheap_overlap=cheap_overlap,
-                    )
-                )
-                pair_cheap_extract_ns += time.perf_counter_ns() - cheap_started_ns
+            pair_schedule.append((left, right, distance, local_priority, cheap_overlap))
+            pair_cheap_extract_ns += time.perf_counter_ns() - cheap_started_ns
             if profile_ns is not None:
                 pair_elapsed_ns = time.perf_counter_ns() - pair_started_ns
-                pair_scan_ns = max(0, pair_elapsed_ns - pair_rule_expand_ns - pair_cheap_extract_ns)
+                pair_scan_ns = max(0, pair_elapsed_ns - pair_cheap_extract_ns)
                 profile_ns["pairs_scan"] = profile_ns.get("pairs_scan", 0) + pair_scan_ns
-                profile_ns["rule_expand"] = profile_ns.get("rule_expand", 0) + pair_rule_expand_ns
                 profile_ns["cheap_feature_extract"] = (
                     profile_ns.get("cheap_feature_extract", 0) + pair_cheap_extract_ns
                 )
 
-    # 2) single rules: enumerate per index using (idx, idx).
+    pair_schedule.sort(key=lambda row: (-row[4], row[3], row[2], row[0], row[1]))
+
+    # 2) pairごとに rule 展開して descriptor を逐次 yield。
+    for left, right, distance, local_priority, cheap_overlap in pair_schedule:
+        rule_expand_started_ns = time.perf_counter_ns()
+        candidates = list_merge_candidates(
+            state=state,
+            left=left,
+            right=right,
+            legacy_root=legacy_root,
+            rh_merge_version=rh_merge_version,
+            lh_merge_version=lh_merge_version,
+        )
+        if profile_ns is not None:
+            profile_ns["rule_expand"] = profile_ns.get("rule_expand", 0) + (
+                time.perf_counter_ns() - rule_expand_started_ns
+            )
+        for candidate in candidates:
+            if candidate.rule_kind != "double":
+                continue
+            actual_left = candidate.left if candidate.left is not None else left
+            actual_right = candidate.right if candidate.right is not None else right
+            if actual_left == actual_right:
+                continue
+            if not _passes_nohead_constraint(
+                state=state,
+                rule_name=candidate.rule_name,
+                left=actual_left,
+                right=actual_right,
+            ):
+                continue
+            action_key = (
+                candidate.rule_number,
+                candidate.rule_name,
+                candidate.rule_kind,
+                actual_left,
+                actual_right,
+                candidate.check if candidate.check is not None else -1,
+            )
+            if action_key in seen_actions:
+                continue
+            seen_actions.add(action_key)
+            yield _ActionDescriptor(
+                candidate=candidate,
+                left=actual_left,
+                right=actual_right,
+                distance=distance,
+                local_priority=local_priority,
+                cheap_overlap=cheap_overlap,
+            )
+
+    # 3) single rules: enumerate per index using (idx, idx).
     # imi系（imi01/02/03）は二項規則中心の到達探索を優先し、
     # reachability 検索中に単項規則を混ぜない（終盤の幅爆発を回避）。
     allow_single_rules = (not state.grammar_id.startswith("imi")) and state.basenum <= 2
     if allow_single_rules:
         for index in range(1, state.basenum + 1):
-            pair_started_ns = time.perf_counter_ns()
-            pair_rule_expand_ns = 0
+            rule_expand_started_ns = time.perf_counter_ns()
             candidates = list_merge_candidates(
                 state=state,
                 left=index,
@@ -887,7 +887,10 @@ def _enumerate_action_descriptors(
                 rh_merge_version=rh_merge_version,
                 lh_merge_version=lh_merge_version,
             )
-            pair_rule_expand_ns += time.perf_counter_ns() - pair_started_ns
+            if profile_ns is not None:
+                profile_ns["rule_expand"] = profile_ns.get("rule_expand", 0) + (
+                    time.perf_counter_ns() - rule_expand_started_ns
+                )
             for candidate in candidates:
                 if candidate.rule_kind != "single":
                     continue
@@ -902,37 +905,14 @@ def _enumerate_action_descriptors(
                 if action_key in seen_actions:
                     continue
                 seen_actions.add(action_key)
-                descriptors.append(
-                    _ActionDescriptor(
-                        candidate=candidate,
-                        left=index,
-                        right=index,
-                        distance=0,
-                        local_priority=2,
-                        cheap_overlap=0,
-                    )
+                yield _ActionDescriptor(
+                    candidate=candidate,
+                    left=index,
+                    right=index,
+                    distance=0,
+                    local_priority=2,
+                    cheap_overlap=0,
                 )
-            if profile_ns is not None:
-                profile_ns["rule_expand"] = profile_ns.get("rule_expand", 0) + pair_rule_expand_ns
-                profile_ns["pairs_scan"] = profile_ns.get("pairs_scan", 0) + max(
-                    0,
-                    (time.perf_counter_ns() - pair_started_ns) - pair_rule_expand_ns,
-                )
-
-    descriptors = sorted(
-        descriptors,
-        key=lambda row: (
-            -row.cheap_overlap,
-            row.local_priority,
-            row.distance,
-            row.candidate.rule_number,
-            row.left,
-            row.right,
-            row.candidate.check if row.candidate.check is not None else 0,
-        ),
-    )
-    cache[state_key] = descriptors
-    return descriptors
 
 
 def _materialize_action_descriptor(
@@ -944,7 +924,7 @@ def _materialize_action_descriptor(
     state_signature_fn: Callable[[DerivationState], str],
     state_signature: Optional[str] = None,
     profile_ns: Optional[dict[str, int]] = None,
-) -> Optional[tuple[RuleCandidate, int, int, DerivationState]]:
+) -> Optional[tuple[RuleCandidate, int, int, DerivationState, str]]:
     state_key = state_signature if state_signature is not None else state_signature_fn(state)
     try:
         execute_started_ns = time.perf_counter_ns()
@@ -963,7 +943,8 @@ def _materialize_action_descriptor(
     except ValueError:
         return None
     signature_started_ns = time.perf_counter_ns()
-    if state_signature_fn(next_state) == state_key:
+    next_signature = state_signature_fn(next_state)
+    if next_signature == state_key:
         if profile_ns is not None:
             profile_ns["next_signature"] = profile_ns.get("next_signature", 0) + (
                 time.perf_counter_ns() - signature_started_ns
@@ -973,7 +954,7 @@ def _materialize_action_descriptor(
         profile_ns["next_signature"] = profile_ns.get("next_signature", 0) + (
             time.perf_counter_ns() - signature_started_ns
         )
-    return (descriptor.candidate, actual_left, actual_right, next_state)
+    return (descriptor.candidate, actual_left, actual_right, next_state, next_signature)
 
 
 def _enumerate_candidate_transitions(
@@ -990,13 +971,13 @@ def _enumerate_candidate_transitions(
     if cached is not None:
         return cached
 
-    descriptors = _enumerate_action_descriptors(
-        state=state,
-        legacy_root=legacy_root,
-        rh_merge_version=rh_merge_version,
-        lh_merge_version=lh_merge_version,
-        state_signature_fn=state_signature_fn,
-        cache={},
+    descriptors = list(
+        _iter_action_descriptors(
+            state=state,
+            legacy_root=legacy_root,
+            rh_merge_version=rh_merge_version,
+            lh_merge_version=lh_merge_version,
+        )
     )
     transitions: list[tuple[RuleCandidate, int, int, DerivationState]] = []
     for descriptor in descriptors:
@@ -1008,7 +989,8 @@ def _enumerate_candidate_transitions(
             state_signature_fn=state_signature_fn,
         )
         if materialized is not None:
-            transitions.append(materialized)
+            candidate, actual_left, actual_right, next_state, _ = materialized
+            transitions.append((candidate, actual_left, actual_right, next_state))
 
     cache[state_key] = transitions
     return transitions
@@ -1662,9 +1644,8 @@ def _search_reachability(
 
     evidence_by_tree_sig: dict[str, _ReachabilityEvidenceInternal] = {}
     goal_tree_sigs: set[str] = set()
-    search_signature_fn = (
-        _state_packed_signature if search_signature_mode == "packed" else _state_structural_signature
-    )
+    # lazy path の dominance は structural 固定（packed は到達集合保存の根拠が未確定）。
+    dominance_signature_fn = _state_structural_signature
     # 長文（basenum>=10）では「途中悪化を完全禁止」すると reachable を取り逃しやすいため、
     # hard prune を弱めて少数候補を後順位で残す。
     soften_hard_pruning_globally = (
@@ -1688,11 +1669,12 @@ def _search_reachability(
         "sibling_exact_dedup": 0,
         "partner_counts": 0,
     }
-    descriptor_cache: dict[str, list[_ActionDescriptor]] = {}
     layer_stats: dict[int, dict[str, int]] = {}
     leaf_unresolved_hist: dict[int, int] = {}
     leaf_unresolved_min: Optional[int] = None
     leaf_unresolved_max: Optional[int] = None
+    best_leaf_samples: list[dict[str, Any]] = []
+    best_leaf_sample_cap = 5
 
     expanded_nodes = 0
     generated_nodes = 0
@@ -1757,6 +1739,39 @@ def _search_reachability(
         partner_deficit_cache[state_obj_id] = value
         return value
 
+    def record_leaf_sample(state: DerivationState, unresolved_value: int, history_len: int) -> None:
+        demand_33, provider_33, demand_25, provider_25 = partner_counts(state)
+        deficit_33 = {
+            label: max(0, demand - provider_33.get(label, 0))
+            for label, demand in demand_33.items()
+            if max(0, demand - provider_33.get(label, 0)) > 0
+        }
+        deficit_25 = {
+            label: max(0, demand - provider_25.get(label, 0))
+            for label, demand in demand_25.items()
+            if max(0, demand - provider_25.get(label, 0)) > 0
+        }
+        sample = {
+            "unresolved": unresolved_value,
+            "history_len": history_len,
+            "deficit_33": dict(sorted(deficit_33.items())),
+            "deficit_25": dict(sorted(deficit_25.items())),
+            "demand_33_total": sum(demand_33.values()),
+            "provider_33_total": sum(provider_33.values()),
+            "demand_25_total": sum(demand_25.values()),
+            "provider_25_total": sum(provider_25.values()),
+        }
+        best_leaf_samples.append(sample)
+        best_leaf_samples.sort(
+            key=lambda row: (
+                row["unresolved"],
+                len(row["deficit_33"]) + len(row["deficit_25"]),
+                row["history_len"],
+            )
+        )
+        if len(best_leaf_samples) > best_leaf_sample_cap:
+            del best_leaf_samples[best_leaf_sample_cap:]
+
     def report_progress(phase: str, message: str) -> None:
         if progress_hook is None:
             return
@@ -1788,6 +1803,7 @@ def _search_reachability(
         if current.basenum == 1:
             bucket["leaf_count"] += 1
             leaf_unresolved_hist[current_unresolved] = leaf_unresolved_hist.get(current_unresolved, 0) + 1
+            record_leaf_sample(current, current_unresolved, len(path))
             leaf_unresolved_min = (
                 current_unresolved
                 if leaf_unresolved_min is None
@@ -1814,7 +1830,7 @@ def _search_reachability(
         if remaining_depth <= 0:
             return True
 
-        current_sig = search_signature_fn(current)
+        current_sig = dominance_signature_fn(current)
         current_structural_sig = _state_structural_signature(current)
         sig_bucket = explored_by_signature.get(current_sig)
         if sig_bucket is not None:
@@ -1837,14 +1853,14 @@ def _search_reachability(
 
         current_partner_counts = partner_counts(current)
 
-        descriptors = _enumerate_action_descriptors(
-            state=current,
-            legacy_root=legacy_root,
-            rh_merge_version=rh_version,
-            lh_merge_version=lh_version,
-            state_signature_fn=_state_structural_signature,
-            cache=descriptor_cache,
-            profile_ns=timing_ns,
+        descriptors = list(
+            _iter_action_descriptors(
+                state=current,
+                legacy_root=legacy_root,
+                rh_merge_version=rh_version,
+                lh_merge_version=lh_version,
+                profile_ns=timing_ns,
+            )
         )
         bucket["candidates_raw"] += len(descriptors)
         decreasing_rows: list[
@@ -1856,6 +1872,7 @@ def _search_reachability(
         worsening_rows: list[
             tuple[RuleCandidate, int, int, DerivationState, int, int, int, int, int, int, int]
         ] = []
+        sibling_seen_structural: set[str] = set()
         post_filter_started_ns = time.perf_counter_ns()
         for descriptor in descriptors:
             materialized = _materialize_action_descriptor(
@@ -1869,7 +1886,14 @@ def _search_reachability(
             )
             if materialized is None:
                 continue
-            candidate, actual_left, actual_right, next_state = materialized
+            candidate, actual_left, actual_right, next_state, next_structural_sig = materialized
+            dedup_started_ns = time.perf_counter_ns()
+            if next_structural_sig in sibling_seen_structural:
+                bucket["after_sibling_dedup"] += 1
+                timing_ns["sibling_exact_dedup"] += time.perf_counter_ns() - dedup_started_ns
+                continue
+            sibling_seen_structural.add(next_structural_sig)
+            timing_ns["sibling_exact_dedup"] += time.perf_counter_ns() - dedup_started_ns
             next_unresolved = unresolved_count(next_state)
             delta_unresolved = next_unresolved - current_unresolved
             next_partner_counts = partner_counts(next_state)
@@ -1971,6 +1995,7 @@ def _search_reachability(
         bucket["after_delta_unique_filter"] += (
             len(decreasing_rows) + len(plateau_rows) + len(worsening_rows)
         )
+        bucket["unique_next_structural"] += len(sibling_seen_structural)
 
         # 原則は「未解釈を減らす遷移」を優先。悪化遷移は hard prune せず、少量を後順位で保持する。
         sort_started_ns = time.perf_counter_ns()
@@ -2047,18 +2072,6 @@ def _search_reachability(
             ),
         )
         timing_ns["descriptor_sort"] += time.perf_counter_ns() - sort_started_ns
-
-        dedup_started_ns = time.perf_counter_ns()
-        deduped: dict[str, tuple[RuleCandidate, int, int, DerivationState, int, int, int, int, int, int, int]] = {}
-        for row in ordered:
-            next_sig = _state_structural_signature(row[3])
-            if next_sig in deduped:
-                continue
-            deduped[next_sig] = row
-        ordered = list(deduped.values())
-        timing_ns["sibling_exact_dedup"] += time.perf_counter_ns() - dedup_started_ns
-        bucket["unique_next_structural"] += len(deduped)
-        bucket["after_sibling_dedup"] += len(ordered)
 
         generated_nodes += len(ordered)
         max_frontier = max(max_frontier, len(ordered))
@@ -2158,6 +2171,7 @@ def _search_reachability(
             str(key): value
             for key, value in sorted(leaf_unresolved_hist.items(), key=lambda row: row[0])
         },
+        "best_samples": best_leaf_samples,
     }
 
     count_basis = "packed_signature_v1" if search_signature_mode == "packed" else "structural_signature_v1"

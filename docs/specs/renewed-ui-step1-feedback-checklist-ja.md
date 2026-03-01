@@ -513,3 +513,10 @@
 - [x] `S2-HDA-45` 候補列挙を `enumerate_action_descriptors` と `materialize_action_descriptor` に分離し、cheap情報と実行後情報の境界を明確化する。
 - [x] `S2-PROF-04` `timing_ms` を `pairs_scan/rule_expand/cheap_feature_extract/execute_double_merge/next_signature/post_filter/descriptor_sort` に細分化する。
 - [x] `DOC-RCH-02` A/B計測結果を `reachability-ab-profile-20260301.md` に更新し、分離後の支配時間を記録する。
+
+## 89. Lazy descriptor generator と dedup順序の再構成
+- [x] `S2-HDA-46` `iter_action_descriptors` を導入し、pair schedule 順に descriptor を逐次生成する（descriptor一括生成を廃止）。
+- [x] `S2-HDA-47` sibling dedup を `execute -> signature -> dedup -> unresolved/partner` の順へ前倒しし、代表childのみ exact 計算を払う。
+- [x] `S2-HDA-48` lazy path の dominance 署名を structural 固定にし、packed は比較用メトリクスに限定する。
+- [x] `S2-PROF-05` leaf best-sample（残差サマリ）を `metrics.leaf_stats.best_samples` として返し、残差要因の切り分け材料を追加する。
+- [x] `S2-REG-25` `apps/api/tests/test_derivation.py` 全件通過を再確認する。

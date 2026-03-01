@@ -395,6 +395,11 @@
 | S2-HDA-45 | Reachability候補列挙を `enumerate_action_descriptors`（cheap情報）と `materialize_action_descriptor`（実行後情報）に分離する | `apps/api/app/api/v1/derivation.py` | `pytest`, API実測 |
 | S2-PROF-04 | `timing_ms` を `pairs_scan/rule_expand/cheap_feature_extract/execute_double_merge/next_signature/post_filter/descriptor_sort` へ細分化する | `apps/api/app/api/v1/derivation.py` | `pytest`, A/B実測 |
 | DOC-RCH-02 | 分離後のA/B計測値を `reachability-ab-profile-20260301.md` に記録更新する | `docs/specs/reachability-ab-profile-20260301.md` | 文書レビュー |
+| S2-HDA-46 | `iter_action_descriptors` を導入し、pair schedule 順に descriptor を逐次生成する（descriptor全件生成を廃止） | `apps/api/app/api/v1/derivation.py` | `pytest`, A/B実測 |
+| S2-HDA-47 | sibling dedup を `execute -> signature -> dedup -> unresolved/partner` に前倒しし、代表 child のみ exact 計算する | `apps/api/app/api/v1/derivation.py` | `pytest`, A/B実測 |
+| S2-HDA-48 | lazy path の dominance 署名を structural 固定にする（packed は比較メトリクス用途） | `apps/api/app/api/v1/derivation.py` | `pytest`, A/B実測 |
+| S2-PROF-05 | `metrics.leaf_stats.best_samples` を追加し、best leaf の残差サマリ（deficit_33/25 等）を返す | `apps/api/app/api/v1/derivation.py` | `pytest`, A/B実測 |
+| S2-REG-25 | 変更後に `apps/api/tests/test_derivation.py` 全件通過を再確認する | `apps/api/tests/test_derivation.py` | `python3 -m pytest tests/test_derivation.py -q` |
 
 ## API追加（S1-GRM-02）
 - `GET /v1/reference/grammars/{grammar_id}/rule-sources`
