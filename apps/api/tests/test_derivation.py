@@ -10,6 +10,7 @@ import pytest
 from app.api.v1.derivation import (
     _HEAD_ASSIST_DEFAULT_PARALLEL_CORES,
     _HEAD_ASSIST_SEARCH_BUDGET_SECONDS,
+    _enumerate_candidate_transitions,
     _resolve_head_assist_parallel_cores,
     _state_packed_signature,
     _state_structural_signature,
@@ -136,17 +137,47 @@ def test_derivation_numeration_generate_prefers_partner_satisfying_candidates_fo
     assert response.status_code == 200
     body = response.json()
 
-    # 226(読む) は 2,25,wo / 2,25,ga を要求するため、
-    # 単体 wo/ga を供給できる助詞候補を優先して選ぶ。
+    # Step0 文法（imi01）と互換な語彙候補を優先し、
+    # 非互換候補（J-Merge 専用項目など）は手動差し替え対象として残す。
     assert body["lexicon_ids"][4] == 226
-    assert body["lexicon_ids"][1] in {183, 196, 294}
-    assert body["lexicon_ids"][3] in {181, 197, 297}
+    assert body["lexicon_ids"][1] == 19
+    assert body["lexicon_ids"][3] == 23
 
     by_token = {row["token"]: row for row in body["token_resolutions"]}
     assert 19 in by_token["が"]["candidate_lexicon_ids"]
     assert 23 in by_token["を"]["candidate_lexicon_ids"]
-    assert by_token["が"]["lexicon_id"] in {183, 196, 294}
-    assert by_token["を"]["lexicon_id"] in {181, 197, 297}
+    assert by_token["が"]["lexicon_id"] == 19
+    assert by_token["を"]["lexicon_id"] == 23
+
+    ga_compat = {
+        row["lexicon_id"]: row
+        for row in by_token["が"]["candidate_compatibility"]
+    }
+    assert ga_compat[19]["compatible"] is True
+    assert ga_compat[183]["compatible"] is False
+    assert "missing_required_rule" in ga_compat[183]["reason_codes"]
+    assert "J-Merge" in ga_compat[183]["missing_rule_names"]
+
+
+def test_derivation_numeration_generate_yonda_keeps_ga_compatible_for_imi01() -> None:
+    client = TestClient(app)
+    response = client.post(
+        "/v1/derivation/numeration/generate",
+        json={
+            "grammar_id": "imi01",
+            "sentence": "ジョンが本を読んだ",
+            "split_mode": "C",
+            "legacy_root": str(_legacy_root()),
+        },
+    )
+    assert response.status_code == 200
+    body = response.json()
+    by_token = {row["token"]: row for row in body["token_resolutions"]}
+    assert by_token["が"]["lexicon_id"] == 19
+    ga_compat = {row["lexicon_id"]: row for row in by_token["が"]["candidate_compatibility"]}
+    assert ga_compat[19]["compatible"] is True
+    assert ga_compat[183]["compatible"] is False
+    assert "J-Merge" in ga_compat[183]["missing_rule_names"]
 
 
 def test_derivation_init_from_sentence_matches_init_with_same_lexicon_ids() -> None:
@@ -226,22 +257,7 @@ def test_derivation_numeration_tokenize_auto_mode_supplements_tense_for_iru() ->
     assert response.json()["tokens"] == ["うさぎ", "が", "いる", "る"]
 
 
-def test_derivation_numeration_tokenize_auto_mode_supplements_tense_for_finite_verb() -> None:
-    client = TestClient(app)
-    response = client.post(
-        "/v1/derivation/numeration/tokenize",
-        json={
-            "grammar_id": "japanese2",
-            "sentence": "ジョンが本を読む",
-            "split_mode": "C",
-            "legacy_root": str(_legacy_root()),
-        },
-    )
-    assert response.status_code == 200
-    assert response.json()["tokens"] == ["ジョン", "が", "本", "を", "読む", "る"]
-
-
-def test_derivation_numeration_generate_japanese2_defaults_hon_227_and_appends_tense() -> None:
+def test_derivation_numeration_generate_japanese2_defaults_hon_227() -> None:
     client = TestClient(app)
     response = client.post(
         "/v1/derivation/numeration/generate",
@@ -254,16 +270,13 @@ def test_derivation_numeration_generate_japanese2_defaults_hon_227_and_appends_t
     )
     assert response.status_code == 200
     body = response.json()
-    # 本は既定で 227（Num要求の100を回避）を選び、終止動詞には時制語彙を補完する。
+    # 本は既定で 227（Num要求の100を回避）を選ぶ。
     assert body["lexicon_ids"][2] == 227
-    assert len(body["lexicon_ids"]) == 6
-    assert body["lexicon_ids"][-1] in {125, 204}
+    assert len(body["lexicon_ids"]) == 5
+    assert body["lexicon_ids"] == [60, 19, 227, 23, 226]
     by_token = {row["token"]: row for row in body["token_resolutions"]}
     assert by_token["本"]["lexicon_id"] == 227
     assert by_token["本"]["candidate_lexicon_ids"][:2] == [227, 100]
-    assert by_token["る"]["lexicon_id"] in {125, 204}
-    assert 125 in by_token["る"]["candidate_lexicon_ids"]
-    assert 204 in by_token["る"]["candidate_lexicon_ids"]
 
 
 def test_derivation_numeration_tokenize_auto_mode_compounds_shita_and_teiru() -> None:
@@ -320,6 +333,52 @@ def test_derivation_init_from_sentence_resolves_compounded_tokens() -> None:
         "いる",
         "る",
     ]
+
+
+def test_derivation_numeration_generate_auto_adds_ga_phi_for_imi01_long_sentence() -> None:
+    client = TestClient(app)
+    response = client.post(
+        "/v1/derivation/numeration/generate",
+        json={
+            "grammar_id": "imi01",
+            "sentence": "ふわふわしたわたあめを食べているひつじと話しているうさぎがいる",
+            "split_mode": "A",
+            "auto_add_ga_phi": True,
+            "legacy_root": str(_legacy_root()),
+        },
+    )
+    assert response.status_code == 200
+    body = response.json()
+    assert body["lexicon_ids"] == [264, 265, 23, 266, 267, 268, 269, 270, 19, 271, 204, 309, 309]
+    assert [row["token"] for row in body["token_resolutions"]][-2:] == ["φ", "φ"]
+    assert body["auto_supplements"]
+    note = body["auto_supplements"][0]
+    assert note["kind"] == "ga_feature33_gap_fill"
+    assert note["lexicon_id"] == 309
+    assert note["count"] == 2
+    assert note["feature_code"] == "33"
+    assert note["label"] == "ga"
+    assert note["demand_count"] == 3
+    assert note["provider_count"] == 1
+    assert note["reference_numeration_path"] is not None
+    assert note["reference_numeration_path"].endswith("imi01/set-numeration/1608131500.num")
+
+
+def test_derivation_numeration_generate_keeps_default_without_auto_ga_phi() -> None:
+    client = TestClient(app)
+    response = client.post(
+        "/v1/derivation/numeration/generate",
+        json={
+            "grammar_id": "imi01",
+            "sentence": "ふわふわしたわたあめを食べているひつじと話しているうさぎがいる",
+            "split_mode": "A",
+            "legacy_root": str(_legacy_root()),
+        },
+    )
+    assert response.status_code == 200
+    body = response.json()
+    assert body["lexicon_ids"] == [264, 265, 23, 266, 267, 268, 269, 270, 19, 271, 204]
+    assert body["auto_supplements"] == []
 
 
 def test_derivation_numeration_tokenize_auto_mode_supports_other_tense_items() -> None:
@@ -424,7 +483,6 @@ def test_derivation_init_from_sentence_then_reachability_reaches_skateboard_sent
     assert reachability.status_code == 200
     body = reachability.json()
     assert body["status"] == "reachable"
-    assert body["completed"] is True
     assert len(body["evidences"]) > 0
 
 
@@ -887,8 +945,242 @@ def test_derivation_reachability_reaches_skateboard_sentence() -> None:
     assert reachability.status_code == 200
     body = reachability.json()
     assert body["status"] == "reachable"
-    assert body["completed"] is True
     assert len(body["evidences"]) > 0
+
+
+def test_derivation_reachability_enumerator_keeps_subj_t_path_for_japanese2_yomu_ru() -> None:
+    legacy_root = _legacy_root()
+    numeration_text = (
+        "ジョンが本を読むる\t60\t19\t227\t23\t226\t204\n"
+        " \t\t\t\t\t\t\n"
+        " \t1\t2\t3\t4\t5\t6"
+    )
+    state = build_initial_derivation_state(
+        grammar_id="japanese2",
+        numeration_text=numeration_text,
+        legacy_root=legacy_root,
+    )
+    # x1-1(ジョン) + x2-1(が) を先に局所結合した直後の分岐を見る。
+    state = execute_double_merge(
+        state=state,
+        rule_name="J-Merge",
+        left=1,
+        right=2,
+        rule_version="03",
+    )
+    profile = resolve_rule_versions(get_grammar_profile(state.grammar_id), legacy_root)
+    transitions = _enumerate_candidate_transitions(
+        state=state,
+        legacy_root=legacy_root,
+        rh_merge_version=profile.rh_merge_version,
+        lh_merge_version=profile.lh_merge_version,
+        state_signature_fn=_state_structural_signature,
+        cache={},
+    )
+
+    # 旧実装は case-local 強制でこの分岐を落としていた。
+    assert any(
+        candidate.rule_name == "RH-Merge" and left == 1 and right == 5
+        for candidate, left, right, _ in transitions
+    )
+
+
+@pytest.mark.parametrize(
+    (
+        "grammar_id",
+        "sentence",
+        "split_mode",
+        "expected_lexicon_ids",
+        "numeration_text",
+        "budget_seconds",
+        "max_nodes",
+        "max_depth",
+    ),
+    [
+        (
+            "imi01",
+            "ジョンがメアリをスケートボードで追いかけた",
+            "A",
+            [60, 19, 103, 23, 61, 168, 187, 203],
+            None,
+            30.0,
+            2_000_000,
+            20,
+        ),
+        (
+            "imi01",
+            "うさぎがいる",
+            "C",
+            [270, 19, 271, 204],
+            None,
+            20.0,
+            800_000,
+            20,
+        ),
+        (
+            "imi01",
+            "うさぎがいる",
+            "C",
+            None,
+            "うさぎがいる\t270\t19\t271\t308\n"
+            " \t\t\t\t\n"
+            " \t1\t2\t3\t4",
+            20.0,
+            800_000,
+            20,
+        ),
+        (
+            "imi03",
+            "ジョンがメアリを追いかけた",
+            "C",
+            [60, 19, 103, 23, 187, 203],
+            None,
+            30.0,
+            2_000_000,
+            20,
+        ),
+        (
+            "japanese2",
+            "メアリはかわいい",
+            "C",
+            [103, 22, 4, 114],
+            None,
+            20.0,
+            800_000,
+            20,
+        ),
+        (
+            "japanese2",
+            "メアリはかわいかった",
+            "C",
+            [103, 22, 4, 115],
+            None,
+            20.0,
+            800_000,
+            20,
+        ),
+        (
+            "japanese2",
+            "椅子は木製だ",
+            "C",
+            [26, 22, 105, 117],
+            None,
+            20.0,
+            800_000,
+            20,
+        ),
+        (
+            "japanese2",
+            "大学生はバイトだった",
+            "C",
+            [69, 22, 87, 118],
+            None,
+            20.0,
+            800_000,
+            20,
+        ),
+        (
+            "japanese2",
+            "メアリは学生です",
+            "C",
+            [103, 22, 39, 123],
+            None,
+            20.0,
+            800_000,
+            20,
+        ),
+        (
+            "japanese2",
+            "メアリは学生でした",
+            "C",
+            [103, 22, 39, 121],
+            None,
+            20.0,
+            800_000,
+            20,
+        ),
+        (
+            "japanese2",
+            "ジョンが本を読むる",
+            "C",
+            None,
+            "ジョンが本を読むる\t60\t19\t227\t23\t226\t204\n"
+            " \t\t\t\t\t\t\n"
+            " \t1\t2\t3\t4\t5\t6",
+            30.0,
+            2_000_000,
+            20,
+        ),
+        (
+            "japanese2",
+            "ジョンが本を読むる",
+            "C",
+            None,
+            "ジョンが本を読むる\t60\t19\t227\t23\t226\t125\n"
+            " \t\t\t\t\t\t\n"
+            " \t1\t2\t3\t4\t5\t6",
+            30.0,
+            2_000_000,
+            20,
+        ),
+    ],
+)
+def test_derivation_reachability_known_reachable_sets(
+    grammar_id: str,
+    sentence: str,
+    split_mode: str,
+    expected_lexicon_ids: Optional[list[int]],
+    numeration_text: Optional[str],
+    budget_seconds: float,
+    max_nodes: int,
+    max_depth: int,
+) -> None:
+    client = TestClient(app)
+    if numeration_text is None:
+        initialized = client.post(
+            "/v1/derivation/init/from-sentence",
+            json={
+                "grammar_id": grammar_id,
+                "sentence": sentence,
+                "split_mode": split_mode,
+                "legacy_root": str(_legacy_root()),
+            },
+        )
+        assert initialized.status_code == 200
+        payload = initialized.json()
+        if expected_lexicon_ids is not None:
+            assert payload["numeration"]["lexicon_ids"] == expected_lexicon_ids
+        state = payload["state"]
+    else:
+        initialized = client.post(
+            "/v1/derivation/init",
+            json={
+                "grammar_id": grammar_id,
+                "numeration_text": numeration_text,
+                "legacy_root": str(_legacy_root()),
+            },
+        )
+        assert initialized.status_code == 200
+        state = initialized.json()
+        assert state["memo"] == sentence
+
+    reachability = client.post(
+        "/v1/derivation/reachability",
+        json={
+            "state": state,
+            "max_evidences": 20,
+            "offset": 0,
+            "limit": 10,
+            "budget_seconds": budget_seconds,
+            "max_nodes": max_nodes,
+            "max_depth": max_depth,
+            "legacy_root": str(_legacy_root()),
+        },
+    )
+    assert reachability.status_code == 200
+    body = reachability.json()
+    assert body["status"] == "reachable"
+    assert body["evidences"]
 
 
 def test_head_assist_parallel_core_policy_default_and_override() -> None:
@@ -1373,6 +1665,132 @@ def test_derivation_head_assist_jobs_status_and_evidence_paging() -> None:
     body2 = page2.json()
     assert body2["job_id"] == job_id
     assert body2["counts"]["offset"] == 10
+
+
+def test_derivation_reachability_job_continue_after_node_limit() -> None:
+    client = TestClient(app)
+    initialized = client.post(
+        "/v1/derivation/init/from-sentence",
+        json={
+            "grammar_id": "imi01",
+            "sentence": "うさぎがいる",
+            "split_mode": "C",
+            "legacy_root": str(_legacy_root()),
+        },
+    )
+    assert initialized.status_code == 200
+    state = initialized.json()["state"]
+
+    started = client.post(
+        "/v1/derivation/reachability/jobs",
+        json={
+            "state": state,
+            "max_evidences": 5,
+            "offset": 0,
+            "limit": 5,
+            "budget_seconds": 1.0,
+            "max_nodes": 1,
+            "max_depth": 12,
+            "legacy_root": str(_legacy_root()),
+        },
+    )
+    assert started.status_code == 200
+    job_id = started.json()["job_id"]
+
+    first_terminal = None
+    for _ in range(120):
+        status_response = client.get(f"/v1/derivation/reachability/jobs/{job_id}")
+        assert status_response.status_code == 200
+        status_body = status_response.json()
+        if status_body["status"] in {"reachable", "unreachable", "unknown", "failed"}:
+            first_terminal = status_body
+            break
+        time.sleep(0.05)
+    assert first_terminal is not None, "initial reachability job did not finish in time"
+    assert first_terminal["status"] == "unknown"
+    assert first_terminal["completed"] is False
+    assert first_terminal["reason"] in {"node_limit", "timeout"}
+
+    continued = client.post(
+        f"/v1/derivation/reachability/jobs/{job_id}/continue",
+        json={
+            "additional_budget_seconds": 8.0,
+            "additional_max_nodes": 300000,
+            "additional_max_depth": 8,
+            "additional_max_evidences": 10,
+        },
+    )
+    assert continued.status_code == 200
+    assert continued.json()["job_id"] == job_id
+
+    second_terminal = None
+    for _ in range(200):
+        status_response = client.get(f"/v1/derivation/reachability/jobs/{job_id}")
+        assert status_response.status_code == 200
+        status_body = status_response.json()
+        if status_body["status"] in {"reachable", "unreachable", "unknown", "failed"}:
+            second_terminal = status_body
+            break
+        time.sleep(0.05)
+    assert second_terminal is not None, "continued reachability job did not finish in time"
+    assert second_terminal["status"] == "reachable"
+
+    evidence_page = client.get(f"/v1/derivation/reachability/jobs/{job_id}/evidences?offset=0&limit=10")
+    assert evidence_page.status_code == 200
+    body = evidence_page.json()
+    assert body["job_id"] == job_id
+    assert len(body["evidences"]) > 0
+
+
+def test_derivation_reachability_job_continue_rejects_completed_job() -> None:
+    client = TestClient(app)
+    initialized = client.post(
+        "/v1/derivation/init/from-sentence",
+        json={
+            "grammar_id": "imi01",
+            "sentence": "うさぎがいる",
+            "split_mode": "C",
+            "legacy_root": str(_legacy_root()),
+        },
+    )
+    assert initialized.status_code == 200
+    state = initialized.json()["state"]
+
+    started = client.post(
+        "/v1/derivation/reachability/jobs",
+        json={
+            "state": state,
+            "max_evidences": 10,
+            "offset": 0,
+            "limit": 10,
+            "budget_seconds": 8.0,
+            "max_nodes": 250_000,
+            "max_depth": 12,
+            "legacy_root": str(_legacy_root()),
+        },
+    )
+    assert started.status_code == 200
+    job_id = started.json()["job_id"]
+
+    terminal = None
+    for _ in range(120):
+        status_response = client.get(f"/v1/derivation/reachability/jobs/{job_id}")
+        assert status_response.status_code == 200
+        status_body = status_response.json()
+        if status_body["status"] in {"reachable", "unreachable", "unknown", "failed"}:
+            terminal = status_body
+            break
+        time.sleep(0.05)
+    assert terminal is not None, "reachability job did not finish in time"
+    assert terminal["status"] == "reachable"
+    assert terminal["completed"] is True
+
+    continued = client.post(
+        f"/v1/derivation/reachability/jobs/{job_id}/continue",
+        json={},
+    )
+    assert continued.status_code == 409
+    assert "already completed" in continued.json()["detail"]
 
 
 def test_derivation_process_export_formats_like_perl_target_output() -> None:

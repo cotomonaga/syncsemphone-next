@@ -23,6 +23,8 @@ import type {
 
 type LexiconWorkbenchProps = {
   grammarId: string;
+  focusLexiconId?: number | null;
+  focusLexiconNonce?: number;
 };
 
 type LexiconTopTab = "items" | "edit" | "dictionary" | "importexport";
@@ -215,7 +217,11 @@ function extractLexiconScopedDiff(rawText: string, lexiconId: number, format: "c
   return lines.slice(start, end).join("\n");
 }
 
-export default function LexiconWorkbench({ grammarId }: LexiconWorkbenchProps) {
+export default function LexiconWorkbench({
+  grammarId,
+  focusLexiconId = null,
+  focusLexiconNonce = 0
+}: LexiconWorkbenchProps) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [message, setMessage] = useState("");
@@ -239,6 +245,7 @@ export default function LexiconWorkbench({ grammarId }: LexiconWorkbenchProps) {
   const [dictionaryUsage, setDictionaryUsage] = useState<ValueDictionaryUsageResponse | null>(null);
   const [dictionaryCreateValue, setDictionaryCreateValue] = useState("");
   const [dictionaryReplaceTargetId, setDictionaryReplaceTargetId] = useState<number | null>(null);
+  const [semanticDictionaryOptions, setSemanticDictionaryOptions] = useState<string[]>([]);
 
   const [numLinks, setNumLinks] = useState<NumLinkItem[]>([]);
   const [numLinkForm, setNumLinkForm] = useState({
@@ -269,6 +276,7 @@ export default function LexiconWorkbench({ grammarId }: LexiconWorkbenchProps) {
   const [csvPreview, setCsvPreview] = useState("");
   const [commitMessage, setCommitMessage] = useState("");
   const [runCompatibility, setRunCompatibility] = useState(true);
+  const [isWorkbenchReady, setIsWorkbenchReady] = useState(false);
 
   const dictionaryByKind = useMemo(() => {
     const map = new Map<ValueDictionaryKind, string[]>();
@@ -338,7 +346,7 @@ export default function LexiconWorkbench({ grammarId }: LexiconWorkbenchProps) {
       predicates: dictionaryByKind.get("predicate") || [],
       syncFeatures: dictionaryByKind.get("sync_feature") || [],
       idslots: dictionaryByKind.get("idslot") || [],
-      semantics: dictionaryByKind.get("semantic") || []
+      semantics: semanticDictionaryOptions
     };
     const draftIdslot = normalizeIdslotValue(draft.idslot);
     const mergedIdslots = uniqueSorted([
@@ -354,9 +362,17 @@ export default function LexiconWorkbench({ grammarId }: LexiconWorkbenchProps) {
       idslots: mergedIdslots.filter(
         (row) => row !== "" && (idslotAllowSet.has(row) || (draftIdslot !== "" && row === draftIdslot))
       ),
-      semantics: uniqueSorted([...fromDictionary.semantics, ...listDerivedOptions.semantics])
+      semantics: uniqueSorted([...fromDictionary.semantics, ...draft.semantics])
     };
-  }, [dictionaryByKind, draft.idslot, grammarIdslotValues, idslotAllowSet, listDerivedOptions]);
+  }, [
+    dictionaryByKind,
+    draft.idslot,
+    draft.semantics,
+    grammarIdslotValues,
+    idslotAllowSet,
+    listDerivedOptions,
+    semanticDictionaryOptions
+  ]);
 
   const selectedDictionaryItem = dictionaryItems.find((row) => row.id === selectedDictionaryId) || null;
   const dictionaryInputNormalized = normalizeDictionaryValue(dictionaryKind, dictionaryCreateValue);
@@ -459,6 +475,11 @@ export default function LexiconWorkbench({ grammarId }: LexiconWorkbenchProps) {
     setDictionarySource(response.source || "db");
   }
 
+  async function refreshSemanticDictionaryOptions() {
+    const response = await apiGet<ValueDictionaryListResponse>("/v1/lexicon/value-dictionary?kind=semantic");
+    setSemanticDictionaryOptions(uniqueSorted(response.items.map((row) => row.display_value)));
+  }
+
   async function loadItem(lexiconId: number) {
     const response = await apiGet<LexiconExtItemResponse>(`/v1/lexicon/${grammarId}/items/${lexiconId}`);
     setDraft({ ...response.item, idslot: normalizeIdslotValue(response.item.idslot || "") });
@@ -495,12 +516,19 @@ export default function LexiconWorkbench({ grammarId }: LexiconWorkbenchProps) {
   }
 
   useEffect(() => {
+    setIsWorkbenchReady(false);
     void runTask(async () => {
-      await Promise.all([refreshItems(1, "", "lexicon_id", "asc"), refreshVersions(0), refreshAllIdslotValues()]);
+      await Promise.all([
+        refreshItems(1, "", "lexicon_id", "asc"),
+        refreshVersions(0),
+        refreshAllIdslotValues(),
+        refreshSemanticDictionaryOptions()
+      ]);
       try {
         await refreshDictionary("category");
       } catch {
         setDictionaryItems([]);
+        setSemanticDictionaryOptions([]);
         setMessage("メタDB未設定のため、バリュー辞書機能は利用できません。");
       }
       setVersionOffset(0);
@@ -519,6 +547,7 @@ export default function LexiconWorkbench({ grammarId }: LexiconWorkbenchProps) {
       setNoteRevisions([]);
       setNoteUpdatedAt(null);
       setActiveTopTab("items");
+      setIsWorkbenchReady(true);
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [grammarId]);
@@ -534,6 +563,19 @@ export default function LexiconWorkbench({ grammarId }: LexiconWorkbenchProps) {
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [dictionaryKind]);
+
+  useEffect(() => {
+    if (!isWorkbenchReady || focusLexiconId === null || focusLexiconId <= 0) {
+      return;
+    }
+    void runTask(async () => {
+      await loadItem(focusLexiconId);
+      await refreshSelectedItemSidePanels(focusLexiconId);
+      setActiveTopTab("edit");
+      setMessage(`語彙項目 ${focusLexiconId} を読み込みました。`);
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [focusLexiconId, focusLexiconNonce, isWorkbenchReady]);
 
   async function handleSearchItems() {
     await runTask(async () => {
@@ -688,7 +730,7 @@ export default function LexiconWorkbench({ grammarId }: LexiconWorkbenchProps) {
         display_value: normalizedDisplayValue,
         metadata_json: {}
       });
-      await Promise.all([refreshDictionary(dictionaryKind), refreshAllIdslotValues()]);
+      await Promise.all([refreshDictionary(dictionaryKind), refreshAllIdslotValues(), refreshSemanticDictionaryOptions()]);
       setDictionaryCreateValue("");
       setSelectedDictionaryId(null);
       setMessage("バリュー辞書に追加しました。");
@@ -709,7 +751,7 @@ export default function LexiconWorkbench({ grammarId }: LexiconWorkbenchProps) {
         display_value: normalizedDisplayValue,
         metadata_json: selected.metadata_json || {}
       });
-      await Promise.all([refreshDictionary(dictionaryKind), refreshAllIdslotValues()]);
+      await Promise.all([refreshDictionary(dictionaryKind), refreshAllIdslotValues(), refreshSemanticDictionaryOptions()]);
       setMessage("バリュー辞書を更新しました。");
     });
   }
@@ -720,7 +762,7 @@ export default function LexiconWorkbench({ grammarId }: LexiconWorkbenchProps) {
     }
     await runTask(async () => {
       await apiDelete<{ deleted: boolean }>(`/v1/lexicon/value-dictionary/${selectedDictionaryId}`);
-      await Promise.all([refreshDictionary(dictionaryKind), refreshAllIdslotValues()]);
+      await Promise.all([refreshDictionary(dictionaryKind), refreshAllIdslotValues(), refreshSemanticDictionaryOptions()]);
       setSelectedDictionaryId(null);
       setDictionaryCreateValue("");
       setDictionaryUsage(null);
@@ -754,7 +796,8 @@ export default function LexiconWorkbench({ grammarId }: LexiconWorkbenchProps) {
       await Promise.all([
         refreshDictionary(dictionaryKind),
         refreshItems(page, query, sortKey, sortOrder),
-        refreshAllIdslotValues()
+        refreshAllIdslotValues(),
+        refreshSemanticDictionaryOptions()
       ]);
       setDictionaryReplaceTargetId(null);
       setDictionaryUsage(null);

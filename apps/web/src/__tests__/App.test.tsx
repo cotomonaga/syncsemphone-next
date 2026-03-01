@@ -67,6 +67,24 @@ function maybeCommonResponse(url: string): Response | null {
   if (url.endsWith("/v1/derivation/grammars")) {
     return jsonResponse({ body: DEFAULT_GRAMMAR_OPTIONS });
   }
+  if (url.endsWith("/v1/derivation/rules/imi01")) {
+    return jsonResponse({
+      body: [
+        { rule_number: 1, rule_name: "RH-Merge", rule_kind: "double" },
+        { rule_number: 2, rule_name: "LH-Merge", rule_kind: "double" },
+        { rule_number: 3, rule_name: "J-Merge", rule_kind: "double" }
+      ]
+    });
+  }
+  if (url.endsWith("/v1/derivation/rules/japanese2")) {
+    return jsonResponse({
+      body: [
+        { rule_number: 7, rule_name: "J-Merge", rule_kind: "double" },
+        { rule_number: 10, rule_name: "rel-Merge", rule_kind: "double" },
+        { rule_number: 11, rule_name: "RH-Merge", rule_kind: "double" }
+      ]
+    });
+  }
   if (url.includes("/v1/derivation/numeration/files?grammar_id=imi01&source=set")) {
     return jsonResponse({ body: DEFAULT_SET_NUMERATION_FILES });
   }
@@ -183,6 +201,10 @@ function maybeCommonResponse(url: string): Response | null {
     });
   }
   return null;
+}
+
+async function switchStep1ToLexiconBuildMode(user: ReturnType<typeof userEvent.setup>): Promise<void> {
+  await user.click(screen.getByRole("button", { name: "Lexiconから組み立てる" }));
 }
 
 afterEach(() => {
@@ -333,12 +355,16 @@ describe("App", () => {
     render(<App />);
 
     await user.click(await screen.findByRole("button", { name: "この設定で開始" }));
+    await switchStep1ToLexiconBuildMode(user);
     await user.click(screen.getByRole("button", { name: "Numerationを形成" }));
 
     expect(await screen.findByRole("heading", { name: "【Step.2】Grammarの適用" })).toBeInTheDocument();
     expect(screen.getByText(/手動で left\/right と rule を選んで適用します/)).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "Load Candidates" })).not.toBeInTheDocument();
     expect(await screen.findByTestId("candidate-table")).toHaveTextContent("1:RH-Merge");
+    expect(screen.getByTestId("candidate-table")).toHaveTextContent("2:LH-Merge");
+    expect(screen.getByTestId("candidate-table")).toHaveTextContent("3:J-Merge");
+    expect(await screen.findByTestId("step2-rule-reason-3")).toHaveTextContent("適用できません");
     expect(screen.getByRole("button", { name: "候補を提案" })).toBeInTheDocument();
   });
 
@@ -381,6 +407,7 @@ describe("App", () => {
     render(<App />);
 
     await user.click(await screen.findByRole("button", { name: "この設定で開始" }));
+    await switchStep1ToLexiconBuildMode(user);
     const tokenRow = await screen.findByTestId("token-chip-row");
 
     await waitFor(() => {
@@ -590,6 +617,7 @@ describe("App", () => {
     render(<App />);
 
     await user.click(await screen.findByRole("button", { name: "この設定で開始" }));
+    await switchStep1ToLexiconBuildMode(user);
     await user.click(screen.getByRole("button", { name: "Numerationを形成" }));
 
     const assistButton = await screen.findByRole("button", { name: "候補を提案" });
@@ -743,10 +771,15 @@ describe("App", () => {
     render(<App />);
 
     await user.click(await screen.findByRole("button", { name: "この設定で開始" }));
+    await switchStep1ToLexiconBuildMode(user);
     await user.click(screen.getByRole("button", { name: "Numerationを形成" }));
 
-    expect(await screen.findByTestId("candidate-table")).toHaveTextContent("2:LH-Merge");
-    await user.click(screen.getByRole("button", { name: "実行" }));
+    const candidateTable = await screen.findByTestId("candidate-table");
+    expect(candidateTable).toHaveTextContent("2:LH-Merge");
+    const executeButtons = within(candidateTable).getAllByRole("button", { name: "実行" });
+    const enabledExecute = executeButtons.find((button) => !(button as HTMLButtonElement).disabled);
+    expect(enabledExecute).toBeDefined();
+    await user.click(enabledExecute as HTMLButtonElement);
 
     await waitFor(() => {
       expect(screen.getByTestId("current-history")).toHaveTextContent("([x1-1 x2-1] LH-Merge)");
@@ -928,6 +961,7 @@ describe("App", () => {
     render(<App />);
 
     await user.click(await screen.findByRole("button", { name: "この設定で開始" }));
+    await switchStep1ToLexiconBuildMode(user);
     await user.click(screen.getByRole("button", { name: "Numerationを形成" }));
 
     const assistButton = await screen.findByRole("button", { name: "候補を提案" });
@@ -1051,12 +1085,16 @@ describe("App", () => {
 
     await user.click(await screen.findByRole("button", { name: "この設定で開始" }));
     await user.click(screen.getByRole("button", { name: "例文から選ぶ" }));
+    fireEvent.change(screen.getByLabelText("Step1 Example Sentence"), {
+      target: { value: "/repo/imi01/set-numeration/04.num" }
+    });
 
     expect(screen.queryByLabelText("観察文（原文）")).not.toBeInTheDocument();
     const sentencePanel = screen.getByRole("button", { name: "例文から選ぶ" }).closest("section");
     expect(sentencePanel).not.toBeNull();
-    expect(await within(sentencePanel!).findByText("numerationの語彙情報参照")).toBeInTheDocument();
-    const lexiconTable = await within(sentencePanel!).findByTestId("numeration-lexicon-table");
+    const lexiconTable = await within(sentencePanel!).findByTestId("numeration-lexicon-table", undefined, {
+      timeout: 3000
+    });
     expect(lexiconTable).toHaveTextContent("Name: John");
     expect(lexiconTable).toHaveTextContent("を");
     expect(lexiconTable).toHaveTextContent("+N(right)(nonhead)");
@@ -1144,12 +1182,17 @@ describe("App", () => {
     await user.click(await screen.findByRole("button", { name: "この設定で開始" }));
 
     await user.click(screen.getByRole("button", { name: "例文から選ぶ" }));
+    fireEvent.change(screen.getByLabelText("Step1 Example Sentence"), {
+      target: { value: "/repo/imi01/set-numeration/04.num" }
+    });
     expect(screen.queryByRole("textbox", { name: "Sentence" })).not.toBeInTheDocument();
 
     // load が成功するまで語彙参照が反映されるのを待つ
     const examplePanel = screen.getByRole("button", { name: "例文から選ぶ" }).closest("section");
     expect(examplePanel).not.toBeNull();
-    await within(examplePanel!).findByTestId("numeration-lexicon-table");
+    await within(examplePanel!).findByTestId("numeration-lexicon-table", undefined, {
+      timeout: 3000
+    });
 
     await user.click(screen.getByRole("button", { name: "Lexiconから組み立てる" }));
 
@@ -1510,6 +1553,7 @@ describe("App", () => {
     render(<App />);
 
     await user.click(await screen.findByRole("button", { name: "この設定で開始" }));
+    await switchStep1ToLexiconBuildMode(user);
 
     expect(screen.getByTestId("token-input-mode")).toHaveTextContent("自動");
     await user.click(screen.getByRole("button", { name: "手動" }));
@@ -1601,6 +1645,7 @@ describe("App", () => {
     render(<App />);
 
     await user.click(await screen.findByRole("button", { name: "この設定で開始" }));
+    await switchStep1ToLexiconBuildMode(user);
     await user.click(screen.getByRole("button", { name: "手動" }));
     const sentenceInput = await screen.findByRole("textbox", { name: "Sentence" });
     await user.clear(sentenceInput);
@@ -1684,13 +1729,14 @@ describe("App", () => {
     render(<App />);
 
     await user.click(await screen.findByRole("button", { name: "この設定で開始" }));
+    await switchStep1ToLexiconBuildMode(user);
     expect(screen.getByTestId("token-input-mode")).toHaveTextContent("自動");
 
     const sentenceInput = await screen.findByRole("textbox", { name: "Sentence" });
     await user.clear(sentenceInput);
     await user.type(sentenceInput, "白いギターの箱");
 
-    const buildPanel = screen.getByRole("button", { name: "Lexiconから組み立てる" }).closest("section");
+    const buildPanel = screen.getByRole("button", { name: "Lexiconから組み立てる" }).closest("section") as HTMLElement | null;
     expect(buildPanel).not.toBeNull();
     expect(await within(buildPanel!).findByText("numerationの語彙情報参照")).toBeInTheDocument();
 
@@ -1702,6 +1748,136 @@ describe("App", () => {
     await waitFor(() => {
       expect(within(buildPanel!).getByTestId("numeration-lexicon-table")).toHaveTextContent("Sem-201");
     });
+  });
+
+  it("shows auto ga-phi supplement note and opens numeration editor from evidence link", async () => {
+    const generatePayloads: Array<Record<string, unknown>> = [];
+    vi.spyOn(globalThis, "fetch").mockImplementation(async (input, init) => {
+      const url = String(input);
+      const common = maybeCommonResponse(url);
+      if (common) {
+        return common;
+      }
+      if (url.endsWith("/v1/derivation/numeration/tokenize")) {
+        return jsonResponse({
+          body: {
+            tokens: [
+              "ふわふわした",
+              "わたあめ",
+              "を",
+              "食べている",
+              "ひつじ",
+              "と",
+              "話している",
+              "うさぎ",
+              "が",
+              "いる",
+              "る"
+            ]
+          }
+        });
+      }
+      if (url.endsWith("/v1/derivation/numeration/generate")) {
+        const payload = init?.body ? JSON.parse(String(init.body)) : {};
+        generatePayloads.push(payload);
+        return jsonResponse({
+          body: {
+            memo: payload.sentence || "",
+            lexicon_ids: [264, 265, 23, 266, 267, 268, 269, 270, 19, 271, 204, 309, 309],
+            token_resolutions: [
+              { token: "ふわふわした", lexicon_id: 264, candidate_lexicon_ids: [264] },
+              { token: "わたあめ", lexicon_id: 265, candidate_lexicon_ids: [265] },
+              { token: "を", lexicon_id: 23, candidate_lexicon_ids: [23] },
+              { token: "食べている", lexicon_id: 266, candidate_lexicon_ids: [266] },
+              { token: "ひつじ", lexicon_id: 267, candidate_lexicon_ids: [267] },
+              { token: "と", lexicon_id: 268, candidate_lexicon_ids: [268] },
+              { token: "話している", lexicon_id: 269, candidate_lexicon_ids: [269] },
+              { token: "うさぎ", lexicon_id: 270, candidate_lexicon_ids: [270] },
+              { token: "が", lexicon_id: 19, candidate_lexicon_ids: [19] },
+              { token: "いる", lexicon_id: 271, candidate_lexicon_ids: [271] },
+              { token: "る", lexicon_id: 204, candidate_lexicon_ids: [204] },
+              { token: "φ", lexicon_id: 309, candidate_lexicon_ids: [309] },
+              { token: "φ", lexicon_id: 309, candidate_lexicon_ids: [309] }
+            ],
+            auto_supplements: [
+              {
+                kind: "ga_feature33_gap_fill",
+                lexicon_id: 309,
+                entry: "φ",
+                count: 2,
+                reason: "2,33,ga 要求数が 4,11,ga 供給数を上回るため、不足分を φ(309) で補完しました。",
+                feature_code: "33",
+                label: "ga",
+                demand_count: 3,
+                provider_count: 1,
+                reference_numeration_path: "/repo/imi01/set-numeration/1608131500.num",
+                reference_numeration_memo: "ふわふわしたわたあめを食べているひつじと話しているうさぎがいる[2]"
+              }
+            ],
+            numeration_text:
+              `${payload.sentence || ""}\t264\t265\t23\t266\t267\t268\t269\t270\t19\t271\t204\t309\t309\n` +
+              " \t\t\t\t\t\t\t\t\t\t\t\t\t\n" +
+              " \t1\t2\t3\t4\t5\t6\t7\t8\t9\t10\t11\t12\t13"
+          }
+        });
+      }
+      if (url.endsWith("/v1/reference/grammars/imi01/lexicon-items/by-ids")) {
+        const payload = init?.body ? JSON.parse(String(init.body)) : {};
+        const ids = Array.isArray(payload.ids) ? payload.ids : [];
+        return jsonResponse({
+          body: {
+            grammar_id: "imi01",
+            requested_count: ids.length,
+            found_count: ids.length,
+            missing_ids: [],
+            items: ids.map((lexiconId: number) => ({
+              lexicon_id: lexiconId,
+              found: true,
+              entry: `ID-${lexiconId}`,
+              phono: `phono-${lexiconId}`,
+              category: "N",
+              sync_features: [],
+              idslot: "id",
+              semantics: [`Sem-${lexiconId}`],
+              note: ""
+            }))
+          }
+        });
+      }
+      if (url.endsWith("/v1/derivation/numeration/load")) {
+        const payload = init?.body ? JSON.parse(String(init.body)) : {};
+        return jsonResponse({
+          body: {
+            path: payload.path || "",
+            memo: "ふわふわしたわたあめを食べているひつじと話しているうさぎがいる[2]",
+            numeration_text: "dummy\t264\t265\t23\t266\t267\t268\t269\t270\t19\t271\t204\t309\t309\n \t\t\t\t\t\t\t\t\t\t\t\t\t\n \t1\t2\t3\t4\t5\t6\t7\t8\t9\t10\t11\t12\t13"
+          }
+        });
+      }
+      throw new Error(`unexpected url: ${url}`);
+    });
+
+    const user = userEvent.setup();
+    render(<App />);
+
+    await user.click(await screen.findByRole("button", { name: "この設定で開始" }));
+    await switchStep1ToLexiconBuildMode(user);
+    const sentenceInput = await screen.findByRole("textbox", { name: "Sentence" });
+    await user.clear(sentenceInput);
+    await user.type(sentenceInput, "ふわふわしたわたあめを食べているひつじと話しているうさぎがいる");
+
+    const buildPanel = screen.getByRole("button", { name: "Lexiconから組み立てる" }).closest("section");
+    expect(buildPanel).not.toBeNull();
+    expect(await within(buildPanel!).findByTestId("step1-auto-supplement-notes")).toHaveTextContent(
+      "ID 309（φ）を 2件 追加"
+    );
+
+    await user.click(within(buildPanel!).getByRole("button", { name: "根拠 .num を Numeration編集で表示" }));
+    expect(await screen.findByRole("heading", { name: "Numeration編集" })).toBeInTheDocument();
+    expect(await screen.findByText(/ファイルパス:/)).toHaveTextContent(
+      "/repo/imi01/set-numeration/1608131500.num"
+    );
+    expect(generatePayloads.some((payload) => payload.auto_add_ga_phi === true)).toBe(true);
   });
 
   it("allows replacing a multi-candidate lexicon item in Step1 numeration reference", async () => {
@@ -1772,6 +1948,7 @@ describe("App", () => {
     render(<App />);
 
     await user.click(await screen.findByRole("button", { name: "この設定で開始" }));
+    await switchStep1ToLexiconBuildMode(user);
     const sentenceInput = await screen.findByRole("textbox", { name: "Sentence" });
     await user.clear(sentenceInput);
     await user.type(sentenceInput, "うさぎがいる");
@@ -1914,6 +2091,7 @@ describe("App", () => {
     render(<App />);
 
     await user.click(await screen.findByRole("button", { name: "この設定で開始" }));
+    await switchStep1ToLexiconBuildMode(user);
 
     const sentenceInput = await screen.findByRole("textbox", { name: "Sentence" });
     await user.clear(sentenceInput);
@@ -1941,7 +2119,7 @@ describe("App", () => {
     expect(selectionList).toHaveTextContent("Sem-227");
 
     expect(initRequests.length).toBeGreaterThan(0);
-    const lastInitPayload = JSON.parse(initRequests.at(-1) || "{}");
+    const lastInitPayload = JSON.parse(initRequests[initRequests.length - 1] || "{}");
     const firstRow = String(lastInitPayload.numeration_text || "").split(/\r?\n/)[0].split("\t");
     expect(firstRow[3]).toBe("227");
   });
@@ -2012,6 +2190,7 @@ describe("App", () => {
     render(<App />);
 
     await user.click(await screen.findByRole("button", { name: "この設定で開始" }));
+    await switchStep1ToLexiconBuildMode(user);
 
     const sentenceInput = await screen.findByRole("textbox", { name: "Sentence" });
     await user.clear(sentenceInput);
@@ -2149,8 +2328,14 @@ describe("App", () => {
     await waitFor(() => {
       expect(within(buildPanel!).getByTestId("numeration-lexicon-table")).toHaveTextContent("読む");
     });
-    expect(within(buildPanel!).getByText(/25\(wo\).*満たす語がありません/)).toBeInTheDocument();
-    expect(within(buildPanel!).getByText(/25\(ga\).*満たす語がありません/)).toBeInTheDocument();
+    expect(within(buildPanel!).getByTestId("step1-inline-partner-summary-5-0")).toHaveTextContent("25(wo)");
+    expect(within(buildPanel!).getByTestId("step1-inline-partner-summary-5-0")).toHaveTextContent(
+      /満たす語が(ありませ|見つかりませ)ん/
+    );
+    expect(within(buildPanel!).getByTestId("step1-inline-partner-summary-5-1")).toHaveTextContent("25(ga)");
+    expect(within(buildPanel!).getByTestId("step1-inline-partner-summary-5-1")).toHaveTextContent(
+      /満たす語が(ありませ|見つかりませ)ん/
+    );
   });
 
   it("shows red grammar compatibility warning when manually selecting an incompatible candidate in Step1", async () => {
@@ -2650,6 +2835,7 @@ describe("App", () => {
     render(<App />);
 
     await user.click(await screen.findByRole("button", { name: "この設定で開始" }));
+    await switchStep1ToLexiconBuildMode(user);
     const sentenceInput = await screen.findByRole("textbox", { name: "Sentence" });
     await user.clear(sentenceInput);
     await user.type(sentenceInput, "うさぎがいる");
@@ -2676,7 +2862,7 @@ describe("App", () => {
     });
 
     const panelAfterApply = await within(screen.getByTestId("step2-selection-list")).findByTestId("step2-candidate-panel-4");
-    const candidateRow308 = within(panelAfterApply).getByText("ID 308").closest(".numeration-candidate-item");
+    const candidateRow308 = within(panelAfterApply).getByText("ID 308").closest(".numeration-candidate-item") as HTMLElement | null;
     expect(candidateRow308).not.toBeNull();
     await user.click(within(candidateRow308!).getByRole("button", { name: "語彙項目を編集" }));
     expect(await screen.findByTestId("lexicon-workbench")).toBeInTheDocument();

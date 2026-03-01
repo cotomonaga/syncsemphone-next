@@ -13,12 +13,12 @@
             "state": {
               "type": "markdown",
               "state": {
-                "file": "RHLHマージ＋素性照合における到達性と文法妥当性検証のための設計レポート.md",
+                "file": "specs/fuwafuwa-natural-reachability-consulting-brief-ja.md",
                 "mode": "source",
                 "source": false
               },
               "icon": "lucide-file",
-              "title": "RHLHマージ＋素性照合における到達性と文法妥当性検証のための設計レポート"
+              "title": "fuwafuwa-natural-reachability-consulting-brief-ja"
             }
           }
         ]
@@ -94,7 +94,7 @@
             "state": {
               "type": "backlink",
               "state": {
-                "file": "RHLHマージ＋素性照合における到達性と文法妥当性検証のための設計レポート.md",
+                "file": "specs/fuwafuwa-natural-reachability-consulting-brief-ja.md",
                 "collapseAll": false,
                 "extraContext": false,
                 "sortOrder": "alphabetical",
@@ -104,7 +104,7 @@
                 "unlinkedCollapsed": true
               },
               "icon": "links-coming-in",
-              "title": "RHLHマージ＋素性照合における到達性と文法妥当性検証のための設計レポートへのバックリンク"
+              "title": "fuwafuwa-natural-reachability-consulting-brief-jaへのバックリンク"
             }
           },
           {
@@ -113,12 +113,12 @@
             "state": {
               "type": "outgoing-link",
               "state": {
-                "file": "RHLHマージ＋素性照合における到達性と文法妥当性検証のための設計レポート.md",
+                "file": "specs/fuwafuwa-natural-reachability-consulting-brief-ja.md",
                 "linksCollapsed": false,
                 "unlinkedCollapsed": true
               },
               "icon": "links-going-out",
-              "title": "RHLHマージ＋素性照合における到達性と文法妥当性検証のための設計レポートからのアウトゴーイングリンク"
+              "title": "fuwafuwa-natural-reachability-consulting-brief-jaからのアウトゴーイングリンク"
             }
           },
           {
@@ -156,13 +156,13 @@
             "state": {
               "type": "outline",
               "state": {
-                "file": "RHLHマージ＋素性照合における到達性と文法妥当性検証のための設計レポート.md",
+                "file": "specs/fuwafuwa-natural-reachability-consulting-brief-ja.md",
                 "followCursor": false,
                 "showSearch": false,
                 "searchQuery": ""
               },
               "icon": "lucide-list",
-              "title": "RHLHマージ＋素性照合における到達性と文法妥当性検証のための設計レポートのアウトライン"
+              "title": "fuwafuwa-natural-reachability-consulting-brief-jaのアウトライン"
             }
           }
         ]
@@ -174,19 +174,23 @@
   },
   "left-ribbon": {
     "hiddenItems": {
+      "bases:新規ベースを作成": false,
       "switcher:クイックスイッチャーを開く": false,
       "graph:グラフビューを開く": false,
       "canvas:新規キャンバスを作成": false,
       "daily-notes:今日のデイリーノートを開く": false,
       "templates:テンプレートを挿入": false,
-      "command-palette:コマンドパレットを開く": false,
-      "bases:Create new base": false
+      "command-palette:コマンドパレットを開く": false
     }
   },
   "active": "5fc9fc11ca0a83c5",
   "lastOpenFiles": [
-    "specs/layer1-layer2-nonconvergence-report-ja.md",
     "RHLHマージ＋素性照合における到達性と文法妥当性検証のための設計レポート.md",
+    "specs/fuwafuwa-natural-reachability-consulting-brief-ja.md",
+    "specs/reachability-naturalness-design-ja.md",
+    "specs/reachability-confirmed-sets-ja.md",
+    "specs/lexicon-idslot-audit-ja.md",
+    "specs/layer1-layer2-nonconvergence-report-ja.md",
     "specs/behavior-priority-ja.md",
     "specs/reachability-first-layer-search-methods-ja.md",
     "specs/rh-lh-merge-feature-matching-code-aligned-ja.md",

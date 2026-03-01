@@ -4,12 +4,32 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Protocol
 
+from domain.grammar.rule_catalog import load_rule_catalog
 from domain.lexicon.legacy_loader import load_legacy_lexicon
 from domain.lexicon.models import LexiconEntry
 from domain.numeration.parser import NUMERATION_SLOT_COUNT
 
 
 _IGNORED_CHARS = {" ", "　", "。", "．", ".", "、", "，", ",", "!", "！", "?", "？"}
+_JAPANESE2_ONLY_SYNC_FEATURE_CODES = {"1L", "2L", "3L"}
+_RULE_NAME_MARKERS = (
+    "RH-Merge",
+    "LH-Merge",
+    "J-Merge",
+    "P-Merge",
+    "rel-Merge",
+    "property-Merge",
+    "property-no",
+    "property-da",
+    "sase1",
+    "sase2",
+    "rare1",
+    "rare2",
+    "Pickup",
+    "Landing",
+    "Partitioning",
+    "zero-Merge",
+)
 
 
 def _normalize_token(token: str) -> str:
@@ -175,13 +195,8 @@ class SudachiMorphTokenizer:
 
             out.append(row.token)
 
-            # 動詞終止形は非過去の時制語彙（る）を補完する。
-            # 直後が助動詞（た等）の場合は、助動詞側で時制を表すため補完しない。
-            if (
-                row.pos_major == "動詞"
-                and "終止形" in row.conjugation_form
-                and (next_row is None or next_row.pos_major != "助動詞")
-            ):
+            # 「いる」は V 語彙と T 語彙（る）に分ける運用を優先する。
+            if row.dictionary_form == "いる" and row.pos_major == "動詞" and "終止形" in row.conjugation_form:
                 out.append("る")
 
             i += 1
@@ -200,6 +215,16 @@ class TokenResolution:
     token: str
     lexicon_id: int
     candidate_lexicon_ids: list[int]
+    candidate_compatibility: list["CandidateCompatibility"]
+
+
+@dataclass(frozen=True)
+class CandidateCompatibility:
+    lexicon_id: int
+    compatible: bool
+    reason_codes: list[str]
+    missing_rule_names: list[str]
+    referenced_rule_names: list[str]
 
 
 @dataclass(frozen=True)
@@ -208,12 +233,82 @@ class GeneratedNumeration:
     lexicon_ids: list[int]
     token_resolutions: list[TokenResolution]
     numeration_text: str
+    auto_supplements: list["AutoSupplement"]
+
+
+@dataclass(frozen=True)
+class AutoSupplement:
+    kind: str
+    lexicon_id: int
+    entry: str
+    count: int
+    reason: str
+    feature_code: str
+    label: str
+    demand_count: int
+    provider_count: int
 
 
 @dataclass(frozen=True)
 class _PartnerRequirement:
     feature_code: str  # "25" or "33"
     label: str
+
+
+def _extract_sync_feature_codes(entry: LexiconEntry) -> set[str]:
+    codes: set[str] = set()
+    for feature in entry.sync_features:
+        parts = [part.strip() for part in feature.split(",")]
+        if len(parts) > 1 and parts[1] != "":
+            codes.add(parts[1])
+    return codes
+
+
+def _extract_referenced_rule_names(entry: LexiconEntry) -> list[str]:
+    values = list(entry.sync_features) + list(entry.semantics)
+    referenced: set[str] = set()
+    for value in values:
+        if value == "":
+            continue
+        for marker in _RULE_NAME_MARKERS:
+            if marker in value:
+                referenced.add(marker)
+    return sorted(referenced)
+
+
+def _infer_candidate_compatibility(
+    *,
+    grammar_id: str,
+    entry: LexiconEntry,
+    grammar_rule_names: set[str],
+) -> CandidateCompatibility:
+    reason_codes: list[str] = []
+    missing_rule_names: list[str] = []
+    referenced_rule_names = _extract_referenced_rule_names(entry)
+
+    sync_codes = _extract_sync_feature_codes(entry)
+    has_japanese2_only_code = any(
+        code in _JAPANESE2_ONLY_SYNC_FEATURE_CODES for code in sync_codes
+    )
+    if has_japanese2_only_code and grammar_id != "japanese2":
+        reason_codes.append("requires_japanese2_l_feature")
+
+    if referenced_rule_names:
+        missing = sorted(
+            rule_name for rule_name in referenced_rule_names if rule_name not in grammar_rule_names
+        )
+        if missing:
+            missing_rule_names.extend(missing)
+            reason_codes.append("missing_required_rule")
+
+    compatible = len(reason_codes) == 0
+    return CandidateCompatibility(
+        lexicon_id=entry.lexicon_id,
+        compatible=compatible,
+        reason_codes=reason_codes,
+        missing_rule_names=missing_rule_names,
+        referenced_rule_names=referenced_rule_names,
+    )
 
 
 def _phono_variants(phono: str) -> list[str]:
@@ -296,6 +391,7 @@ def _resolve_token(
     *,
     surface_index: dict[str, list[int]],
     lexicon: dict[int, LexiconEntry],
+    grammar_rule_names: set[str],
 ) -> TokenResolution:
     normalized = _normalize_token(token)
     if normalized == "":
@@ -307,10 +403,25 @@ def _resolve_token(
         set(candidates),
         key=lambda lexicon_id: _candidate_sort_key(grammar_id, normalized, lexicon_id, lexicon),
     )
+    compatibilities = [
+        _infer_candidate_compatibility(
+            grammar_id=grammar_id,
+            entry=lexicon[lexicon_id],
+            grammar_rule_names=grammar_rule_names,
+        )
+        for lexicon_id in deduped
+    ]
+    compatible_ids = [
+        row.lexicon_id
+        for row in compatibilities
+        if row.compatible
+    ]
+    selected_lexicon_id = compatible_ids[0] if compatible_ids else deduped[0]
     return TokenResolution(
         token=normalized,
-        lexicon_id=deduped[0],
+        lexicon_id=selected_lexicon_id,
         candidate_lexicon_ids=deduped,
+        candidate_compatibility=compatibilities,
     )
 
 
@@ -375,7 +486,13 @@ def _optimize_partner_friendly_selection(
     candidate_ids_by_slot: list[list[int]] = []
     candidate_rank_by_slot: list[dict[int, int]] = []
     for resolution in resolutions:
-        deduped = list(dict.fromkeys(resolution.candidate_lexicon_ids or [resolution.lexicon_id]))
+        compatible_ids = [
+            row.lexicon_id
+            for row in resolution.candidate_compatibility
+            if row.compatible
+        ]
+        allowed_ids = compatible_ids if compatible_ids else resolution.candidate_lexicon_ids
+        deduped = list(dict.fromkeys(allowed_ids or [resolution.lexicon_id]))
         if resolution.lexicon_id not in deduped:
             deduped.insert(0, resolution.lexicon_id)
         candidate_ids_by_slot.append(deduped)
@@ -499,6 +616,28 @@ def _build_numeration_text(*, memo: str, lexicon_ids: list[int]) -> str:
     return "\n".join(["\t".join(line1), "\t".join(line2), "\t".join(line3)])
 
 
+def _count_ga_feature33_requirements_and_providers(
+    *,
+    lexicon_ids: list[int],
+    lexicon: dict[int, LexiconEntry],
+) -> tuple[int, int]:
+    demand_count = 0
+    provider_count = 0
+    for lexicon_id in lexicon_ids:
+        entry = lexicon.get(lexicon_id)
+        if entry is None:
+            continue
+
+        for requirement in _extract_partner_requirements(entry):
+            if requirement.feature_code == "33" and requirement.label == "ga":
+                demand_count += 1
+
+        _, labeled = _extract_partner_capabilities(entry)
+        if "ga" in labeled:
+            provider_count += 1
+    return demand_count, provider_count
+
+
 def generate_numeration_from_sentence(
     *,
     grammar_id: str,
@@ -507,12 +646,16 @@ def generate_numeration_from_sentence(
     tokens: list[str] | None = None,
     split_mode: str = "C",
     tokenizer: MorphTokenizer | None = None,
+    auto_add_ga_phi: bool = False,
 ) -> GeneratedNumeration:
     memo = sentence.strip()
     if memo == "":
         raise ValueError("sentence must not be empty")
 
     lexicon = load_legacy_lexicon(legacy_root=legacy_root, grammar_id=grammar_id)
+    grammar_rule_names = {
+        row.name for row in load_rule_catalog(grammar_id=grammar_id, legacy_root=legacy_root)
+    }
     surface_index = _build_surface_index(lexicon)
 
     if tokens is None:
@@ -532,6 +675,7 @@ def generate_numeration_from_sentence(
                 token=normalized,
                 surface_index=surface_index,
                 lexicon=lexicon,
+                grammar_rule_names=grammar_rule_names,
             )
         )
 
@@ -547,10 +691,57 @@ def generate_numeration_from_sentence(
             token=resolution.token,
             lexicon_id=optimized_lexicon_ids[idx],
             candidate_lexicon_ids=resolution.candidate_lexicon_ids,
+            candidate_compatibility=resolution.candidate_compatibility,
         )
         for idx, resolution in enumerate(resolutions)
     ]
-    lexicon_ids = optimized_lexicon_ids
+    lexicon_ids = optimized_lexicon_ids[:]
+    auto_supplements: list[AutoSupplement] = []
+
+    if auto_add_ga_phi and grammar_id == "imi01":
+        ga_phi_lexicon_id = 309
+        ga_phi_entry = lexicon.get(ga_phi_lexicon_id)
+        if ga_phi_entry is not None:
+            demand_count, provider_count = _count_ga_feature33_requirements_and_providers(
+                lexicon_ids=lexicon_ids,
+                lexicon=lexicon,
+            )
+            deficit = max(0, demand_count - provider_count)
+            remaining_slots = max(0, NUMERATION_SLOT_COUNT - len(lexicon_ids))
+            add_count = min(deficit, remaining_slots)
+            if add_count > 0:
+                compatibility = _infer_candidate_compatibility(
+                    grammar_id=grammar_id,
+                    entry=ga_phi_entry,
+                    grammar_rule_names=grammar_rule_names,
+                )
+                for _ in range(add_count):
+                    lexicon_ids.append(ga_phi_lexicon_id)
+                    resolutions.append(
+                        TokenResolution(
+                            token="φ",
+                            lexicon_id=ga_phi_lexicon_id,
+                            candidate_lexicon_ids=[ga_phi_lexicon_id],
+                            candidate_compatibility=[compatibility],
+                        )
+                    )
+                auto_supplements.append(
+                    AutoSupplement(
+                        kind="ga_feature33_gap_fill",
+                        lexicon_id=ga_phi_lexicon_id,
+                        entry=ga_phi_entry.entry,
+                        count=add_count,
+                        reason=(
+                            "2,33,ga 要求数が 4,11,ga 供給数を上回るため、"
+                            "不足分を φ(309) で補完しました。"
+                        ),
+                        feature_code="33",
+                        label="ga",
+                        demand_count=demand_count,
+                        provider_count=provider_count,
+                    )
+                )
+
     numeration_text = _build_numeration_text(memo=memo, lexicon_ids=lexicon_ids)
 
     return GeneratedNumeration(
@@ -558,4 +749,5 @@ def generate_numeration_from_sentence(
         lexicon_ids=lexicon_ids,
         token_resolutions=resolutions,
         numeration_text=numeration_text,
+        auto_supplements=auto_supplements,
     )

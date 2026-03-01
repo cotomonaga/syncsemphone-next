@@ -111,12 +111,32 @@ export type TokenResolution = {
   token: string;
   lexicon_id: number;
   candidate_lexicon_ids: number[];
+  candidate_compatibility?: {
+    lexicon_id: number;
+    compatible: boolean;
+    reason_codes: string[];
+    missing_rule_names: string[];
+    referenced_rule_names: string[];
+  }[];
 };
 
 export type GeneratedNumeration = {
   memo: string;
   lexicon_ids: number[];
   token_resolutions: TokenResolution[];
+  auto_supplements?: {
+    kind: string;
+    lexicon_id: number;
+    entry: string;
+    count: number;
+    reason: string;
+    feature_code: string;
+    label: string;
+    demand_count: number;
+    provider_count: number;
+    reference_numeration_path?: string | null;
+    reference_numeration_memo?: string | null;
+  }[];
   numeration_text: string;
 };
 

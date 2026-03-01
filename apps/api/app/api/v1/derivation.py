@@ -15,7 +15,7 @@ from pathlib import Path
 from typing import Any, Callable, Optional
 
 from fastapi import APIRouter, HTTPException
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 DOMAIN_SRC = Path(__file__).resolve().parents[5] / "packages" / "domain" / "src"
 if str(DOMAIN_SRC) not in sys.path:
@@ -72,6 +72,13 @@ class DerivationReachabilityRequest(BaseModel):
     legacy_root: Optional[str] = None
     rh_merge_version: Optional[str] = None
     lh_merge_version: Optional[str] = None
+
+
+class DerivationReachabilityJobContinueRequest(BaseModel):
+    additional_budget_seconds: float = 10.0
+    additional_max_nodes: int = 220000
+    additional_max_depth: int = 0
+    additional_max_evidences: int = 10
 
 
 class ReachabilityRuleStepResponse(BaseModel):
@@ -248,19 +255,44 @@ class SentenceNumerationGenerateRequest(BaseModel):
     sentence: str
     tokens: Optional[list[str]] = None
     split_mode: str = "C"
+    auto_add_ga_phi: bool = False
     legacy_root: Optional[str] = None
+
+
+class TokenCandidateCompatibilityResponse(BaseModel):
+    lexicon_id: int
+    compatible: bool
+    reason_codes: list[str]
+    missing_rule_names: list[str]
+    referenced_rule_names: list[str]
 
 
 class TokenResolutionResponse(BaseModel):
     token: str
     lexicon_id: int
     candidate_lexicon_ids: list[int]
+    candidate_compatibility: list[TokenCandidateCompatibilityResponse] = Field(default_factory=list)
+
+
+class AutoSupplementResponse(BaseModel):
+    kind: str
+    lexicon_id: int
+    entry: str
+    count: int
+    reason: str
+    feature_code: str
+    label: str
+    demand_count: int
+    provider_count: int
+    reference_numeration_path: Optional[str] = None
+    reference_numeration_memo: Optional[str] = None
 
 
 class SentenceNumerationGenerateResponse(BaseModel):
     memo: str
     lexicon_ids: list[int]
     token_resolutions: list[TokenResolutionResponse]
+    auto_supplements: list[AutoSupplementResponse] = Field(default_factory=list)
     numeration_text: str
 
 
@@ -336,6 +368,15 @@ _HEAD_ASSIST_MAX_PARALLEL_CORES = 8
 _HEAD_ASSIST_MAX_EVIDENCES_CAP = 200
 _HEAD_ASSIST_PAGE_LIMIT_CAP = 100
 _HEAD_ASSIST_JOBS_TTL_SECONDS = 1800.0
+_REACHABILITY_ZERO_DELTA_STREAK_LIMIT = 12
+_REACHABILITY_WORSENING_CANDIDATES_WITH_DECREASING = 2
+_REACHABILITY_WORSENING_CANDIDATES_WITHOUT_DECREASING = 6
+_REACHABILITY_ZERO_DELTA_SINGLE_RULES = {
+    "zero-Merge",
+    "Pickup",
+    "Landing",
+    "Partitioning",
+}
 _BASELINE_SEARCH_MAX_DEPTH_CAP = 32
 _BASELINE_SEARCH_MAX_NODES_CAP = 2_000_000
 _BASELINE_SEARCH_BUDGET_SECONDS_CAP = 300.0
@@ -450,6 +491,51 @@ def _extract_memo(numeration_text: str) -> str:
     first_line = numeration_text.splitlines()[0] if numeration_text.strip() != "" else ""
     cells = first_line.split("\t")
     return cells[0] if cells else ""
+
+
+def _extract_lexicon_ids_from_numeration_text(numeration_text: str) -> list[int]:
+    if numeration_text.strip() == "":
+        return []
+    first_line = numeration_text.splitlines()[0]
+    cells = first_line.split("\t")[1 : NUMERATION_SLOT_COUNT + 1]
+    out: list[int] = []
+    for cell in cells:
+        value = cell.strip()
+        if value == "":
+            continue
+        if value.isdigit():
+            out.append(int(value))
+    return out
+
+
+def _resolve_auto_supplement_reference(
+    *,
+    legacy_root: Path,
+    grammar_id: str,
+    sentence: str,
+    lexicon_ids: list[int],
+) -> tuple[Optional[str], Optional[str]]:
+    try:
+        set_dir = _numeration_dirs(legacy_root, grammar_id)["set"]
+    except ValueError:
+        return None, None
+    if not set_dir.exists():
+        return None, None
+
+    sentence_norm = sentence.strip()
+    for path in sorted(set_dir.glob("*.num")):
+        try:
+            text = path.read_text(encoding="utf-8")
+        except OSError:
+            continue
+        memo = _extract_memo(text).strip()
+        file_ids = _extract_lexicon_ids_from_numeration_text(text)
+        if file_ids != lexicon_ids:
+            continue
+        if sentence_norm and not memo.startswith(sentence_norm):
+            continue
+        return str(path.resolve()), memo
+    return None, None
 
 
 def _compose_numeration_text(
@@ -663,8 +749,8 @@ def _enumerate_candidate_transitions(
 
     transitions: list[tuple[RuleCandidate, int, int, DerivationState]] = []
     seen_actions: set[tuple[int, str, str, int, int, int]] = set()
-    unresolved_before = _count_uninterpretable_like_perl(state)
 
+    # 1) double rules: enumerate only distinct left/right pairs.
     for left in range(1, state.basenum + 1):
         for right in range(1, state.basenum + 1):
             if left == right:
@@ -678,9 +764,13 @@ def _enumerate_candidate_transitions(
                 lh_merge_version=lh_merge_version,
             )
             for candidate in candidates:
+                if candidate.rule_kind != "double":
+                    continue
                 actual_left = candidate.left if candidate.left is not None else left
                 actual_right = candidate.right if candidate.right is not None else right
-                if candidate.rule_kind == "double" and not _passes_nohead_constraint(
+                if actual_left == actual_right:
+                    continue
+                if not _passes_nohead_constraint(
                     state=state,
                     rule_name=candidate.rule_name,
                     left=actual_left,
@@ -698,7 +788,6 @@ def _enumerate_candidate_transitions(
                 if action_key in seen_actions:
                     continue
                 seen_actions.add(action_key)
-
                 try:
                     _, _, next_state = _execute_candidate_for_assist(
                         state=state,
@@ -710,39 +799,52 @@ def _enumerate_candidate_transitions(
                     )
                 except ValueError:
                     continue
-                unresolved_after = _count_uninterpretable_like_perl(next_state)
-                # 探索縮約: 未解釈素性を減らさない遷移は展開しない。
-                if unresolved_after >= unresolved_before:
-                    continue
                 if state_signature_fn(next_state) == state_key:
                     continue
                 transitions.append((candidate, actual_left, actual_right, next_state))
 
-    case_local_transitions = [
-        row
-        for row in transitions
-        if _is_case_particle_local_transition(
-            state=state,
-            candidate=row[0],
-            left=row[1],
-            right=row[2],
-        )
-    ]
-    if case_local_transitions:
-        transitions = case_local_transitions
-    else:
-        vt_local_transitions = [
-            row
-            for row in transitions
-            if _is_local_vt_transition(
+    # 2) single rules: enumerate per index using (idx, idx).
+    # imi系（imi01/02/03）は二項規則中心の到達探索を優先し、
+    # reachability 検索中に単項規則を混ぜない（終盤の幅爆発を回避）。
+    allow_single_rules = (not state.grammar_id.startswith("imi")) and state.basenum <= 2
+    if allow_single_rules:
+        for index in range(1, state.basenum + 1):
+            candidates = list_merge_candidates(
                 state=state,
-                candidate=row[0],
-                left=row[1],
-                right=row[2],
+                left=index,
+                right=index,
+                legacy_root=legacy_root,
+                rh_merge_version=rh_merge_version,
+                lh_merge_version=lh_merge_version,
             )
-        ]
-        if vt_local_transitions:
-            transitions = vt_local_transitions
+            for candidate in candidates:
+                if candidate.rule_kind != "single":
+                    continue
+                action_key = (
+                    candidate.rule_number,
+                    candidate.rule_name,
+                    candidate.rule_kind,
+                    index,
+                    index,
+                    candidate.check if candidate.check is not None else -1,
+                )
+                if action_key in seen_actions:
+                    continue
+                seen_actions.add(action_key)
+                try:
+                    _, _, next_state = _execute_candidate_for_assist(
+                        state=state,
+                        candidate=candidate,
+                        fallback_left=index,
+                        fallback_right=index,
+                        rh_merge_version=rh_merge_version,
+                        lh_merge_version=lh_merge_version,
+                    )
+                except ValueError:
+                    continue
+                if state_signature_fn(next_state) == state_key:
+                    continue
+                transitions.append((candidate, index, index, next_state))
 
     cache[state_key] = transitions
     return transitions
@@ -753,6 +855,46 @@ def _head_assist_transition_rank_key(
 ) -> tuple[int, int, int, int, int, int]:
     candidate, left, right, next_state = row
     return (
+        _count_uninterpretable_like_perl(next_state),
+        next_state.basenum,
+        candidate.rule_number,
+        left,
+        right,
+        candidate.check if candidate.check is not None else 0,
+    )
+
+
+def _head_assist_transition_priority(
+    *,
+    state: DerivationState,
+    row: tuple[RuleCandidate, int, int, DerivationState],
+) -> int:
+    candidate, left, right, _ = row
+    if _is_case_particle_local_transition(
+        state=state,
+        candidate=candidate,
+        left=left,
+        right=right,
+    ):
+        return 0
+    if _is_local_vt_transition(
+        state=state,
+        candidate=candidate,
+        left=left,
+        right=right,
+    ):
+        return 1
+    return 2
+
+
+def _head_assist_transition_search_key(
+    *,
+    state: DerivationState,
+    row: tuple[RuleCandidate, int, int, DerivationState],
+) -> tuple[int, int, int, int, int, int, int]:
+    candidate, left, right, next_state = row
+    return (
+        _head_assist_transition_priority(state=state, row=row),
         _count_uninterpretable_like_perl(next_state),
         next_state.basenum,
         candidate.rule_number,
@@ -842,6 +984,7 @@ def _generate_numeration_with_unknown_token_fallback(
     legacy_root: Path,
     tokens: Optional[list[str]],
     split_mode: str,
+    auto_add_ga_phi: bool,
 ):
     # 手動トークン指定時は利用者入力を優先し、分割モードフォールバックは行わない。
     if tokens:
@@ -851,6 +994,7 @@ def _generate_numeration_with_unknown_token_fallback(
             legacy_root=legacy_root,
             tokens=tokens,
             split_mode=split_mode,
+            auto_add_ga_phi=auto_add_ga_phi,
         )
 
     tried: set[str] = set()
@@ -867,6 +1011,7 @@ def _generate_numeration_with_unknown_token_fallback(
                 legacy_root=legacy_root,
                 tokens=tokens,
                 split_mode=mode,
+                auto_add_ga_phi=auto_add_ga_phi,
             )
         except ValueError as exc:
             last_error = exc
@@ -876,6 +1021,66 @@ def _generate_numeration_with_unknown_token_fallback(
     if last_error is not None:
         raise last_error
     raise ValueError("numeration generation failed")
+
+
+def _to_sentence_numeration_response(
+    *,
+    generated: Any,
+    legacy_root: Path,
+    grammar_id: str,
+    sentence: str,
+) -> SentenceNumerationGenerateResponse:
+    auto_supplements: list[AutoSupplementResponse] = []
+    for note in getattr(generated, "auto_supplements", []):
+        reference_path: Optional[str] = None
+        reference_memo: Optional[str] = None
+        if note.kind == "ga_feature33_gap_fill":
+            reference_path, reference_memo = _resolve_auto_supplement_reference(
+                legacy_root=legacy_root,
+                grammar_id=grammar_id,
+                sentence=sentence,
+                lexicon_ids=generated.lexicon_ids,
+            )
+        auto_supplements.append(
+            AutoSupplementResponse(
+                kind=note.kind,
+                lexicon_id=note.lexicon_id,
+                entry=note.entry,
+                count=note.count,
+                reason=note.reason,
+                feature_code=note.feature_code,
+                label=note.label,
+                demand_count=note.demand_count,
+                provider_count=note.provider_count,
+                reference_numeration_path=reference_path,
+                reference_numeration_memo=reference_memo,
+            )
+        )
+
+    return SentenceNumerationGenerateResponse(
+        memo=generated.memo,
+        lexicon_ids=generated.lexicon_ids,
+        token_resolutions=[
+            TokenResolutionResponse(
+                token=row.token,
+                lexicon_id=row.lexicon_id,
+                candidate_lexicon_ids=row.candidate_lexicon_ids,
+                candidate_compatibility=[
+                    TokenCandidateCompatibilityResponse(
+                        lexicon_id=item.lexicon_id,
+                        compatible=item.compatible,
+                        reason_codes=item.reason_codes,
+                        missing_rule_names=item.missing_rule_names,
+                        referenced_rule_names=item.referenced_rule_names,
+                    )
+                    for item in row.candidate_compatibility
+                ],
+            )
+            for row in generated.token_resolutions
+        ],
+        auto_supplements=auto_supplements,
+        numeration_text=generated.numeration_text,
+    )
 
 
 def _item_for_index(state: DerivationState, index: int) -> Optional[list[Any]]:
@@ -1002,6 +1207,175 @@ def _is_local_vt_transition(
     return abs(left - right) == 1
 
 
+def _iter_tree_items_for_partner_scan(item: object):
+    if item == "zero" or not isinstance(item, list):
+        return
+    yield item
+    if len(item) > 7 and isinstance(item[7], list):
+        for child in item[7]:
+            if isinstance(child, list):
+                yield from _iter_tree_items_for_partner_scan(child)
+
+
+def _collect_item_partner_labels(
+    item: object,
+) -> tuple[set[str], set[str], set[str], set[str]]:
+    demand_33: set[str] = set()
+    demand_25: set[str] = set()
+    provider_33: set[str] = set()
+    provider_25: set[str] = set()
+
+    for node in _iter_tree_items_for_partner_scan(item):
+        sy_values = node[3] if len(node) > 3 and isinstance(node[3], list) else []
+        se_values = node[5] if len(node) > 5 and isinstance(node[5], list) else []
+
+        for feature in sy_values:
+            raw = str(feature).strip()
+            if raw == "":
+                continue
+            parts = [part.strip() for part in raw.split(",")]
+            if len(parts) >= 3 and parts[1] in {"11", "12"}:
+                provider_33.add(parts[2])
+            elif "," not in raw:
+                provider_25.add(raw)
+
+        for semantic in se_values:
+            raw = str(semantic)
+            if ":" not in raw:
+                continue
+            rhs = raw.split(":", 1)[1].strip()
+            if rhs == "":
+                continue
+            parts = [part.strip() for part in rhs.split(",")]
+            if len(parts) < 3:
+                continue
+            feature_code = parts[1]
+            label = parts[2]
+            if label == "":
+                continue
+            if feature_code == "33":
+                demand_33.add(label)
+            elif feature_code == "25":
+                demand_25.add(label)
+
+    return demand_33, demand_25, provider_33, provider_25
+
+
+def _is_partner_resolving_transition(
+    *,
+    state: DerivationState,
+    candidate: RuleCandidate,
+    left: int,
+    right: int,
+) -> bool:
+    if candidate.rule_kind != "double":
+        return False
+    left_item = _item_for_index(state, left)
+    right_item = _item_for_index(state, right)
+    if left_item is None or right_item is None:
+        return False
+    left_d33, left_d25, left_p33, left_p25 = _collect_item_partner_labels(left_item)
+    right_d33, right_d25, right_p33, right_p25 = _collect_item_partner_labels(right_item)
+    if left_d33.intersection(right_p33):
+        return True
+    if right_d33.intersection(left_p33):
+        return True
+    if left_d25.intersection(right_p25):
+        return True
+    if right_d25.intersection(left_p25):
+        return True
+    return False
+
+
+def _collect_partner_demand_provider_counts(
+    state: DerivationState,
+) -> tuple[dict[str, int], dict[str, int], dict[str, int], dict[str, int]]:
+    demand_33: dict[str, int] = {}
+    provider_33: dict[str, int] = {}
+    demand_25: dict[str, int] = {}
+    provider_25: dict[str, int] = {}
+
+    def _inc(bucket: dict[str, int], key: str) -> None:
+        if key == "":
+            return
+        bucket[key] = bucket.get(key, 0) + 1
+
+    for index in range(1, state.basenum + 1):
+        row = state.base[index]
+        if row == "zero" or not isinstance(row, list):
+            continue
+        for node in _iter_tree_items_for_partner_scan(row):
+            sy_values = node[3] if len(node) > 3 and isinstance(node[3], list) else []
+            se_values = node[5] if len(node) > 5 and isinstance(node[5], list) else []
+
+            for feature in sy_values:
+                raw = str(feature).strip()
+                if raw == "":
+                    continue
+                parts = [part.strip() for part in raw.split(",")]
+                if len(parts) >= 3 and parts[1] in {"11", "12"}:
+                    _inc(provider_33, parts[2])
+                    continue
+                if "," not in raw:
+                    _inc(provider_25, raw)
+
+            for semantic in se_values:
+                raw = str(semantic)
+                if ":" not in raw:
+                    continue
+                rhs = raw.split(":", 1)[1].strip()
+                if rhs == "":
+                    continue
+                parts = [part.strip() for part in rhs.split(",")]
+                if len(parts) < 3:
+                    continue
+                feature_code = parts[1]
+                label = parts[2]
+                if feature_code == "33":
+                    _inc(demand_33, label)
+                elif feature_code == "25":
+                    _inc(demand_25, label)
+
+    return demand_33, provider_33, demand_25, provider_25
+
+
+def _partner_deficit_total(
+    counts: tuple[dict[str, int], dict[str, int], dict[str, int], dict[str, int]]
+) -> int:
+    demand_33, provider_33, demand_25, provider_25 = counts
+    total = 0
+    for label, demand in demand_33.items():
+        total += max(0, demand - provider_33.get(label, 0))
+    for label, demand in demand_25.items():
+        total += max(0, demand - provider_25.get(label, 0))
+    return total
+
+
+def _breaks_unique_partner_provider_constraint(
+    *,
+    before_counts: tuple[dict[str, int], dict[str, int], dict[str, int], dict[str, int]],
+    after_counts: tuple[dict[str, int], dict[str, int], dict[str, int], dict[str, int]],
+) -> bool:
+    demand_33_before, provider_33_before, demand_25_before, provider_25_before = before_counts
+    demand_33_after, provider_33_after, demand_25_after, provider_25_after = after_counts
+
+    for label, provider_count in provider_33_before.items():
+        if provider_count != 1:
+            continue
+        if demand_33_before.get(label, 0) <= 0:
+            continue
+        if provider_33_after.get(label, 0) < provider_count and demand_33_after.get(label, 0) >= demand_33_before.get(label, 0):
+            return True
+    for label, provider_count in provider_25_before.items():
+        if provider_count != 1:
+            continue
+        if demand_25_before.get(label, 0) <= 0:
+            continue
+        if provider_25_after.get(label, 0) < provider_count and demand_25_after.get(label, 0) >= demand_25_before.get(label, 0):
+            return True
+    return False
+
+
 def _build_tree_node(item: object) -> dict[str, Any]:
     if not isinstance(item, list):
         return {
@@ -1125,6 +1499,18 @@ def _search_reachability(
     transition_cache: dict[str, list[tuple[RuleCandidate, int, int, DerivationState]]] = {}
     evidence_by_tree_sig: dict[str, _ReachabilityEvidenceInternal] = {}
     goal_tree_sigs: set[str] = set()
+    search_signature_fn = (
+        _state_packed_signature if search_signature_mode == "packed" else _state_structural_signature
+    )
+    # 長文（basenum>=10）では「途中悪化を完全禁止」すると reachable を取り逃しやすいため、
+    # hard prune を弱めて少数候補を後順位で残す。
+    soften_hard_pruning_globally = (
+        request.state.grammar_id.startswith("imi") and request.state.basenum >= 10
+    )
+    explored_remaining_depth: dict[tuple[str, int], int] = {}
+    unresolved_count_cache: dict[int, int] = {}
+    partner_counts_cache: dict[int, tuple[dict[str, int], dict[str, int], dict[str, int], dict[str, int]]] = {}
+    partner_deficit_cache: dict[int, int] = {}
 
     expanded_nodes = 0
     generated_nodes = 0
@@ -1135,6 +1521,33 @@ def _search_reachability(
 
     aborted_reason: Optional[str] = None
     progress_tick_interval = 200
+
+    def unresolved_count(state: DerivationState) -> int:
+        state_obj_id = id(state)
+        cached = unresolved_count_cache.get(state_obj_id)
+        if cached is not None:
+            return cached
+        value = _count_uninterpretable_like_perl(state)
+        unresolved_count_cache[state_obj_id] = value
+        return value
+
+    def partner_counts(state: DerivationState) -> tuple[dict[str, int], dict[str, int], dict[str, int], dict[str, int]]:
+        state_obj_id = id(state)
+        cached = partner_counts_cache.get(state_obj_id)
+        if cached is not None:
+            return cached
+        value = _collect_partner_demand_provider_counts(state)
+        partner_counts_cache[state_obj_id] = value
+        return value
+
+    def partner_deficit(state: DerivationState) -> int:
+        state_obj_id = id(state)
+        cached = partner_deficit_cache.get(state_obj_id)
+        if cached is not None:
+            return cached
+        value = _partner_deficit_total(partner_counts(state))
+        partner_deficit_cache[state_obj_id] = value
+        return value
 
     def report_progress(phase: str, message: str) -> None:
         if progress_hook is None:
@@ -1148,6 +1561,7 @@ def _search_reachability(
         current: DerivationState,
         remaining_depth: int,
         path: list[_ReachabilityPathStep],
+        zero_delta_streak: int,
     ) -> bool:
         nonlocal expanded_nodes, generated_nodes, max_frontier, max_depth_reached
         nonlocal actions_attempted, rule_max_observed, aborted_reason
@@ -1160,7 +1574,7 @@ def _search_reachability(
             aborted_reason = "node_limit"
             return False
 
-        if _is_grammatical_like_perl(current):
+        if unresolved_count(current) == 0:
             tree_root = _select_tree_root(current)
             tree_sig = _canonical_tree_signature(tree_root)
             goal_tree_sigs.add(tree_sig)
@@ -1175,6 +1589,15 @@ def _search_reachability(
         if remaining_depth <= 0:
             return True
 
+        current_sig = search_signature_fn(current)
+        current_unresolved = unresolved_count(current)
+        current_partner_counts = partner_counts(current)
+        explored_key = (current_sig, zero_delta_streak)
+        best_remaining = explored_remaining_depth.get(explored_key)
+        if best_remaining is not None and best_remaining >= remaining_depth:
+            return True
+        explored_remaining_depth[explored_key] = remaining_depth
+
         transitions = _enumerate_candidate_transitions(
             state=current,
             legacy_root=legacy_root,
@@ -1183,18 +1606,204 @@ def _search_reachability(
             state_signature_fn=_state_structural_signature,
             cache=transition_cache,
         )
-        ordered = sorted(transitions, key=_head_assist_transition_rank_key)
+        decreasing_rows: list[
+            tuple[RuleCandidate, int, int, DerivationState, int, int, int, int, int, int, int]
+        ] = []
+        plateau_rows: list[
+            tuple[RuleCandidate, int, int, DerivationState, int, int, int, int, int, int, int]
+        ] = []
+        worsening_rows: list[
+            tuple[RuleCandidate, int, int, DerivationState, int, int, int, int, int, int, int]
+        ] = []
+        for candidate, actual_left, actual_right, next_state in transitions:
+            next_unresolved = unresolved_count(next_state)
+            delta_unresolved = next_unresolved - current_unresolved
+            next_partner_counts = partner_counts(next_state)
+            breaks_unique_provider = _breaks_unique_partner_provider_constraint(
+                before_counts=current_partner_counts,
+                after_counts=next_partner_counts,
+            )
+            if not soften_hard_pruning_globally and delta_unresolved > 0:
+                continue
+            if not soften_hard_pruning_globally and breaks_unique_provider:
+                continue
+            next_partner_deficit = partner_deficit(next_state)
+            partner_priority = 1
+            if (
+                current.grammar_id.startswith("imi")
+                and current.basenum >= 10
+                and _is_partner_resolving_transition(
+                state=current,
+                candidate=candidate,
+                left=actual_left,
+                right=actual_right,
+                )
+            ):
+                partner_priority = 0
+            transition_priority = _head_assist_transition_priority(
+                state=current,
+                row=(candidate, actual_left, actual_right, next_state),
+            )
+            unique_provider_penalty = 1 if breaks_unique_provider else 0
+            next_zero_delta_streak = 0
+            if delta_unresolved == 0:
+                # 未解釈素性が減らない遷移は、次のいずれかに限定許可する:
+                # 1) 構造前進（basenum減少）する二項規則
+                # 2) 構造準備として必要な単項規則（zero/Pickup/Landing/Partitioning）
+                allow_zero_delta = next_state.basenum < current.basenum
+                if (
+                    candidate.rule_kind == "single"
+                    and candidate.rule_name in _REACHABILITY_ZERO_DELTA_SINGLE_RULES
+                ):
+                    allow_zero_delta = True
+                if not allow_zero_delta:
+                    continue
+                next_zero_delta_streak = zero_delta_streak + 1
+                if next_zero_delta_streak > _REACHABILITY_ZERO_DELTA_STREAK_LIMIT:
+                    continue
+                plateau_rows.append(
+                    (
+                        candidate,
+                        actual_left,
+                        actual_right,
+                        next_state,
+                        next_unresolved,
+                        next_zero_delta_streak,
+                        delta_unresolved,
+                        next_partner_deficit,
+                        partner_priority,
+                        transition_priority,
+                        unique_provider_penalty,
+                    )
+                )
+                continue
+            if delta_unresolved < 0:
+                decreasing_rows.append(
+                    (
+                        candidate,
+                        actual_left,
+                        actual_right,
+                        next_state,
+                        next_unresolved,
+                        next_zero_delta_streak,
+                        delta_unresolved,
+                        next_partner_deficit,
+                        partner_priority,
+                        transition_priority,
+                        unique_provider_penalty,
+                    )
+                )
+            else:
+                worsening_rows.append(
+                    (
+                        candidate,
+                        actual_left,
+                        actual_right,
+                        next_state,
+                        next_unresolved,
+                        next_zero_delta_streak,
+                        delta_unresolved,
+                        next_partner_deficit,
+                        partner_priority,
+                        transition_priority,
+                        unique_provider_penalty,
+                    )
+                )
+
+        # 原則は「未解釈を減らす遷移」を優先。悪化遷移は hard prune せず、少量を後順位で保持する。
+        if decreasing_rows:
+            plateau_seed = sorted(
+                plateau_rows,
+                key=lambda row: (
+                    row[7],  # partner deficit
+                    row[8],  # partner-resolving priority
+                    row[9],  # local priority
+                    row[10],  # unique-provider penalty
+                    row[4],  # unresolved
+                    row[3].basenum,
+                    row[0].rule_number,
+                ),
+            )
+            worsening_seed = sorted(
+                worsening_rows,
+                key=lambda row: (
+                    row[7],  # partner deficit
+                    row[8],  # partner-resolving priority
+                    row[9],  # local priority
+                    row[10],  # unique-provider penalty
+                    row[6],  # delta_unresolved
+                    row[4],  # unresolved
+                    row[3].basenum,
+                    row[0].rule_number,
+                ),
+            )
+            filtered = (
+                decreasing_rows
+                + plateau_seed[:6]
+                + worsening_seed[:_REACHABILITY_WORSENING_CANDIDATES_WITH_DECREASING]
+            )
+        elif plateau_rows:
+            worsening_seed = sorted(
+                worsening_rows,
+                key=lambda row: (
+                    row[7],  # partner deficit
+                    row[8],  # partner-resolving priority
+                    row[9],  # local priority
+                    row[10],  # unique-provider penalty
+                    row[6],  # delta_unresolved
+                    row[4],  # unresolved
+                    row[3].basenum,
+                    row[0].rule_number,
+                ),
+            )
+            filtered = (
+                plateau_rows
+                + worsening_seed[:_REACHABILITY_WORSENING_CANDIDATES_WITHOUT_DECREASING]
+            )
+        else:
+            filtered = worsening_rows
+
+        # imi系の case-local / vt-local は hard prune ではなく優先順で扱う。
+        ordered = sorted(
+            filtered,
+            key=lambda row: (
+                0 if row[6] < 0 else (1 if row[6] == 0 else 2),
+                row[10],  # unique-provider penalty
+                row[7],  # partner deficit
+                row[8],  # partner-resolving priority
+                row[9],  # local priority
+                row[6],  # delta_unresolved
+                row[4],  # unresolved
+                row[3].basenum,
+                row[0].rule_number,
+                row[1],
+                row[2],
+                row[0].check if row[0].check is not None else 0,
+            ),
+        )
         generated_nodes += len(ordered)
         max_frontier = max(max_frontier, len(ordered))
         # observed は「1 pair あたりで実際に使われた rule 種別数」の観測値として保持する。
         # 遷移本数(全pair合計)を使うと上界(bound)比較の意味が崩れるため、rule番号のユニーク件数にする。
         rule_max_observed = max(
             rule_max_observed,
-            len({candidate.rule_number for candidate, _, _, _ in ordered}),
+            len({candidate.rule_number for candidate, *_ in ordered}),
         )
         expanded_nodes += 1
 
-        for candidate, actual_left, actual_right, next_state in ordered:
+        for (
+            candidate,
+            actual_left,
+            actual_right,
+            next_state,
+            _next_unresolved,
+            next_zero_delta_streak,
+            _delta_unresolved,
+            _next_partner_deficit,
+            _partner_priority,
+            _transition_priority,
+            _unique_provider_penalty,
+        ) in ordered:
             if time.perf_counter() >= deadline:
                 aborted_reason = "timeout"
                 return False
@@ -1216,7 +1825,12 @@ def _search_reachability(
                     right_id=right_id,
                 )
             )
-            ok = dfs(next_state, remaining_depth - 1, path)
+            ok = dfs(
+                next_state,
+                remaining_depth - 1,
+                path,
+                next_zero_delta_streak,
+            )
             path.pop()
             if not ok:
                 return False
@@ -1225,10 +1839,13 @@ def _search_reachability(
         return True
 
     report_progress("enumerating", "探索を開始しました")
-    completed = dfs(request.state.model_copy(deep=True), max_depth, [])
+    completed = dfs(request.state.model_copy(deep=True), max_depth, [], 0)
 
     if not completed:
-        status = "unknown"
+        if len(goal_tree_sigs) > 0:
+            status = "reachable"
+        else:
+            status = "unknown"
         reason = aborted_reason or "unknown"
         count_status = "upper_bound_only"
         goal_count_exact: Optional[int] = None
@@ -1367,6 +1984,87 @@ def _build_reachability_response(
     )
 
 
+def _merge_reachability_response_evidences(
+    *,
+    previous: DerivationReachabilityResponse,
+    current: DerivationReachabilityResponse,
+    max_evidences: int,
+) -> DerivationReachabilityResponse:
+    merged_by_tree_sig: dict[str, ReachabilityEvidenceResponse] = {}
+    for row in [*previous.evidences, *current.evidences]:
+        sig = _canonical_tree_signature(dict(row.tree_root))
+        existing = merged_by_tree_sig.get(sig)
+        if existing is None or row.steps_to_goal < existing.steps_to_goal:
+            merged_by_tree_sig[sig] = row
+
+    ordered_rows = sorted(
+        merged_by_tree_sig.values(),
+        key=lambda row: (row.steps_to_goal, _canonical_tree_signature(dict(row.tree_root))),
+    )
+    capped_rows = ordered_rows[:max_evidences]
+    reranked_rows = [
+        row.model_copy(update={"rank": rank})
+        for rank, row in enumerate(capped_rows, start=1)
+    ]
+
+    merged = current.model_copy(deep=True)
+    merged.evidences = reranked_rows
+    merged.counts = merged.counts.model_copy(deep=True)
+    merged.counts.offset = 0
+    merged.counts.limit = max_evidences
+    merged.counts.shown_count = len(reranked_rows)
+    merged.counts.has_next = len(ordered_rows) > max_evidences
+    if merged.counts.total_exact is not None:
+        try:
+            total_exact_int = int(merged.counts.total_exact)
+        except ValueError:
+            total_exact_int = 0
+        merged.counts.shown_ratio_exact_percent = (
+            round((float(len(reranked_rows)) / float(total_exact_int)) * 100.0, 4)
+            if total_exact_int > 0
+            else None
+        )
+    else:
+        merged.counts.shown_ratio_exact_percent = None
+    return merged
+
+
+def _build_reachability_continue_request(
+    *,
+    base_request: DerivationReachabilityRequest,
+    continue_request: DerivationReachabilityJobContinueRequest,
+) -> DerivationReachabilityRequest:
+    additional_budget_seconds = max(0.0, continue_request.additional_budget_seconds)
+    additional_max_nodes = max(0, continue_request.additional_max_nodes)
+    additional_max_depth = max(0, continue_request.additional_max_depth)
+    additional_max_evidences = max(0, continue_request.additional_max_evidences)
+
+    next_budget_seconds = _resolve_reachability_budget_seconds(
+        base_request.budget_seconds + additional_budget_seconds
+    )
+    next_max_nodes = _resolve_reachability_max_nodes(
+        base_request.max_nodes + additional_max_nodes
+    )
+    next_max_depth = _resolve_reachability_max_depth(
+        base_request.max_depth + additional_max_depth,
+        state=base_request.state,
+    )
+    next_max_evidences = _resolve_reachability_max_evidences(
+        base_request.max_evidences + additional_max_evidences
+    )
+    next_limit = min(max(1, base_request.limit), next_max_evidences)
+    return base_request.model_copy(
+        update={
+            "budget_seconds": next_budget_seconds,
+            "max_nodes": next_max_nodes,
+            "max_depth": next_max_depth,
+            "max_evidences": next_max_evidences,
+            "offset": 0,
+            "limit": next_limit,
+        }
+    )
+
+
 def _cleanup_reachability_jobs() -> None:
     now = time.time()
     with _REACHABILITY_JOBS_LOCK:
@@ -1406,6 +2104,7 @@ def _run_reachability_job(
     rh_version: str,
     lh_version: str,
     search_signature_mode: str,
+    merge_with_existing: bool = False,
 ) -> None:
     try:
         with _REACHABILITY_JOBS_LOCK:
@@ -1438,6 +2137,16 @@ def _run_reachability_job(
             request=full_result_request,
             internal=internal,
         )
+        if merge_with_existing:
+            with _REACHABILITY_JOBS_LOCK:
+                row = _REACHABILITY_JOBS.get(job_id)
+                existing_response = row.get("result") if row is not None else None
+            if isinstance(existing_response, DerivationReachabilityResponse):
+                response = _merge_reachability_response_evidences(
+                    previous=existing_response,
+                    current=response,
+                    max_evidences=_resolve_reachability_max_evidences(request.max_evidences),
+                )
         with _REACHABILITY_JOBS_LOCK:
             row = _REACHABILITY_JOBS.get(job_id)
             if row is None:
@@ -1653,7 +2362,10 @@ def _baseline_find_grammatical_within_depth(
             state_signature_fn=_state_structural_signature,
             cache=transition_cache,
         )
-        ordered_transitions = sorted(transitions, key=_head_assist_transition_rank_key)
+        ordered_transitions = sorted(
+            transitions,
+            key=lambda row: _head_assist_transition_search_key(state=current, row=row),
+        )
         for candidate, actual_left, actual_right, next_state in ordered_transitions:
             if time.perf_counter() >= deadline:
                 return False
@@ -2227,22 +2939,16 @@ def generate_numeration(request: SentenceNumerationGenerateRequest) -> SentenceN
             legacy_root=legacy_root,
             tokens=request.tokens,
             split_mode=request.split_mode,
+            auto_add_ga_phi=request.auto_add_ga_phi,
         )
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
 
-    return SentenceNumerationGenerateResponse(
-        memo=generated.memo,
-        lexicon_ids=generated.lexicon_ids,
-        token_resolutions=[
-            TokenResolutionResponse(
-                token=row.token,
-                lexicon_id=row.lexicon_id,
-                candidate_lexicon_ids=row.candidate_lexicon_ids,
-            )
-            for row in generated.token_resolutions
-        ],
-        numeration_text=generated.numeration_text,
+    return _to_sentence_numeration_response(
+        generated=generated,
+        legacy_root=legacy_root,
+        grammar_id=request.grammar_id,
+        sentence=request.sentence,
     )
 
 
@@ -2280,6 +2986,7 @@ def init_derivation_from_sentence(
             legacy_root=legacy_root,
             tokens=request.tokens,
             split_mode=request.split_mode,
+            auto_add_ga_phi=request.auto_add_ga_phi,
         )
         state = build_initial_derivation_state(
             grammar_id=request.grammar_id,
@@ -2290,18 +2997,11 @@ def init_derivation_from_sentence(
         raise HTTPException(status_code=400, detail=str(exc)) from exc
 
     return DerivationInitFromSentenceResponse(
-        numeration=SentenceNumerationGenerateResponse(
-            memo=generated.memo,
-            lexicon_ids=generated.lexicon_ids,
-            token_resolutions=[
-                TokenResolutionResponse(
-                    token=row.token,
-                    lexicon_id=row.lexicon_id,
-                    candidate_lexicon_ids=row.candidate_lexicon_ids,
-                )
-                for row in generated.token_resolutions
-            ],
-            numeration_text=generated.numeration_text,
+        numeration=_to_sentence_numeration_response(
+            generated=generated,
+            legacy_root=legacy_root,
+            grammar_id=request.grammar_id,
+            sentence=request.sentence,
         ),
         state=state,
     )
@@ -2402,6 +3102,7 @@ def derivation_reachability_jobs_start(
             "reason": None,
             "completed": None,
             "error": None,
+            "attempt": 1,
         }
 
     worker = threading.Thread(
@@ -2413,6 +3114,81 @@ def derivation_reachability_jobs_start(
             "rh_version": rh_version,
             "lh_version": lh_version,
             "search_signature_mode": search_signature_mode,
+        },
+        daemon=True,
+    )
+    worker.start()
+    return DerivationReachabilityJobStartResponse(
+        job_id=job_id,
+        status="queued",
+        created_at=created_at,
+    )
+
+
+@router.post("/reachability/jobs/{job_id}/continue", response_model=DerivationReachabilityJobStartResponse)
+def derivation_reachability_jobs_continue(
+    job_id: str,
+    request: DerivationReachabilityJobContinueRequest,
+) -> DerivationReachabilityJobStartResponse:
+    _cleanup_reachability_jobs()
+    with _REACHABILITY_JOBS_LOCK:
+        row = _REACHABILITY_JOBS.get(job_id)
+        if row is None:
+            raise HTTPException(status_code=404, detail=f"Reachability job not found: {job_id}")
+
+        current_status = str(row.get("status", "queued"))
+        if current_status in {"queued", "running"}:
+            raise HTTPException(status_code=409, detail="Reachability job is still running.")
+        if current_status == "failed":
+            raise HTTPException(status_code=409, detail="Failed reachability job cannot be continued.")
+        if row.get("completed") is True and str(row.get("reason")) == "completed":
+            raise HTTPException(status_code=409, detail="Reachability job is already completed.")
+
+        base_request = row.get("request")
+        if not isinstance(base_request, DerivationReachabilityRequest):
+            raise HTTPException(status_code=409, detail="Reachability job request is missing.")
+        next_request = _build_reachability_continue_request(
+            base_request=base_request,
+            continue_request=request,
+        )
+
+        now = time.time()
+        attempt = int(row.get("attempt", 1)) + 1
+        row["request"] = next_request
+        row["status"] = "queued"
+        row["completed"] = None
+        row["reason"] = None
+        row["error"] = None
+        row["updated_at"] = now
+        row["attempt"] = attempt
+        row["progress"] = {
+            "percent": 0.0,
+            "phase": "queued",
+            "message": f"追加探索を開始します（attempt {attempt}）",
+        }
+        legacy_root = row.get("legacy_root")
+        rh_version = row.get("rh_version")
+        lh_version = row.get("lh_version")
+        search_signature_mode = row.get("search_signature_mode")
+        created_at = float(row.get("created_at", now))
+
+    if not isinstance(legacy_root, Path):
+        raise HTTPException(status_code=500, detail="Reachability job legacy_root is invalid.")
+    if not isinstance(rh_version, str) or not isinstance(lh_version, str):
+        raise HTTPException(status_code=500, detail="Reachability job rule versions are invalid.")
+    if not isinstance(search_signature_mode, str):
+        raise HTTPException(status_code=500, detail="Reachability job search_signature_mode is invalid.")
+
+    worker = threading.Thread(
+        target=_run_reachability_job,
+        kwargs={
+            "job_id": job_id,
+            "request": next_request,
+            "legacy_root": legacy_root,
+            "rh_version": rh_version,
+            "lh_version": lh_version,
+            "search_signature_mode": search_signature_mode,
+            "merge_with_existing": True,
         },
         daemon=True,
     )

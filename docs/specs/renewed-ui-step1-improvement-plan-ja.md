@@ -347,6 +347,44 @@
 | S1S2-REG-03 | Web回帰で Step1/Step2 の候補パネルを閉じた状態でも警告サマリが表示され、詳細は候補展開で確認できることを固定する | `apps/web/src/__tests__/App.test.tsx` | `vitest` |
 | S1S2-TXT-01 | Step1/Step2 の警告文から「未充足」を廃止し、`2,25,wo を満たす語が見つかりません` 系の表現へ統一する | `apps/web/src/App.tsx` | `vitest`, Playwright |
 | S1-UI-10 | Step1 `numerationの語彙情報参照` 冒頭の警告一覧を廃止し、各slot行内の警告サマリへ集約する | `apps/web/src/App.tsx` | `vitest`, Playwright |
+| S2-UI-07 | Step2で全ルールを常時表示し、left/right で実行可能なルールを上位に並べ替える | `apps/web/src/App.tsx` | `vitest`, Playwright |
+| S2-UI-08 | Step2ルール一覧を3行分スクロール表示にし、実行不可ルールの実行ボタンを薄色・無効化する | `apps/web/src/App.tsx`, `apps/web/src/styles.css` | `vitest`, Playwright |
+| S2-UI-09 | Step2の実行不可ルールに、適用できない理由（未選択/同一選択/適用不可）を表示する | `apps/web/src/App.tsx` | `vitest`, Playwright |
+| S1-AUTO-309-01 | `Lexiconから組み立てる` で `2,33,ga` 要求 > `4,11,ga` 供給のときのみ `309(φ)` を不足分自動追加する（`auto_add_ga_phi=true` 経路） | `packages/domain/src/domain/numeration/generator.py`, `apps/api/app/api/v1/derivation.py` | `pytest` |
+| S1-AUTO-309-02 | 自動追加注釈（件数/理由/根拠 `.num`）をAPIレスポンスへ追加し、Step1で表示する | `apps/api/app/api/v1/derivation.py`, `apps/web/src/App.tsx`, `apps/web/src/types.ts` | `pytest`, `vitest` |
+| S1-AUTO-309-03 | 注釈リンクから `Numeration編集` へ遷移し、根拠 `.num` を読込表示できる導線を追加する | `apps/web/src/App.tsx`, `apps/web/src/styles.css` | `vitest`, Playwright |
+| S1-NUM-EDIT-01 | `Numeration編集` 画面を `アップロード + ファイルパス + タブ区切りグリッド + 語彙情報参照` に整理し、不要機能を撤去する | `apps/web/src/App.tsx`, `apps/web/src/styles.css` | `vitest`, Playwright |
+| S1-REG-28 | API回帰で `auto_add_ga_phi=true` 時に `309` 補完と根拠 `.num` 返却を固定する | `apps/api/tests/test_derivation.py` | `pytest` |
+| S1-REG-29 | API回帰で `auto_add_ga_phi` 未指定時は補完しない挙動を固定する | `apps/api/tests/test_derivation.py` | `pytest` |
+| S1-REG-30 | Web回帰で自動補完注釈表示と `Numeration編集` への遷移を固定する | `apps/web/src/__tests__/App.test.tsx` | `vitest` |
+| S1-OPS-01 | `309` 非表示報告時の切り分けを「コード差分」より先に「旧プロセス残留」を確認する運用へ固定する | `/Users/tomonaga/.codex/skills/restart-playwright-env/scripts/restart_env.sh` | 運用手順 |
+| S1-OPS-02 | `restart-playwright-env --force` 後に `POST /v1/derivation/numeration/generate(auto_add_ga_phi=true)` の直叩きで `309,309` を確認する手順を追加する | `curl`, `jq` | 手動確認 |
+
+## 追加対応表（2026-03-01）
+
+| ID | 実装内容 | 実装先 | 検証 |
+|---|---|---|---|
+| S2-HDA-38 | Reachability探索に「一意供給ラベル（25/33）の早期消失抑止」制約を追加し、唯一の供給ラベルを消費して要求が残る遷移を除外 | `apps/api/app/api/v1/derivation.py` | `pytest -k reachability_known_reachable_sets` |
+| S2-HDA-39 | Reachability探索順に `partner deficit` 指標を導入し、相方要求を満たしやすい遷移を優先 | `apps/api/app/api/v1/derivation.py` | `pytest -k skateboard or known_reachable_sets` |
+| S2-HDA-40 | imi系のみ `case-local / vt-local` を絞り込み優先として適用（japanese2系には適用しない） | `apps/api/app/api/v1/derivation.py` | `pytest -k known_reachable_sets` |
+| S2-RCH-24 | 長文 `ふわふわした...うさぎがいる` の `reachable` 化を継続調査（現時点では `unknown timeout`） | 調査ログ（API直叩き） | CLI実測 |
+| S2-HDA-41 | 遷移列挙で `basenum==1` の単項規則を列挙し、終端単項操作経路を探索対象に含める | `apps/api/app/api/v1/derivation.py` | `pytest -k known_reachable_sets` |
+| S2-HDA-42 | imi長文局面（`basenum>=10`）で `33/25` 要求と `11/12` 供給が直接一致する遷移を優先順へ追加 | `apps/api/app/api/v1/derivation.py` | `pytest -k known_reachable_sets or reaches_skateboard_sentence` |
+| S2-REG-23 | 回帰セット再実行（`known_reachable_sets` + `skateboard/usagi`）で既知reachableの手戻りなしを確認 | `apps/api/tests/test_derivation.py` | `python3 -m pytest -q ...` |
+| S2-RCH-25 | 上記調整後も `ふわふわした...` は `unknown(timeout)` 継続で、探索戦略の追加設計が必要 | 調査ログ（API直叩き） | CLI実測 |
+| DOC-BRF-01 | 事前知識ゼロの外部専門家向けに、自然さ優先・段階拡張探索の相談ブリーフを作成する | `docs/specs/fuwafuwa-natural-reachability-consulting-brief-ja.md` | 文書レビュー |
+| DOC-BRF-02 | 外部相談用ブリーフを自己完結化し、用語集・非目標・再現手順・採択条件を追記する | `docs/specs/fuwafuwa-natural-reachability-consulting-brief-ja.md` | 文書レビュー |
+| DOC-BRF-03 | 外部相談用ブリーフに前提語彙項目（ID/素性）、`imi01` のマージルール詳細、解析フローを追記する | `docs/specs/fuwafuwa-natural-reachability-consulting-brief-ja.md` | 文書レビュー |
+| DOC-BRF-04 | 外部相談用ブリーフに、reachable可否の現状根拠、現行探索器仕様、自然さ評価定義抜粋、深さ12停滞ログを追記する | `docs/specs/fuwafuwa-natural-reachability-consulting-brief-ja.md` | 文書レビュー |
+| DOC-BRF-05 | 外部相談用ブリーフを機構重視で全面改稿し、4分類明示、探索器パイプライン、RH/LH擬似コード、刈り込み安全性分類、数値整合、未確定事項を統合する | `docs/specs/fuwafuwa-natural-reachability-consulting-brief-ja.md` | 文書レビュー |
+| DOC-BRF-06 | 深さ12の解釈を補正し、imi01での導出長上限（basenum-1）と `max_depth_reached=12` の意味を「終端深さ到達済み」として明記する | `docs/specs/fuwafuwa-natural-reachability-consulting-brief-ja.md` | 文書レビュー |
+| DOC-BRF-07 | 探索制御語（`unresolved`, `delta_unresolved`, `state_signature`, `partner_deficit`, `case-local`, `vt-local`, `max_frontier`）を入力/出力/用途/安全性つきで定義表化する | `docs/specs/fuwafuwa-natural-reachability-consulting-brief-ja.md` | 文書レビュー |
+| DOC-BRF-08 | RH/LH補助関数（`_process_pr/_process_sl/_process_se/_process_sy/_apply_kind_feature_101_on_nonhead/_append_merge_relation_semantic`）の契約と不変量を本文へ追補する | `docs/specs/fuwafuwa-natural-reachability-consulting-brief-ja.md` | 文書レビュー |
+| DOC-BRF-09 | 3.5の数値ラベルを段階整合に合わせて修正し、`134`（列挙段階）と `max_frontier=79`（枝刈り後段階）の違いを明記する | `docs/specs/fuwafuwa-natural-reachability-consulting-brief-ja.md` | 文書レビュー |
+| DOC-BRF-10 | self-loop判定の説明を整理し、判定本体は structural 固定、packed/structural差は再訪抑制キーにのみ効くことを明記する | `docs/specs/fuwafuwa-natural-reachability-consulting-brief-ja.md` | 文書レビュー |
+| DOC-BRF-11 | `zero_delta_streak` の題材依存の実効性（imi01 double-onlyでの効きの弱さ）を注記する | `docs/specs/fuwafuwa-natural-reachability-consulting-brief-ja.md` | 文書レビュー |
+| DOC-BRF-12 | `partner_deficit` の式と `case-local/vt-local` の参照領域（base配列隣接）を定義表で明文化する | `docs/specs/fuwafuwa-natural-reachability-consulting-brief-ja.md` | 文書レビュー |
+| DOC-BRF-13 | 4.5擬似コードの変数宣言を補い、`append_merge_relation_semantic` の before-state 参照を明示する | `docs/specs/fuwafuwa-natural-reachability-consulting-brief-ja.md` | 文書レビュー |
 
 ## API追加（S1-GRM-02）
 - `GET /v1/reference/grammars/{grammar_id}/rule-sources`

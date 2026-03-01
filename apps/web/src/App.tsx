@@ -79,6 +79,8 @@ type TokenSlotEdit = {
   idxValue: string;
 };
 
+type AutoSupplementNote = NonNullable<GeneratedNumeration["auto_supplements"]>[number];
+
 type ArrangeRow = {
   slot: number;
   lexiconId: string;
@@ -722,6 +724,18 @@ function buildNumerationText(memo: string, lexicon: string[], plus: string[], id
   return `${line1.join("\t")}\n${line2.join("\t")}\n${line3.join("\t")}`;
 }
 
+function parseTabSeparatedGrid(text: string): string[][] {
+  const normalized = text.replace(/\r\n/g, "\n");
+  if (normalized === "") {
+    return [[""]];
+  }
+  return normalized.split("\n").map((line) => line.split("\t"));
+}
+
+function buildTabSeparatedGrid(rows: string[][]): string {
+  return rows.map((row) => row.join("\t")).join("\n");
+}
+
 function validateNumerationTabFormat(text: string): string | null {
   const normalized = normalizeNumerationTextForParse(text);
   if (normalized.trim() === "") {
@@ -934,7 +948,7 @@ export default function App() {
   const [showMoreGrammarOptions, setShowMoreGrammarOptions] = useState(false);
   const [workflowStarted, setWorkflowStarted] = useState(false);
   const [sentence, setSentence] = useState("ジョンが本を読んだ");
-  const [step1EntryMode, setStep1EntryMode] = useState<Step1EntryMode>("build_lexicon");
+  const [step1EntryMode, setStep1EntryMode] = useState<Step1EntryMode>("example_sentence");
   const [step1ExampleNumerationPath, setStep1ExampleNumerationPath] = useState("");
   const [step1ExampleNumerationMemo, setStep1ExampleNumerationMemo] = useState("");
   const [tokenInputMode, setTokenInputMode] = useState<TokenInputMode>("auto");
@@ -951,7 +965,9 @@ export default function App() {
   const [step1BuildPreviewError, setStep1BuildPreviewError] = useState("");
   const [isStep1BuildPreviewLoading, setIsStep1BuildPreviewLoading] = useState(false);
   const [step1UploadFileName, setStep1UploadFileName] = useState("");
+  const [step1AutoSupplementNotes, setStep1AutoSupplementNotes] = useState<AutoSupplementNote[]>([]);
   const [numerationText, setNumerationText] = useState("");
+  const [numerationEditorPath, setNumerationEditorPath] = useState("");
   const [numerationLexiconRows, setNumerationLexiconRows] = useState<NumerationLexiconRow[]>([]);
   const [isNumerationLexiconLoading, setIsNumerationLexiconLoading] = useState(false);
   const [numerationLexiconError, setNumerationLexiconError] = useState("");
@@ -969,6 +985,10 @@ export default function App() {
   const [generated, setGenerated] = useState<GeneratedNumeration | null>(null);
   const [state, setState] = useState<DerivationState | null>(null);
   const [candidates, setCandidates] = useState<RuleCandidate[]>([]);
+  const [step2AllRules, setStep2AllRules] = useState<RuleCandidate[]>([]);
+  const [step2RulesLoadedGrammarId, setStep2RulesLoadedGrammarId] = useState("");
+  const [isStep2RulesLoading, setIsStep2RulesLoading] = useState(false);
+  const [step2RulesError, setStep2RulesError] = useState("");
   const [reachabilityResult, setReachabilityResult] = useState<ReachabilityResponse | null>(null);
   const [reachabilityRows, setReachabilityRows] = useState<ReachabilityEvidence[]>([]);
   const [reachabilityJobId, setReachabilityJobId] = useState("");
@@ -1039,6 +1059,7 @@ export default function App() {
   const [uiPersistenceReady, setUiPersistenceReady] = useState(!ENABLE_UI_PERSISTENCE);
   const referenceSectionRef = useRef<HTMLElement | null>(null);
   const step1UploadFileInputRef = useRef<HTMLInputElement | null>(null);
+  const numerationEditorFileInputRef = useRef<HTMLInputElement | null>(null);
   const autoPreviewRequestSeqRef = useRef(0);
   const numLookupRequestSeqRef = useRef(0);
   const step1BuildPreviewRequestSeqRef = useRef(0);
@@ -1082,6 +1103,9 @@ export default function App() {
     [uploadNumerationText]
   );
   const step1NumerationLexiconSourceText = useMemo(() => {
+    if (renewPanel === "numeration") {
+      return numerationText;
+    }
     if (step1EntryMode === "upload_num") {
       return uploadNumerationText;
     }
@@ -1092,7 +1116,14 @@ export default function App() {
       return step1BuildPreviewNumerationText;
     }
     return "";
-  }, [step1BuildPreviewNumerationText, step1EntryMode, step1ExampleNumerationText, uploadNumerationText]);
+  }, [
+    numerationText,
+    renewPanel,
+    step1BuildPreviewNumerationText,
+    step1EntryMode,
+    step1ExampleNumerationText,
+    uploadNumerationText
+  ]);
   const step1NumerationRows = useMemo(
     () => parseNumerationLexiconRows(normalizeNumerationTextForParse(step1NumerationLexiconSourceText)),
     [step1NumerationLexiconSourceText]
@@ -1100,6 +1131,11 @@ export default function App() {
   const step1NumerationLexiconSourceTextForDisplay = useMemo(
     () => encodeNumerationTextLikePerl(step1NumerationLexiconSourceText),
     [step1NumerationLexiconSourceText]
+  );
+  const numerationEditorGrid = useMemo(() => parseTabSeparatedGrid(numerationText), [numerationText]);
+  const numerationEditorGridColumnCount = useMemo(
+    () => Math.max(8, ...numerationEditorGrid.map((row) => Math.max(1, row.length))),
+    [numerationEditorGrid]
   );
   const tokenSlotEditBySlot = useMemo(() => {
     const bySlot = new Map<number, TokenSlotEdit>();
@@ -1290,7 +1326,123 @@ export default function App() {
       // 保存できない環境では無視する。
     }
   }, [grammarId, renewPanel, setupGrammarId, step1EntryMode, uiMode, uiPersistenceReady, workflowStarted]);
+
+  useEffect(() => {
+    const targetGrammarId = state?.grammar_id || grammarId;
+    if (!targetGrammarId) {
+      return;
+    }
+    if (step2RulesLoadedGrammarId === targetGrammarId) {
+      return;
+    }
+
+    let cancelled = false;
+    setIsStep2RulesLoading(true);
+    setStep2RulesError("");
+    void (async () => {
+      try {
+        const rows = await apiGet<RuleCandidate[]>(`/v1/derivation/rules/${targetGrammarId}`);
+        if (cancelled) {
+          return;
+        }
+        setStep2AllRules(rows);
+        setStep2RulesLoadedGrammarId(targetGrammarId);
+        setStep2RulesError("");
+      } catch (ruleError) {
+        if (cancelled) {
+          return;
+        }
+        setStep2AllRules([]);
+        setStep2RulesLoadedGrammarId(targetGrammarId);
+        setStep2RulesError(
+          ruleError instanceof Error ? ruleError.message : "ルール一覧の取得に失敗しました。"
+        );
+      } finally {
+        if (!cancelled) {
+          setIsStep2RulesLoading(false);
+        }
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [grammarId, state?.grammar_id, step2RulesLoadedGrammarId]);
+
   const step2DisplayRows = useMemo(() => buildStep2DisplayRows(state), [state]);
+  const step2RuleRows = useMemo(() => {
+    const fallbackRules = Array.from(
+      new Map(
+        candidates.map((candidate) => [
+          candidate.rule_number,
+          {
+            rule_number: candidate.rule_number,
+            rule_name: candidate.rule_name,
+            rule_kind: candidate.rule_kind
+          } as RuleCandidate
+        ])
+      ).values()
+    );
+    const allRules = step2AllRules.length > 0 ? step2AllRules : fallbackRules;
+    const candidatesByRule = new Map<number, RuleCandidate[]>();
+    for (const candidate of candidates) {
+      const rows = candidatesByRule.get(candidate.rule_number) || [];
+      rows.push(candidate);
+      candidatesByRule.set(candidate.rule_number, rows);
+    }
+
+    return allRules
+      .map((rule) => {
+        const applicableRows = candidatesByRule.get(rule.rule_number) || [];
+        const executableCandidate = applicableRows[0] || null;
+        const executable = executableCandidate !== null;
+        let reason = "";
+        if (!state) {
+          reason = "state を初期化してください。";
+        } else if (selectedLeft === null || selectedRight === null) {
+          reason = "left / right を選択してください。";
+        } else if (selectedLeft === selectedRight) {
+          reason = "left と right は別の行を選択してください。";
+        } else if (
+          selectedLeft < 1 ||
+          selectedRight < 1 ||
+          selectedLeft > state.basenum ||
+          selectedRight > state.basenum
+        ) {
+          reason = "left / right の選択が範囲外です。";
+        } else if (isStep2CandidatesLoading) {
+          reason = "left / right に対する適用可否を判定中です。";
+        } else if (!executable) {
+          reason = `選択中の left / right では ${rule.rule_name} を適用できません。`;
+        }
+
+        let argsLabel = "";
+        if (executableCandidate) {
+          if (executableCandidate.rule_kind === "single") {
+            argsLabel = `check=${executableCandidate.check ?? "-"}`;
+          } else {
+            argsLabel = `L=${executableCandidate.left ?? selectedLeft ?? "-"}, R=${executableCandidate.right ?? selectedRight ?? "-"}`;
+          }
+        } else if (rule.rule_kind === "single") {
+          argsLabel = "check=-";
+        } else {
+          argsLabel = `L=${selectedLeft ?? "-"}, R=${selectedRight ?? "-"}`;
+        }
+
+        return {
+          rule,
+          executable,
+          executableCandidate,
+          reason,
+          argsLabel
+        };
+      })
+      .sort((a, b) => {
+        if (a.executable !== b.executable) {
+          return a.executable ? -1 : 1;
+        }
+        return a.rule.rule_number - b.rule.rule_number;
+      });
+  }, [candidates, isStep2CandidatesLoading, selectedLeft, selectedRight, state, step2AllRules]);
 
   function renderStep2DisplayNode(
     node: Step2DisplayNode,
@@ -1580,19 +1732,22 @@ export default function App() {
           grammar_id: grammarId,
           sentence,
           tokens: tokensForRequest,
-          split_mode: splitMode
+          split_mode: splitMode,
+          auto_add_ga_phi: true
         });
         if (step1BuildPreviewRequestSeqRef.current !== requestId) {
           return;
         }
         setStep1BuildPreviewNumerationText(response.numeration_text);
         syncTokenEdits(response);
+        setStep1AutoSupplementNotes(response.auto_supplements || []);
         setStep1BuildPreviewError("");
       } catch (previewError) {
         if (step1BuildPreviewRequestSeqRef.current !== requestId) {
           return;
         }
         setStep1BuildPreviewNumerationText("");
+        setStep1AutoSupplementNotes([]);
         setStep1BuildPreviewError(
           previewError instanceof Error ? previewError.message : "語彙候補の計算に失敗しました。"
         );
@@ -1753,6 +1908,7 @@ export default function App() {
       setNumerationLexiconError("");
       setTokenSlotEdits([]);
       setGenerated(null);
+      setStep1AutoSupplementNotes([]);
       setOpenStep1CandidateSlot(null);
       if (setNumerationFiles.length === 0) {
         setStep1ExampleNumerationPath("");
@@ -1768,6 +1924,7 @@ export default function App() {
       setNumerationLexiconError("");
       setTokenSlotEdits([]);
       setGenerated(null);
+      setStep1AutoSupplementNotes([]);
       setOpenStep1CandidateSlot(null);
     }
     if (mode === "build_lexicon") {
@@ -1802,6 +1959,7 @@ export default function App() {
       setStep1ExampleNumerationText(response.numeration_text);
       setSentence(response.memo || sentence);
       setStep1ExampleNumerationMemo(response.memo || response.numeration_text?.split("\t")?.[0] || "");
+      setStep1AutoSupplementNotes([]);
       setNumerationLexiconError("");
     } catch {
       setStep1ExampleNumerationText("");
@@ -1873,6 +2031,62 @@ export default function App() {
     step1UploadFileInputRef.current.click();
   }
 
+  function handleOpenNumerationEditorPicker() {
+    if (!numerationEditorFileInputRef.current) {
+      return;
+    }
+    numerationEditorFileInputRef.current.value = "";
+    numerationEditorFileInputRef.current.click();
+  }
+
+  async function handleNumerationEditorUploadFile(file: File | null) {
+    if (!file) {
+      return;
+    }
+    try {
+      const text = await file.text();
+      setNumerationText(text);
+      setNumerationEditorPath(`(アップロード) ${file.name}`);
+      setError(null);
+    } catch {
+      setError("numファイルの読み込みに失敗しました。");
+    }
+  }
+
+  function handleUpdateNumerationGridCell(rowIndex: number, columnIndex: number, value: string) {
+    setNumerationText((prev) => {
+      const grid = parseTabSeparatedGrid(prev);
+      while (grid.length <= rowIndex) {
+        grid.push([""]);
+      }
+      while (grid[rowIndex].length <= columnIndex) {
+        grid[rowIndex].push("");
+      }
+      grid[rowIndex][columnIndex] = value;
+      return buildTabSeparatedGrid(grid);
+    });
+  }
+
+  async function handleOpenAutoSupplementReference(path: string) {
+    if (path.trim() === "") {
+      return;
+    }
+    await withLoading(async () => {
+      const response = await apiPost<{ path: string; numeration_text: string; memo: string }>(
+        "/v1/derivation/numeration/load",
+        {
+          grammar_id: grammarId,
+          path
+        }
+      );
+      setNumerationText(response.numeration_text);
+      setSentence(response.memo || sentence);
+      setNumerationEditorPath(response.path);
+      setRenewMenu("hypothesis");
+      setRenewPanel("numeration");
+    });
+  }
+
   function applyInitializedState(nextState: DerivationState) {
     setState(nextState);
     setStep2UndoStack([]);
@@ -1892,14 +2106,16 @@ export default function App() {
   }
 
   async function requestGenerateNumeration(
-    useManualTokens = tokenInputMode === "manual"
+    useManualTokens = tokenInputMode === "manual",
+    options?: { autoAddGaPhi?: boolean }
   ): Promise<GeneratedNumeration> {
     const tokensForRequest = useManualTokens ? resolveManualTokensForSubmit() : undefined;
     return apiPost<GeneratedNumeration>("/v1/derivation/numeration/generate", {
       grammar_id: grammarId,
       sentence,
       tokens: tokensForRequest,
-      split_mode: splitMode
+      split_mode: splitMode,
+      auto_add_ga_phi: options?.autoAddGaPhi ?? false
     });
   }
 
@@ -1908,7 +2124,9 @@ export default function App() {
       const response = await requestGenerateNumeration(useManualTokens);
       setGenerated(response);
       setNumerationText(response.numeration_text);
+      setNumerationEditorPath("(未保存) Numeration自動生成");
       syncTokenEdits(response);
+      setStep1AutoSupplementNotes(response.auto_supplements || []);
       setArrangeRows([]);
     });
   }
@@ -1929,6 +2147,7 @@ export default function App() {
         formedNumerationText = uploadNumerationText;
         setGenerated(null);
         setTokenSlotEdits([]);
+        setStep1AutoSupplementNotes([]);
         setOpenStep1CandidateSlot(null);
       } else if (step1EntryMode === "example_sentence") {
         if (step1ExampleNumerationText.trim() === "") {
@@ -1937,20 +2156,25 @@ export default function App() {
         formedNumerationText = step1ExampleNumerationText;
         setGenerated(null);
         setTokenSlotEdits([]);
+        setStep1AutoSupplementNotes([]);
         setOpenStep1CandidateSlot(null);
       } else {
         if (tokenSlotEdits.length > 0) {
           // Step1で差し替えた候補を保持したまま Numeration を形成する。
           formedNumerationText = await composeNumerationFromTokenEdits(tokenSlotEdits);
         } else {
-          const generatedNumeration = await requestGenerateNumeration();
+          const generatedNumeration = await requestGenerateNumeration(tokenInputMode === "manual", {
+            autoAddGaPhi: true
+          });
           setGenerated(generatedNumeration);
           syncTokenEdits(generatedNumeration);
+          setStep1AutoSupplementNotes(generatedNumeration.auto_supplements || []);
           formedNumerationText = generatedNumeration.numeration_text;
         }
       }
 
       setNumerationText(formedNumerationText);
+      setNumerationEditorPath("(未保存) Step1 Numeration形成");
       setArrangeRows([]);
 
       const initialized = await apiPost<DerivationState>("/v1/derivation/init", {
@@ -1977,7 +2201,9 @@ export default function App() {
       );
       setGenerated(response.numeration);
       setNumerationText(response.numeration.numeration_text);
+      setNumerationEditorPath("(未保存) 文から初期化");
       syncTokenEdits(response.numeration);
+      setStep1AutoSupplementNotes(response.numeration.auto_supplements || []);
       applyInitializedState(response.state);
       setRenewMenu("hypothesis");
       setRenewPanel("target");
@@ -2028,6 +2254,7 @@ export default function App() {
       );
       setNumerationText(response.numeration_text);
       setSentence(response.memo || sentence);
+      setNumerationEditorPath(response.path);
       setArrangeRows([]);
     });
   }
@@ -2038,10 +2265,11 @@ export default function App() {
       return;
     }
     await withLoading(async () => {
-      await apiPost<{ path: string }>("/v1/derivation/numeration/save", {
+      const response = await apiPost<{ path: string }>("/v1/derivation/numeration/save", {
         grammar_id: grammarId,
         numeration_text: numerationText
       });
+      setNumerationEditorPath(response.path);
       await handleLoadNumerationFiles("saved");
     });
   }
@@ -2052,6 +2280,7 @@ export default function App() {
       return;
     }
     setNumerationText(uploadNumerationText);
+    setNumerationEditorPath("(未保存) upload テキスト");
     setArrangeRows([]);
   }
 
@@ -2100,6 +2329,7 @@ export default function App() {
     });
     setTokenSlotEdits(nextTokenSlotEdits);
     setNumerationText(response.numeration_text);
+    setNumerationEditorPath("(未保存) 候補差し替え");
     if (step1EntryMode === "build_lexicon") {
       setStep1BuildPreviewNumerationText(response.numeration_text);
     }
@@ -2861,7 +3091,8 @@ export default function App() {
             const semanticValues = row.semantics.filter((semantic) => semantic.trim() !== "");
             const idslotRaw = row.idslot.trim();
             const slotEdit = tokenSlotEditBySlot.get(row.slot);
-            const includeSlotCandidates = step1EntryMode === "build_lexicon";
+            const includeSlotCandidates =
+              step1EntryMode === "build_lexicon" && renewPanel !== "numeration";
             const slotCandidateIds = Array.from(
               new Set(
                 (includeSlotCandidates ? slotEdit?.candidateLexiconIds || [] : []).filter(
@@ -2872,7 +3103,8 @@ export default function App() {
             const candidateIds = Array.from(
               new Set([...(row.lexiconId ? [row.lexiconId] : []), ...slotCandidateIds])
             );
-            const showStep1CandidateControls = candidateIds.length > 0;
+            const showStep1CandidateControls =
+              renewPanel !== "numeration" && candidateIds.length > 0;
             const canApplyStep1Candidates = includeSlotCandidates && Boolean(slotEdit);
             const selectedCandidateId = includeSlotCandidates
               ? slotEdit?.selectedLexiconId ?? row.lexiconId ?? null
@@ -3526,6 +3758,40 @@ export default function App() {
               </p>
               {isStep1BuildPreviewLoading && <p className="hint">分割結果から語彙候補を計算中…</p>}
               {step1BuildPreviewError && <p className="step1-upload-error">{step1BuildPreviewError}</p>}
+              {step1AutoSupplementNotes.length > 0 && (
+                <div className="step1-auto-supplement-notes" data-testid="step1-auto-supplement-notes">
+                  <h4>自動補完の注釈</h4>
+                  {step1AutoSupplementNotes.map((note, index) => (
+                    <div
+                      className="step1-auto-supplement-note"
+                      key={`step1-auto-supplement-${note.lexicon_id}-${index}`}
+                    >
+                      <p>
+                        {`ID ${note.lexicon_id}（${note.entry}）を ${note.count}件 追加: `}
+                        {`${note.feature_code}(${note.label}) の要求 ${note.demand_count}件 / 供給 ${note.provider_count}件`}
+                      </p>
+                      <p className="hint">{note.reason}</p>
+                      <div className="row row-start">
+                        <button
+                          type="button"
+                          className="step1-auto-supplement-link"
+                          disabled={!note.reference_numeration_path}
+                          onClick={() => {
+                            if (note.reference_numeration_path) {
+                              void handleOpenAutoSupplementReference(note.reference_numeration_path);
+                            }
+                          }}
+                        >
+                          根拠 .num を Numeration編集で表示
+                        </button>
+                        {note.reference_numeration_memo && (
+                          <span className="hint">根拠: {note.reference_numeration_memo}</span>
+                        )}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
               {numerationLexiconPanel}
             </div>
           )}
@@ -3558,31 +3824,26 @@ export default function App() {
         </section>
 
         <section className="card" data-panel="numeration">
-          <h2>補助：Numeration 作成・編集</h2>
-          <pre data-testid="numeration-text">{numerationText || "(未生成)"}</pre>
-          <div className="row">
-            <button onClick={handleInitFromNumerationText} disabled={loading || numerationText.trim() === ""}>
-              このNumerationから T0 を初期化
-            </button>
-            <button onClick={handleInitFromSentence} disabled={loading || sentence.trim() === ""}>
-              文から T0 を初期化（Numeration自動生成）
-            </button>
-          </div>
-          <label>
-            .num エディタ
-            <textarea
-              aria-label="numeration-editor"
-              rows={8}
-              value={numerationText}
-              onChange={(event) => setNumerationText(event.target.value)}
-            />
-          </label>
-          <p>lexicon_ids: {generated?.lexicon_ids.join(", ") || "-"}</p>
+          <h2>Numeration編集</h2>
+          <p className="hint">タブ区切り `.num` を直接編集し、下部で語彙情報参照を確認できます。</p>
 
-          <h3>Perl互換 .num ソース</h3>
-          <div className="row">
-            <button onClick={() => handleLoadNumerationFiles("set")} disabled={loading}>
-              set-numeration を読み込む
+          <input
+            aria-label="Numeration Editor Upload File"
+            type="file"
+            accept=".num,.txt,text/plain"
+            className="hidden-upload-input"
+            ref={numerationEditorFileInputRef}
+            onChange={(event) => {
+              const file = event.target.files?.[0] ?? null;
+              void handleNumerationEditorUploadFile(file);
+            }}
+          />
+          <div className="row row-start">
+            <button type="button" className="token-mode-btn upload-file-trigger" onClick={handleOpenNumerationEditorPicker}>
+              numファイルをアップロード（編集）
+            </button>
+            <button type="button" onClick={() => void handleLoadNumerationFiles("set")} disabled={loading}>
+              set-numeration 一覧更新
             </button>
             <select
               aria-label="set-numeration-select"
@@ -3597,165 +3858,50 @@ export default function App() {
               ))}
             </select>
             <button
-              onClick={() => handleLoadNumerationPath(selectedSetPath)}
+              type="button"
+              onClick={() => void handleLoadNumerationPath(selectedSetPath)}
               disabled={loading || selectedSetPath === ""}
             >
-              選択した set を反映
+              選択ファイルを読込
             </button>
-          </div>
-
-          <div className="row">
-            <button onClick={() => handleLoadNumerationFiles("saved")} disabled={loading}>
-              numeration を読み込む
-            </button>
-            <select
-              aria-label="saved-numeration-select"
-              value={selectedSavedPath}
-              onChange={(event) => setSelectedSavedPath(event.target.value)}
-            >
-              <option value="">（numeration を選択）</option>
-              {savedNumerationFiles.map((row) => (
-                <option key={row.path} value={row.path}>
-                  [{row.memo}] {row.file_name}
-                </option>
-              ))}
-            </select>
-            <button
-              onClick={() => handleLoadNumerationPath(selectedSavedPath)}
-              disabled={loading || selectedSavedPath === ""}
-            >
-              選択した numeration を反映
-            </button>
-            <button onClick={handleSaveNumeration} disabled={loading || numerationText.trim() === ""}>
+            <button type="button" onClick={handleSaveNumeration} disabled={loading || numerationText.trim() === ""}>
               .num を保存
             </button>
           </div>
+          <p className="hint">ファイルパス: {numerationEditorPath || "(未指定 / 未保存)"}</p>
 
-          <label>
-            .num テキスト入力（Perl upload 相当）
-            <textarea
-              aria-label="upload-numeration"
-              rows={4}
-              value={uploadNumerationText}
-              onChange={(event) => setUploadNumerationText(event.target.value)}
-            />
-          </label>
-          {numerationLexiconPanel}
-          <div className="row">
-            <button onClick={handleApplyUploadNumeration} disabled={loading || uploadNumerationText.trim() === ""}>
-              入力テキストを反映
-            </button>
-            <button onClick={handleArrangeFromCurrentNumeration} disabled={loading || numerationText.trim() === ""}>
-              現在の .num から Arrange を作成
-            </button>
-            <button onClick={handleApplyArrangeToNumeration} disabled={loading || arrangeRows.length === 0}>
-              Arrange を反映
-            </button>
-          </div>
-
-          {arrangeRows.length > 0 && (
-            <table>
+          <div className="numeration-grid-wrap">
+            <table className="numeration-grid" aria-label="numeration-grid-editor">
               <thead>
                 <tr>
-                  <th>slot</th>
-                  <th>lexicon</th>
-                  <th>plus</th>
-                  <th>idx</th>
+                  <th>#</th>
+                  {Array.from({ length: numerationEditorGridColumnCount }, (_, index) => (
+                    <th key={`num-col-${index}`}>{index}</th>
+                  ))}
                 </tr>
               </thead>
               <tbody>
-                {arrangeRows.map((row) => (
-                  <tr key={`arrange-${row.slot}`}>
-                    <td>{row.slot}</td>
-                    <td>
-                      <input
-                        value={row.lexiconId}
-                        onChange={(event) =>
-                          updateArrangeRow(row.slot, { lexiconId: event.target.value })
-                        }
-                      />
-                    </td>
-                    <td>
-                      <input
-                        value={row.plusValue}
-                        onChange={(event) =>
-                          updateArrangeRow(row.slot, { plusValue: event.target.value })
-                        }
-                      />
-                    </td>
-                    <td>
-                      <input
-                        value={row.idxValue}
-                        onChange={(event) =>
-                          updateArrangeRow(row.slot, { idxValue: event.target.value })
-                        }
-                      />
-                    </td>
+                {numerationEditorGrid.map((row, rowIndex) => (
+                  <tr key={`num-row-${rowIndex}`}>
+                    <th>{rowIndex + 1}</th>
+                    {Array.from({ length: numerationEditorGridColumnCount }, (_, colIndex) => (
+                      <td key={`num-cell-${rowIndex}-${colIndex}`}>
+                        <input
+                          aria-label={`numeration-cell-${rowIndex + 1}-${colIndex}`}
+                          value={row[colIndex] ?? ""}
+                          onChange={(event) => {
+                            handleUpdateNumerationGridCell(rowIndex, colIndex, event.target.value);
+                          }}
+                        />
+                      </td>
+                    ))}
                   </tr>
                 ))}
               </tbody>
             </table>
-          )}
+          </div>
 
-          {tokenSlotEdits.length > 0 && (
-            <>
-              <h3>Lexical candidate re-selection (Perl lexicon_select 相当)</h3>
-              <table>
-                <thead>
-                  <tr>
-                    <th>slot</th>
-                    <th>token</th>
-                    <th>selected lexicon</th>
-                    <th>idx</th>
-                    <th>plus</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {tokenSlotEdits.map((row) => (
-                    <tr key={`slot-edit-${row.slot}`}>
-                      <td>{row.slot}</td>
-                      <td>{row.token}</td>
-                      <td>
-                        <select
-                          value={row.selectedLexiconId}
-                          onChange={(event) =>
-                            updateTokenSlotEdit(row.slot, {
-                              selectedLexiconId: Number(event.target.value)
-                            })
-                          }
-                        >
-                          {row.candidateLexiconIds.map((candidateId) => (
-                            <option key={`${row.slot}-${candidateId}`} value={candidateId}>
-                              {candidateId}
-                            </option>
-                          ))}
-                        </select>
-                      </td>
-                      <td>
-                        <input
-                          value={row.idxValue}
-                          onChange={(event) =>
-                            updateTokenSlotEdit(row.slot, { idxValue: event.target.value })
-                          }
-                        />
-                      </td>
-                      <td>
-                        <input
-                          value={row.plusValue}
-                          onChange={(event) =>
-                            updateTokenSlotEdit(row.slot, { plusValue: event.target.value })
-                          }
-                        />
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-              <button onClick={handleComposeNumerationFromTokenSelection} disabled={loading}>
-                Compose .num from token selection
-              </button>
-            </>
-          )}
+          {numerationLexiconPanel}
         </section>
 
         <section className="card" data-panel="target">
@@ -3984,44 +4130,65 @@ export default function App() {
             <p className="hint">state が未初期化です。Step1で Numeration を形成してください。</p>
           )}
 
-          <table data-testid="candidate-table">
-            <thead>
-              <tr>
-                <th>rule</th>
-                <th>kind</th>
-                <th>args</th>
-                <th />
-              </tr>
-            </thead>
-            <tbody>
-                {candidates.map((candidate) => (
-                  <tr key={`${candidate.rule_number}-${candidate.left}-${candidate.right}-${candidate.check}`}>
+          {step2RulesError && <p className="hint">{step2RulesError}</p>}
+          <div className="step2-rule-table-scroll">
+            <table data-testid="candidate-table" className="step2-rule-table">
+              <thead>
+                <tr>
+                  <th>rule</th>
+                  <th>kind</th>
+                  <th>args</th>
+                  <th />
+                </tr>
+              </thead>
+              <tbody>
+                {step2RuleRows.map((row) => (
+                  <tr
+                    key={`step2-rule-${row.rule.rule_number}`}
+                    className={row.executable ? "step2-rule-row-executable" : "step2-rule-row-disabled"}
+                  >
                     <td>
-                      {candidate.rule_number}:{candidate.rule_name}
-                  </td>
-                  <td>{candidate.rule_kind}</td>
-                  <td>
-                    {candidate.rule_kind === "single"
-                      ? `check=${candidate.check}`
-                      : `L=${candidate.left}, R=${candidate.right}`}
-                  </td>
+                      {row.rule.rule_number}:{row.rule.rule_name}
+                    </td>
+                    <td>{row.rule.rule_kind}</td>
+                    <td>
+                      {row.argsLabel}
+                      {!row.executable && row.reason !== "" && (
+                        <div
+                          className="step2-rule-disabled-reason"
+                          data-testid={`step2-rule-reason-${row.rule.rule_number}`}
+                        >
+                          {row.reason}
+                        </div>
+                      )}
+                    </td>
                     <td>
                       <div className="step2-candidate-actions">
-                        <button onClick={() => handleExecuteCandidate(candidate)} disabled={loading}>
+                        <button
+                          className={!row.executable ? "step2-rule-execute-disabled" : ""}
+                          onClick={() => {
+                            if (row.executableCandidate) {
+                              void handleExecuteCandidate(row.executableCandidate);
+                            }
+                          }}
+                          disabled={loading || !row.executable}
+                        >
                           実行
                         </button>
                       </div>
                     </td>
                   </tr>
                 ))}
-                {candidates.length === 0 && (
+                {step2RuleRows.length === 0 && (
                   <tr>
                     <td>-</td>
                     <td>-</td>
                     <td>
-                      {isStep2CandidatesLoading
-                        ? "適用可能ルールを読込中です…"
-                        : "適用可能ルールがありません。別の left/right か 候補を提案 を試してください。"}
+                      {isStep2RulesLoading
+                        ? "ルール一覧を読込中です…"
+                        : isStep2CandidatesLoading
+                          ? "left/right に対する適用可否を判定中です…"
+                          : "ルールがありません。"}
                     </td>
                     <td>
                       <div className="step2-candidate-actions">
@@ -4032,6 +4199,7 @@ export default function App() {
                 )}
               </tbody>
             </table>
+          </div>
 
           <div className="row">
             <button onClick={handleUndoStep2Execute} disabled={loading || step2UndoStack.length === 0}>

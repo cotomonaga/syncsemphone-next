@@ -65,6 +65,23 @@ def test_generate_numeration_prefers_richer_sync_feature_candidate() -> None:
     assert generated.lexicon_ids == [187]
 
 
+def test_generate_numeration_marks_incompatible_candidates_for_selected_grammar() -> None:
+    generated = generate_numeration_from_sentence(
+        grammar_id="imi01",
+        sentence="ジョンが本を読む",
+        tokens=["ジョン", "が", "本", "を", "読む"],
+        legacy_root=_legacy_root(),
+    )
+    by_token = {row.token: row for row in generated.token_resolutions}
+    ga = by_token["が"]
+    assert ga.lexicon_id == 19
+    compat_by_id = {row.lexicon_id: row for row in ga.candidate_compatibility}
+    assert compat_by_id[19].compatible is True
+    assert compat_by_id[183].compatible is False
+    assert "missing_required_rule" in compat_by_id[183].reason_codes
+    assert "J-Merge" in compat_by_id[183].missing_rule_names
+
+
 def test_generate_numeration_raises_for_unknown_token() -> None:
     with pytest.raises(ValueError, match="Unknown token"):
         generate_numeration_from_sentence(
