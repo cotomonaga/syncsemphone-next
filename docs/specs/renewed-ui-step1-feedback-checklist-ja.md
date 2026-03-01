@@ -537,3 +537,9 @@
 - [x] `S2-AUD-03` `best leaf` 比較を `unresolved_min` のみで終わらせず、残差サマリ（33/25 系）を含めて評価する。
 - [x] `S2-AUD-04` short/medium の既知 reachable ケースで性能 sanity を取得し、回帰がないことを確認する。
 - [x] `DOC-RCH-03` 監査結果を `reachability-ab-audit-20260301.md` と `reachability-ab-audit-20260301.json` に保存する。
+
+## 93. Reachability post_filter 高速化（exact incremental summary）
+- [x] `S2-HDA-51` `post_filter` の full recompute を削減するため、`_StateSummary`（unresolved / 33・25 demand-provider 集計）を導入し、double merge 時は `current - left - right + mother` の局所差分で次状態 summary を更新する。
+- [x] `S2-BUG-04` summary キャッシュを `id()` キーから内容キー（`state: structural signature`, `node: JSON signature`）へ変更し、オブジェクトID再利用による `reachable` 誤判定を防止する。
+- [x] `S2-REG-28` differential audit テスト `test_derivation_incremental_state_summary_matches_full_recompute_for_double_merge` を追加し、incremental更新と full recompute が一致することを回帰固定する。
+- [x] `S2-REG-29` `apps/api/tests/test_derivation.py` 全件実行で手戻りがないことを再確認する。

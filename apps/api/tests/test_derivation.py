@@ -10,11 +10,16 @@ import pytest
 from app.api.v1.derivation import (
     _HEAD_ASSIST_DEFAULT_PARALLEL_CORES,
     _HEAD_ASSIST_SEARCH_BUDGET_SECONDS,
+    _build_node_summary,
+    _build_state_summary,
     _enumerate_candidate_transitions,
+    _head_nonhead_indices,
+    _item_for_index,
     _iter_action_descriptors,
     _resolve_head_assist_parallel_cores,
     _state_packed_signature,
     _state_structural_signature,
+    _update_state_summary_for_double_merge,
 )
 from app.main import app
 from domain.grammar.rule_catalog import get_rule_number_by_name
@@ -1447,6 +1452,103 @@ def test_derivation_imi_fast_path_action_set_matches_generic_on_representative_s
             force_fast_path=True,
         )
         assert generic_keys == fast_keys
+
+
+def test_derivation_incremental_state_summary_matches_full_recompute_for_double_merge() -> None:
+    legacy_root = _legacy_root()
+
+    states = [
+        build_initial_derivation_state(
+            grammar_id="imi01",
+            numeration_text=_load_num_file("imi01/set-numeration/04.num"),
+            legacy_root=legacy_root,
+        ),
+        build_initial_derivation_state(
+            grammar_id="japanese2",
+            numeration_text="ジョンが本を読む\t60\t19\t227\t23\t226\n \t\t\t\t\t\n \t1\t2\t3\t4\t5",
+            legacy_root=legacy_root,
+        ),
+    ]
+
+    checked = 0
+    for state in states:
+        profile = resolve_rule_versions(
+            profile=get_grammar_profile(state.grammar_id),
+            legacy_root=legacy_root,
+        )
+        for left in range(1, min(state.basenum, 5) + 1):
+            for right in range(1, min(state.basenum, 5) + 1):
+                if left == right:
+                    continue
+                candidates = list_merge_candidates(
+                    state=state,
+                    left=left,
+                    right=right,
+                    legacy_root=legacy_root,
+                    rh_merge_version=profile.rh_merge_version,
+                    lh_merge_version=profile.lh_merge_version,
+                )
+                for candidate in candidates:
+                    if candidate.rule_kind != "double":
+                        continue
+                    actual_left = candidate.left if candidate.left is not None else left
+                    actual_right = candidate.right if candidate.right is not None else right
+                    rule_version = (
+                        profile.rh_merge_version
+                        if candidate.rule_name == "RH-Merge"
+                        else (
+                            profile.lh_merge_version
+                            if candidate.rule_name == "LH-Merge"
+                            else "03"
+                        )
+                    )
+                    try:
+                        next_state = execute_double_merge(
+                            state=state,
+                            rule_name=candidate.rule_name,
+                            left=actual_left,
+                            right=actual_right,
+                            rule_version=rule_version,
+                        )
+                    except ValueError:
+                        continue
+
+                    head_index, nonhead_index = _head_nonhead_indices(
+                        candidate.rule_name,
+                        actual_left,
+                        actual_right,
+                    )
+                    if head_index is None or nonhead_index is None:
+                        continue
+                    mother_index = head_index - 1 if nonhead_index < head_index else head_index
+                    left_item = _item_for_index(state, actual_left)
+                    right_item = _item_for_index(state, actual_right)
+                    mother_item = _item_for_index(next_state, mother_index)
+                    if left_item is None or right_item is None or mother_item is None:
+                        continue
+
+                    incremental = _update_state_summary_for_double_merge(
+                        current_summary=_build_state_summary(state),
+                        left_summary=_build_node_summary(left_item),
+                        right_summary=_build_node_summary(right_item),
+                        mother_summary=_build_node_summary(mother_item),
+                    )
+                    full = _build_state_summary(next_state)
+
+                    assert incremental.unresolved == full.unresolved
+                    assert incremental.demand_33 == full.demand_33
+                    assert incremental.provider_33 == full.provider_33
+                    assert incremental.demand_25 == full.demand_25
+                    assert incremental.provider_25 == full.provider_25
+                    checked += 1
+                    if checked >= 20:
+                        break
+                if checked >= 20:
+                    break
+            if checked >= 20:
+                break
+
+    assert checked >= 10
 
 
 def test_derivation_head_assist_returns_reachability_fields_for_imi03() -> None:

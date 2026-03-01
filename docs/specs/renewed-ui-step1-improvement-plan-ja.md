@@ -411,6 +411,10 @@
 | S2-AUD-03 | best-leaf 比較に残差サマリ（33/25 系）を含め、`unresolved_min` 以外の質指標を併記する | `docs/specs/reachability-ab-audit-20260301.md` | 文書レビュー |
 | S2-AUD-04 | short/medium reachable sanity を同実測に含め、到達性回帰の有無を確認する | `/tmp/reachability_ab_audit_20260301.json` | 実測スクリプト |
 | DOC-RCH-03 | A/A + A/B + best-leaf + sanity の4部構成監査レポートを保存する | `docs/specs/reachability-ab-audit-20260301.md`, `docs/specs/reachability-ab-audit-20260301.json` | 文書レビュー |
+| S2-HDA-51 | Reachability の `post_filter` 計算を `_StateSummary` の exact incremental update（`current-left-right+mother`）へ移行し、full recompute 依存を低減する | `apps/api/app/api/v1/derivation.py` | `pytest`, A/B実測 |
+| S2-BUG-04 | summary キャッシュキーを `id()` 依存から内容キー（state: structural signature / node: JSON signature）へ修正し、ID再利用による誤判定を防止する | `apps/api/app/api/v1/derivation.py` | `pytest` |
+| S2-REG-28 | incremental summary と full recompute の一致を differential audit テストで固定する | `apps/api/tests/test_derivation.py` | `pytest` |
+| S2-REG-29 | 上記反映後に `apps/api/tests/test_derivation.py` と API 全体テストを再実行し回帰なしを確認する | `apps/api/tests` | `python3 -m pytest -q` |
 
 ## API追加（S1-GRM-02）
 - `GET /v1/reference/grammars/{grammar_id}/rule-sources`

@@ -1585,6 +1585,202 @@ def _collect_partner_demand_provider_counts(
     return demand_33, provider_33, demand_25, provider_25
 
 
+@dataclass
+class _NodeSummary:
+    unresolved: int
+    demand_33: dict[str, int]
+    provider_33: dict[str, int]
+    demand_25: dict[str, int]
+    provider_25: dict[str, int]
+
+
+@dataclass
+class _StateSummary:
+    unresolved: int
+    demand_33: dict[str, int]
+    provider_33: dict[str, int]
+    demand_25: dict[str, int]
+    provider_25: dict[str, int]
+
+
+def _collect_item_partner_demand_provider_counts(
+    item: object,
+) -> tuple[dict[str, int], dict[str, int], dict[str, int], dict[str, int]]:
+    demand_33: dict[str, int] = {}
+    provider_33: dict[str, int] = {}
+    demand_25: dict[str, int] = {}
+    provider_25: dict[str, int] = {}
+
+    def _inc(bucket: dict[str, int], key: str) -> None:
+        if key == "":
+            return
+        bucket[key] = bucket.get(key, 0) + 1
+
+    for node in _iter_tree_items_for_partner_scan(item):
+        sy_values = node[3] if len(node) > 3 and isinstance(node[3], list) else []
+        se_values = node[5] if len(node) > 5 and isinstance(node[5], list) else []
+
+        for feature in sy_values:
+            raw = str(feature).strip()
+            if raw == "":
+                continue
+            parts = [part.strip() for part in raw.split(",")]
+            if len(parts) >= 3 and parts[1] in {"11", "12"}:
+                _inc(provider_33, parts[2])
+                continue
+            if "," not in raw:
+                _inc(provider_25, raw)
+
+        for semantic in se_values:
+            raw = str(semantic)
+            if ":" not in raw:
+                continue
+            rhs = raw.split(":", 1)[1].strip()
+            if rhs == "":
+                continue
+            parts = [part.strip() for part in rhs.split(",")]
+            if len(parts) < 3:
+                continue
+            feature_code = parts[1]
+            label = parts[2]
+            if feature_code == "33":
+                _inc(demand_33, label)
+            elif feature_code == "25":
+                _inc(demand_25, label)
+
+    return demand_33, provider_33, demand_25, provider_25
+
+
+def _build_node_summary(node: object, *, serialized: Optional[str] = None) -> _NodeSummary:
+    serialized_node = serialized
+    if serialized_node is None:
+        serialized_node = json.dumps(node, ensure_ascii=False, separators=(",", ":"))
+    unresolved = len(
+        _UNINTERPRETABLE_PATTERN.findall(
+            serialized_node
+        )
+    )
+    demand_33, provider_33, demand_25, provider_25 = _collect_item_partner_demand_provider_counts(
+        node
+    )
+    return _NodeSummary(
+        unresolved=unresolved,
+        demand_33=demand_33,
+        provider_33=provider_33,
+        demand_25=demand_25,
+        provider_25=provider_25,
+    )
+
+
+def _build_state_summary(state: DerivationState) -> _StateSummary:
+    unresolved = _count_uninterpretable_like_perl(state)
+    demand_33, provider_33, demand_25, provider_25 = _collect_partner_demand_provider_counts(state)
+    return _StateSummary(
+        unresolved=unresolved,
+        demand_33=demand_33,
+        provider_33=provider_33,
+        demand_25=demand_25,
+        provider_25=provider_25,
+    )
+
+
+def _clone_counts(values: dict[str, int]) -> dict[str, int]:
+    return dict(values)
+
+
+def _merge_counts_inplace(
+    target: dict[str, int],
+    source: dict[str, int],
+    *,
+    sign: int,
+) -> None:
+    for key, value in source.items():
+        if value == 0:
+            continue
+        updated = target.get(key, 0) + (sign * value)
+        if updated <= 0:
+            target.pop(key, None)
+        else:
+            target[key] = updated
+
+
+def _update_state_summary_for_double_merge(
+    *,
+    current_summary: _StateSummary,
+    left_summary: _NodeSummary,
+    right_summary: _NodeSummary,
+    mother_summary: _NodeSummary,
+) -> _StateSummary:
+    demand_33 = _clone_counts(current_summary.demand_33)
+    provider_33 = _clone_counts(current_summary.provider_33)
+    demand_25 = _clone_counts(current_summary.demand_25)
+    provider_25 = _clone_counts(current_summary.provider_25)
+
+    _merge_counts_inplace(demand_33, left_summary.demand_33, sign=-1)
+    _merge_counts_inplace(demand_33, right_summary.demand_33, sign=-1)
+    _merge_counts_inplace(demand_33, mother_summary.demand_33, sign=1)
+
+    _merge_counts_inplace(provider_33, left_summary.provider_33, sign=-1)
+    _merge_counts_inplace(provider_33, right_summary.provider_33, sign=-1)
+    _merge_counts_inplace(provider_33, mother_summary.provider_33, sign=1)
+
+    _merge_counts_inplace(demand_25, left_summary.demand_25, sign=-1)
+    _merge_counts_inplace(demand_25, right_summary.demand_25, sign=-1)
+    _merge_counts_inplace(demand_25, mother_summary.demand_25, sign=1)
+
+    _merge_counts_inplace(provider_25, left_summary.provider_25, sign=-1)
+    _merge_counts_inplace(provider_25, right_summary.provider_25, sign=-1)
+    _merge_counts_inplace(provider_25, mother_summary.provider_25, sign=1)
+
+    unresolved = (
+        current_summary.unresolved
+        - left_summary.unresolved
+        - right_summary.unresolved
+        + mother_summary.unresolved
+    )
+    if unresolved < 0:
+        unresolved = 0
+
+    return _StateSummary(
+        unresolved=unresolved,
+        demand_33=demand_33,
+        provider_33=provider_33,
+        demand_25=demand_25,
+        provider_25=provider_25,
+    )
+
+
+def _summary_to_partner_counts(
+    summary: _StateSummary,
+) -> tuple[dict[str, int], dict[str, int], dict[str, int], dict[str, int]]:
+    return (
+        _clone_counts(summary.demand_33),
+        _clone_counts(summary.provider_33),
+        _clone_counts(summary.demand_25),
+        _clone_counts(summary.provider_25),
+    )
+
+
+def _partner_deficit_from_summary(summary: _StateSummary) -> int:
+    total = 0
+    for label, demand in summary.demand_33.items():
+        total += max(0, demand - summary.provider_33.get(label, 0))
+    for label, demand in summary.demand_25.items():
+        total += max(0, demand - summary.provider_25.get(label, 0))
+    return total
+
+
+def _breaks_unique_partner_provider_constraint_from_summary(
+    *,
+    before: _StateSummary,
+    after: _StateSummary,
+) -> bool:
+    return _breaks_unique_partner_provider_constraint(
+        before_counts=_summary_to_partner_counts(before),
+        after_counts=_summary_to_partner_counts(after),
+    )
+
+
 def _partner_deficit_total(
     counts: tuple[dict[str, int], dict[str, int], dict[str, int], dict[str, int]]
 ) -> int:
@@ -1755,9 +1951,8 @@ def _search_reachability(
     # (signature, streak) 個別再訪より強い支配判定:
     # 同一signatureで「より小さい/同じstreakかつより深いremaining_depth」が既出なら現在は不要。
     explored_by_signature: dict[str, dict[int, int]] = {}
-    unresolved_count_cache: dict[int, int] = {}
-    partner_counts_cache: dict[int, tuple[dict[str, int], dict[str, int], dict[str, int], dict[str, int]]] = {}
-    partner_deficit_cache: dict[int, int] = {}
+    state_summary_cache: dict[str, _StateSummary] = {}
+    node_summary_cache: dict[str, _NodeSummary] = {}
     timing_ns: dict[str, int] = {
         "pairs_scan": 0,
         "rule_expand": 0,
@@ -1770,6 +1965,8 @@ def _search_reachability(
         "descriptor_sort": 0,
         "sibling_exact_dedup": 0,
         "partner_counts": 0,
+        "summary_full_recompute": 0,
+        "summary_incremental": 0,
     }
     layer_stats: dict[int, dict[str, int]] = {}
     leaf_unresolved_hist: dict[int, int] = {}
@@ -1788,26 +1985,28 @@ def _search_reachability(
     aborted_reason: Optional[str] = None
     progress_tick_interval = 200
 
-    def unresolved_count(state: DerivationState) -> int:
-        state_obj_id = id(state)
-        cached = unresolved_count_cache.get(state_obj_id)
+    def node_summary(node: object) -> _NodeSummary:
+        serialized_node = json.dumps(node, ensure_ascii=False, separators=(",", ":"))
+        cached = node_summary_cache.get(serialized_node)
         if cached is not None:
             return cached
-        started_ns = time.perf_counter_ns()
-        value = _count_uninterpretable_like_perl(state)
-        timing_ns["next_unresolved"] += time.perf_counter_ns() - started_ns
-        unresolved_count_cache[state_obj_id] = value
+        value = _build_node_summary(node, serialized=serialized_node)
+        node_summary_cache[serialized_node] = value
         return value
 
-    def partner_counts(state: DerivationState) -> tuple[dict[str, int], dict[str, int], dict[str, int], dict[str, int]]:
-        state_obj_id = id(state)
-        cached = partner_counts_cache.get(state_obj_id)
+    def state_summary(state: DerivationState, *, signature: Optional[str] = None) -> _StateSummary:
+        state_key = signature if signature is not None else _state_structural_signature(state)
+        cached = state_summary_cache.get(state_key)
         if cached is not None:
             return cached
         started_ns = time.perf_counter_ns()
-        value = _collect_partner_demand_provider_counts(state)
-        timing_ns["partner_counts"] += time.perf_counter_ns() - started_ns
-        partner_counts_cache[state_obj_id] = value
+        value = _build_state_summary(state)
+        elapsed_ns = time.perf_counter_ns() - started_ns
+        timing_ns["summary_full_recompute"] += elapsed_ns
+        # 互換のため内訳にも計上（旧計測キーを保持）。
+        timing_ns["next_unresolved"] += elapsed_ns
+        timing_ns["partner_counts"] += elapsed_ns
+        state_summary_cache[state_key] = value
         return value
 
     def layer_bucket(basenum: int) -> dict[str, int]:
@@ -1837,17 +2036,11 @@ def _search_reachability(
         layer_stats[basenum] = bucket
         return bucket
 
-    def partner_deficit(state: DerivationState) -> int:
-        state_obj_id = id(state)
-        cached = partner_deficit_cache.get(state_obj_id)
-        if cached is not None:
-            return cached
-        value = _partner_deficit_total(partner_counts(state))
-        partner_deficit_cache[state_obj_id] = value
-        return value
-
-    def record_leaf_sample(state: DerivationState, unresolved_value: int, history_len: int) -> None:
-        demand_33, provider_33, demand_25, provider_25 = partner_counts(state)
+    def record_leaf_sample(summary: _StateSummary, unresolved_value: int, history_len: int) -> None:
+        demand_33 = summary.demand_33
+        provider_33 = summary.provider_33
+        demand_25 = summary.demand_25
+        provider_25 = summary.provider_25
         deficit_33 = {
             label: max(0, demand - provider_33.get(label, 0))
             for label, demand in demand_33.items()
@@ -1906,11 +2099,13 @@ def _search_reachability(
             return False
 
         bucket = layer_bucket(current.basenum)
-        current_unresolved = unresolved_count(current)
+        current_structural_sig = _state_structural_signature(current)
+        current_summary = state_summary(current, signature=current_structural_sig)
+        current_unresolved = current_summary.unresolved
         if current.basenum == 1:
             bucket["leaf_count"] += 1
             leaf_unresolved_hist[current_unresolved] = leaf_unresolved_hist.get(current_unresolved, 0) + 1
-            record_leaf_sample(current, current_unresolved, len(path))
+            record_leaf_sample(current_summary, current_unresolved, len(path))
             leaf_unresolved_min = (
                 current_unresolved
                 if leaf_unresolved_min is None
@@ -1938,7 +2133,6 @@ def _search_reachability(
             return True
 
         current_sig = dominance_signature_fn(current)
-        current_structural_sig = _state_structural_signature(current)
         sig_bucket = explored_by_signature.get(current_sig)
         if sig_bucket is not None:
             for seen_streak, seen_remaining in sig_bucket.items():
@@ -1957,8 +2151,6 @@ def _search_reachability(
                     continue
                 if seen_streak >= zero_delta_streak and seen_remaining <= remaining_depth:
                     del sig_bucket[seen_streak]
-
-        current_partner_counts = partner_counts(current)
 
         descriptors = _iter_action_descriptors(
             state=current,
@@ -2011,12 +2203,44 @@ def _search_reachability(
                 continue
             sibling_seen_structural.add(next_structural_sig)
             timing_ns["sibling_exact_dedup"] += time.perf_counter_ns() - dedup_started_ns
-            next_unresolved = unresolved_count(next_state)
+            summary_started_ns = time.perf_counter_ns()
+            next_summary: Optional[_StateSummary] = None
+            if candidate.rule_kind == "double":
+                left_item = _item_for_index(current, actual_left)
+                right_item = _item_for_index(current, actual_right)
+                head_index, nonhead_index = _head_nonhead_indices(
+                    candidate.rule_name,
+                    actual_left,
+                    actual_right,
+                )
+                if (
+                    left_item is not None
+                    and right_item is not None
+                    and head_index is not None
+                    and nonhead_index is not None
+                ):
+                    mother_index = head_index
+                    if nonhead_index < head_index:
+                        mother_index -= 1
+                    mother_item = _item_for_index(next_state, mother_index)
+                    if mother_item is not None:
+                        next_summary = _update_state_summary_for_double_merge(
+                            current_summary=current_summary,
+                            left_summary=node_summary(left_item),
+                            right_summary=node_summary(right_item),
+                            mother_summary=node_summary(mother_item),
+                        )
+                        state_summary_cache[next_structural_sig] = next_summary
+            if next_summary is None:
+                next_summary = state_summary(next_state, signature=next_structural_sig)
+            else:
+                timing_ns["summary_incremental"] += time.perf_counter_ns() - summary_started_ns
+
+            next_unresolved = next_summary.unresolved
             delta_unresolved = next_unresolved - current_unresolved
-            next_partner_counts = partner_counts(next_state)
-            breaks_unique_provider = _breaks_unique_partner_provider_constraint(
-                before_counts=current_partner_counts,
-                after_counts=next_partner_counts,
+            breaks_unique_provider = _breaks_unique_partner_provider_constraint_from_summary(
+                before=current_summary,
+                after=next_summary,
             )
             if not soften_hard_pruning_globally and delta_unresolved > 0:
                 bucket["pruned_delta_increase"] += 1
@@ -2024,7 +2248,7 @@ def _search_reachability(
             if not soften_hard_pruning_globally and breaks_unique_provider:
                 bucket["pruned_unique_provider"] += 1
                 continue
-            next_partner_deficit = partner_deficit(next_state)
+            next_partner_deficit = _partner_deficit_from_summary(next_summary)
             partner_priority = 1
             if (
                 current.grammar_id.startswith("imi")
