@@ -530,3 +530,10 @@
 - [x] `S2-HDA-50` `_iter_action_descriptors` に IMI double-only fast path（RH/LH直接emit）を追加し、generic `list_merge_candidates` 呼び出しを回避する。
 - [x] `S2-PROF-06` `timing_ms.rule_expand_fast_path` を追加し、fast path 適用回数を観測できるようにする。
 - [x] `S2-REG-27` 上記変更後に `apps/api/tests/test_derivation.py` 全件通過を再確認する。
+
+## 92. Reachability監査（A/A + Structural A/B + best-leaf + sanity）
+- [x] `S2-AUD-01` A/A 意味同値監査として `generic/fast` の `action_key` 集合一致テストを追加する（13/12/11 + short/medium）。
+- [x] `S2-AUD-02` Structural 主系列で long imi01 を `fast OFF/ON` で同条件実測し、`rule_expand/post_filter/execute` の総量と正規化値を比較する。
+- [x] `S2-AUD-03` `best leaf` 比較を `unresolved_min` のみで終わらせず、残差サマリ（33/25 系）を含めて評価する。
+- [x] `S2-AUD-04` short/medium の既知 reachable ケースで性能 sanity を取得し、回帰がないことを確認する。
+- [x] `DOC-RCH-03` 監査結果を `reachability-ab-audit-20260301.md` と `reachability-ab-audit-20260301.json` に保存する。

@@ -406,6 +406,11 @@
 | S2-HDA-50 | `_iter_action_descriptors` に IMI double-only fast path（RH/LH直接emit）を追加し、generic rule 展開呼び出しを回避する | `apps/api/app/api/v1/derivation.py` | `pytest`, A/B実測 |
 | S2-PROF-06 | `timing_ms.rule_expand_fast_path` を追加し、fast path 適用回数を観測可能にする | `apps/api/app/api/v1/derivation.py` | `pytest`, API実測 |
 | S2-REG-27 | 上記変更後に `apps/api/tests/test_derivation.py` 全件通過を再確認する | `apps/api/tests/test_derivation.py` | `python3 -m pytest tests/test_derivation.py -q` |
+| S2-AUD-01 | A/A 意味同値監査（generic/fast action集合一致）を追加し、13/12/11 + short/medium の代表状態で比較する | `apps/api/tests/test_derivation.py` | `pytest -k imi_fast_path_action_set` |
+| S2-AUD-02 | Structural 主系列で long imi01 を `fast OFF/ON` 実測し、総量と正規化指標を比較する | `/tmp/reachability_ab_audit_20260301.json` | 実測スクリプト |
+| S2-AUD-03 | best-leaf 比較に残差サマリ（33/25 系）を含め、`unresolved_min` 以外の質指標を併記する | `docs/specs/reachability-ab-audit-20260301.md` | 文書レビュー |
+| S2-AUD-04 | short/medium reachable sanity を同実測に含め、到達性回帰の有無を確認する | `/tmp/reachability_ab_audit_20260301.json` | 実測スクリプト |
+| DOC-RCH-03 | A/A + A/B + best-leaf + sanity の4部構成監査レポートを保存する | `docs/specs/reachability-ab-audit-20260301.md`, `docs/specs/reachability-ab-audit-20260301.json` | 文書レビュー |
 
 ## API追加（S1-GRM-02）
 - `GET /v1/reference/grammars/{grammar_id}/rule-sources`

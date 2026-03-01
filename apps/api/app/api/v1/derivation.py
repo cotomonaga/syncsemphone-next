@@ -805,6 +805,7 @@ def _iter_action_descriptors(
     rh_merge_version: str,
     lh_merge_version: str,
     profile_ns: Optional[dict[str, int]] = None,
+    imi_fast_path_override: Optional[bool] = None,
 ) -> Iterator[_ActionDescriptor]:
     seen_actions: set[tuple[int, str, str, int, int, int]] = set()
     empty_sets = (set(), set(), set(), set())
@@ -871,10 +872,14 @@ def _iter_action_descriptors(
                 )
 
     pair_schedule.sort(key=lambda row: (-row[4], row[3], row[2], row[0], row[1]))
-    imi_fast_rule_numbers = _resolve_imi_double_only_rule_numbers(
-        state.grammar_id,
-        str(legacy_root.resolve()),
-    )
+    imi_fast_rule_numbers: Optional[tuple[int, int]]
+    if imi_fast_path_override is False:
+        imi_fast_rule_numbers = None
+    else:
+        imi_fast_rule_numbers = _resolve_imi_double_only_rule_numbers(
+            state.grammar_id,
+            str(legacy_root.resolve()),
+        )
 
     # 2) pairごとに rule 展開して descriptor を逐次 yield。
     for left, right, distance, local_priority, cheap_overlap in pair_schedule:
@@ -1715,6 +1720,7 @@ def _search_reachability(
     lh_version: str,
     search_signature_mode: str,
     progress_hook: Optional[Callable[[float, str, str], None]] = None,
+    imi_fast_path_enabled: bool = True,
 ) -> _ReachabilityResultInternal:
     max_evidences = _resolve_reachability_max_evidences(request.max_evidences)
     max_depth = _resolve_reachability_max_depth(request.max_depth, state=request.state)
@@ -1818,6 +1824,8 @@ def _search_reachability(
             "after_zero_delta_filter": 0,
             "after_worsening_cap": 0,
             "after_sibling_dedup": 0,
+            "children_materialized": 0,
+            "children_finalized": 0,
             "unique_next_structural": 0,
             "pruned_delta_increase": 0,
             "pruned_unique_provider": 0,
@@ -1958,6 +1966,7 @@ def _search_reachability(
             rh_merge_version=rh_version,
             lh_merge_version=lh_version,
             profile_ns=timing_ns,
+            imi_fast_path_override=(None if imi_fast_path_enabled else False),
         )
         decreasing_rows: list[
             tuple[RuleCandidate, int, int, DerivationState, int, int, int, int, int, int, int]
@@ -1994,6 +2003,7 @@ def _search_reachability(
             if materialized is None:
                 continue
             candidate, actual_left, actual_right, next_state, next_structural_sig = materialized
+            bucket["children_materialized"] += 1
             dedup_started_ns = time.perf_counter_ns()
             if next_structural_sig in sibling_seen_structural:
                 bucket["after_sibling_dedup"] += 1
@@ -2065,6 +2075,7 @@ def _search_reachability(
                         unique_provider_penalty,
                     )
                 )
+                bucket["children_finalized"] += 1
                 continue
             if delta_unresolved < 0:
                 decreasing_rows.append(
@@ -2082,6 +2093,7 @@ def _search_reachability(
                         unique_provider_penalty,
                     )
                 )
+                bucket["children_finalized"] += 1
             else:
                 worsening_rows.append(
                     (
@@ -2098,6 +2110,7 @@ def _search_reachability(
                         unique_provider_penalty,
                     )
                 )
+                bucket["children_finalized"] += 1
 
         if descriptors_exhausted:
             bucket["descriptors_exhausted"] += 1

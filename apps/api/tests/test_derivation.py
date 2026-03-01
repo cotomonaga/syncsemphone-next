@@ -11,6 +11,7 @@ from app.api.v1.derivation import (
     _HEAD_ASSIST_DEFAULT_PARALLEL_CORES,
     _HEAD_ASSIST_SEARCH_BUDGET_SECONDS,
     _enumerate_candidate_transitions,
+    _iter_action_descriptors,
     _resolve_head_assist_parallel_cores,
     _state_packed_signature,
     _state_structural_signature,
@@ -1364,6 +1365,88 @@ def test_head_assist_packed_signature_reduces_level2_unique_states_vs_structural
     structural_unique = len({_state_structural_signature(row) for row in level2})
     packed_unique = len({_state_packed_signature(row) for row in level2})
     assert packed_unique < structural_unique
+
+
+def _descriptor_action_keys(
+    *,
+    state: object,
+    legacy_root: Path,
+    rh_version: str,
+    lh_version: str,
+    force_fast_path: bool,
+) -> set[tuple[int, str, str, int, int, int]]:
+    descriptors = _iter_action_descriptors(
+        state=state,
+        legacy_root=legacy_root,
+        rh_merge_version=rh_version,
+        lh_merge_version=lh_version,
+        imi_fast_path_override=force_fast_path,
+    )
+    return {
+        (
+            row.candidate.rule_number,
+            row.candidate.rule_name,
+            row.candidate.rule_kind,
+            row.left,
+            row.right,
+            row.candidate.check if row.candidate.check is not None else -1,
+        )
+        for row in descriptors
+    }
+
+
+def test_derivation_imi_fast_path_action_set_matches_generic_on_representative_states() -> None:
+    legacy_root = _legacy_root()
+    profile = resolve_rule_versions(
+        profile=get_grammar_profile("imi01"),
+        legacy_root=legacy_root,
+    )
+    long_state = build_initial_derivation_state(
+        grammar_id="imi01",
+        numeration_text=_load_num_file("imi01/set-numeration/1608131500.num"),
+        legacy_root=legacy_root,
+    )
+    long_12 = execute_double_merge(
+        state=long_state,
+        rule_name="RH-Merge",
+        left=1,
+        right=2,
+        rule_version=profile.rh_merge_version,
+    )
+    long_11 = execute_double_merge(
+        state=long_12,
+        rule_name="LH-Merge",
+        left=2,
+        right=3,
+        rule_version=profile.lh_merge_version,
+    )
+    short_state = build_initial_derivation_state(
+        grammar_id="imi01",
+        numeration_text=_load_num_file("imi01/set-numeration/04.num"),
+        legacy_root=legacy_root,
+    )
+    medium_state = build_initial_derivation_state(
+        grammar_id="imi01",
+        numeration_text=_load_num_file("imi01/set-numeration/1606324760.num"),
+        legacy_root=legacy_root,
+    )
+
+    for target in [long_state, long_12, long_11, short_state, medium_state]:
+        generic_keys = _descriptor_action_keys(
+            state=target,
+            legacy_root=legacy_root,
+            rh_version=profile.rh_merge_version,
+            lh_version=profile.lh_merge_version,
+            force_fast_path=False,
+        )
+        fast_keys = _descriptor_action_keys(
+            state=target,
+            legacy_root=legacy_root,
+            rh_version=profile.rh_merge_version,
+            lh_version=profile.lh_merge_version,
+            force_fast_path=True,
+        )
+        assert generic_keys == fast_keys
 
 
 def test_derivation_head_assist_returns_reachability_fields_for_imi03() -> None:
