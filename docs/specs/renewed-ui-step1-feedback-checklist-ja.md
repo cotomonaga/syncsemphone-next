@@ -337,7 +337,9 @@
 - [x] `S2-DIAG-01` `leaf_stats.best_samples` を `top_k=50` まで保持し、`residual_family_counts` を含む診断向けサンプルへ拡張する。
 - [x] `S2-DIAG-02` `basenum=2/3` の良好状態サンプル（`best_mid_state_samples`）を追加し、`min_delta_unresolved` と `materialized_action_count` を記録する。
 - [x] `S2-DIAG-03` residual 診断スクリプトを追加し、`best leaf`/`best mid-state` の残差族集計と局所死活率（non-improving ratio）をJSON出力する。
+- [x] `S2-DIAG-04` residual 診断JSONに `initial_slots` と `residual_family_sources` 集計（best leaf / best mid）を追加し、残差導入元 lexical item を追跡可能にする。
 - [x] `DOC-RCH-07` residual 診断結果をMarkdownレポート化し、persistent residual（`se:33/sy:11/sy:17`）と次アクションを明記する。
+- [x] `DOC-RCH-08` residual 診断レポートに導入元 source 集計（item/phono/raw）を追記し、grammar/lexicon 側で確認すべき対象を明示する。
   - 成果物: [reachability-residual-diagnose-20260301.md](/Users/tomonaga/Documents/syncsemphoneIMI/syncsemphone-next/docs/specs/reachability-residual-diagnose-20260301.md)
 
 ## 62. 自動分割の語彙既知形再構成（ふわふわした/食べている/話している）

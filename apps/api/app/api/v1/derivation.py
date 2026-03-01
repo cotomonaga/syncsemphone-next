@@ -1898,6 +1898,75 @@ def _collect_residual_family_counts(state: DerivationState) -> dict[str, int]:
     return dict(sorted(counts.items(), key=lambda row: row[0]))
 
 
+def _collect_residual_family_sources(state: DerivationState) -> dict[str, list[dict[str, str]]]:
+    family_sources: dict[str, list[dict[str, str]]] = {}
+
+    def _push(key: str, source: dict[str, str]) -> None:
+        bucket = family_sources.setdefault(key, [])
+        bucket.append(source)
+
+    for index in range(1, state.basenum + 1):
+        row = state.base[index]
+        if row == "zero" or not isinstance(row, list):
+            continue
+        for node in _iter_tree_items_for_partner_scan(row):
+            item_id = str(node[0]) if len(node) > 0 else ""
+            category = str(node[1]) if len(node) > 1 else ""
+            sl_value = "" if len(node) <= 4 or node[4] is None else str(node[4])
+            phono = "" if len(node) <= 6 or node[6] is None else str(node[6])
+            sy_values = node[3] if len(node) > 3 and isinstance(node[3], list) else []
+            se_values = node[5] if len(node) > 5 and isinstance(node[5], list) else []
+            for feature in sy_values:
+                raw = str(feature).strip()
+                if raw == "":
+                    continue
+                parts = [part.strip() for part in raw.split(",")]
+                if len(parts) >= 2 and parts[1].isdigit():
+                    _push(
+                        f"sy:{parts[1]}",
+                        {
+                            "slot_index": str(index),
+                            "item_id": item_id,
+                            "category": category,
+                            "sl": sl_value,
+                            "phono": phono,
+                            "raw": raw,
+                        },
+                    )
+            for semantic in se_values:
+                raw = str(semantic)
+                if ":" not in raw:
+                    continue
+                attr, value = raw.split(":", 1)
+                attr = attr.strip()
+                value = value.strip()
+                parts = [part.strip() for part in value.split(",")]
+                if len(parts) >= 2 and parts[1].isdigit():
+                    _push(
+                        f"se:{parts[1]}",
+                        {
+                            "slot_index": str(index),
+                            "item_id": item_id,
+                            "category": category,
+                            "sl": sl_value,
+                            "phono": phono,
+                            "attr": attr,
+                            "raw": raw,
+                        },
+                    )
+    return {
+        key: sorted(
+            rows,
+            key=lambda row: (
+                row.get("slot_index", ""),
+                row.get("item_id", ""),
+                row.get("raw", ""),
+            ),
+        )
+        for key, rows in sorted(family_sources.items(), key=lambda row: row[0])
+    }
+
+
 def _build_tree_node(item: object) -> dict[str, Any]:
     if not isinstance(item, list):
         return {
@@ -2181,6 +2250,17 @@ def _search_reachability(
             int(sample["history_len"]),
         )
 
+    def _mid_sample_rank_key(sample: dict[str, Any]) -> tuple[int, int, int, int]:
+        min_delta = sample.get("min_delta_unresolved")
+        min_delta_value = int(min_delta) if min_delta is not None else 9999
+        improving_first = 0 if min_delta is not None and int(min_delta) < 0 else 1
+        return (
+            int(sample["unresolved"]),
+            improving_first,
+            min_delta_value,
+            int(sample["history_len"]),
+        )
+
     def _base_sample(summary: _StateSummary, unresolved_value: int, history_len: int) -> dict[str, Any]:
         demand_33 = summary.demand_33
         provider_33 = summary.provider_33
@@ -2221,10 +2301,9 @@ def _search_reachability(
             if rank_key >= worst_key:
                 return
         sample["residual_family_counts"] = _collect_residual_family_counts(state)
+        sample["residual_family_sources"] = _collect_residual_family_sources(state)
         best_leaf_samples.append(sample)
-        best_leaf_samples.sort(
-            key=_sample_rank_key
-        )
+        best_leaf_samples.sort(key=_sample_rank_key)
         if len(best_leaf_samples) > best_leaf_sample_cap:
             del best_leaf_samples[best_leaf_sample_cap:]
 
@@ -2241,16 +2320,15 @@ def _search_reachability(
         sample["basenum"] = state.basenum
         sample["min_delta_unresolved"] = min_delta_unresolved
         sample["materialized_action_count"] = materialized_action_count
+        rank_key = _mid_sample_rank_key(sample)
+        if len(best_mid_state_samples) >= best_mid_state_sample_cap:
+            worst_key = _mid_sample_rank_key(best_mid_state_samples[-1])
+            if rank_key >= worst_key:
+                return
         sample["residual_family_counts"] = _collect_residual_family_counts(state)
+        sample["residual_family_sources"] = _collect_residual_family_sources(state)
         best_mid_state_samples.append(sample)
-        best_mid_state_samples.sort(
-            key=lambda row: (
-                int(row["unresolved"]),
-                0 if row["min_delta_unresolved"] is not None and int(row["min_delta_unresolved"]) < 0 else 1,
-                int(row["min_delta_unresolved"]) if row["min_delta_unresolved"] is not None else 9999,
-                int(row["history_len"]),
-            )
-        )
+        best_mid_state_samples.sort(key=_mid_sample_rank_key)
         if len(best_mid_state_samples) > best_mid_state_sample_cap:
             del best_mid_state_samples[best_mid_state_sample_cap:]
 

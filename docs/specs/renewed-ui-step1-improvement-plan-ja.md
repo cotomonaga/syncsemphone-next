@@ -431,7 +431,9 @@
 | S2-DIAG-01 | `leaf_stats.best_samples` を `top_k=50` へ拡張し、各サンプルに `residual_family_counts`（`sy:*`,`se:*`）を含める | `apps/api/app/api/v1/derivation.py` | `pytest`, 診断実測 |
 | S2-DIAG-02 | `basenum=2/3` の良好状態に対して `best_mid_state_samples`（`min_delta_unresolved`, `materialized_action_count`）を収集する | `apps/api/app/api/v1/derivation.py` | `pytest`, 診断実測 |
 | S2-DIAG-03 | residual 診断スクリプトを追加し、`best leaf / best mid-state` の残差族集計と局所死活率をJSON出力する | `apps/api/scripts/reachability_residual_diagnose.py`, `docs/specs/reachability-residual-diagnose-20260301.json` | CLI実測 |
+| S2-DIAG-04 | residual 診断JSONへ `initial_slots` と `residual_family_sources`（best leaf / best mid）を追加し、persistent residual の導入元語彙を追跡可能にする | `apps/api/app/api/v1/derivation.py`, `apps/api/scripts/reachability_residual_diagnose.py` | `pytest`, CLI実測 |
 | DOC-RCH-07 | residual 診断結果をMarkdownへ整理し、persistent residual と次の切り分けアクションを記録する | `docs/specs/reachability-residual-diagnose-20260301.md` | 文書レビュー |
+| DOC-RCH-08 | residual 診断レポートへ source 集計（item/phono/raw）と初期スロット対応を追記し、grammar/lexicon 側検証の入力を明確化する | `docs/specs/reachability-residual-diagnose-20260301.md` | 文書レビュー |
 
 ## API追加（S1-GRM-02）
 - `GET /v1/reference/grammars/{grammar_id}/rule-sources`
