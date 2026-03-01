@@ -1658,6 +1658,7 @@ def test_derivation_head_assist_returns_reachability_fields_for_imi03() -> None:
     assert "unique_current_struct_states" in body["metrics"]["cache_stats"]
     assert "dominated_child_ratio" in body["metrics"]["cache_stats"]
     assert "post_filter_skipped_by_dominance" in body["metrics"]["cache_stats"]
+    assert "best_mid_state_samples" in body["metrics"]["leaf_stats"]
     assert body["counts"]["count_unit"] == "derivation_tree"
     assert body["counts"]["rule_max_per_pair_bound"] >= body["counts"]["rule_max_per_pair_observed"]
 

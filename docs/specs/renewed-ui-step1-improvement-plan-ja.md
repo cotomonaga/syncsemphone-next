@@ -428,6 +428,10 @@
 | S2-PROF-09 | `cache_stats` に dominance関連指標（`dominated_child_count/ratio`, `dominance_improvement_count`, `post_filter_skipped_by_dominance`, `unique_structural_states_per_100k_actions`）を追加する | `apps/api/app/api/v1/derivation.py` | `pytest`, API実測 |
 | S2-AUD-07 | dominance導入後に fixed-action（25k/50k/100k）を再測定し、`revisit/cross-parent duplicate` の改善量を比較する | `docs/specs/reachability-fixed-action-audit-20260301.json` | CLI実測 |
 | DOC-RCH-06 | fixed-action 監査レポートを dominance導入後の数値へ更新し、次判断（Pareto先行継続）を追記する | `docs/specs/reachability-fixed-action-audit-20260301.md` | 文書レビュー |
+| S2-DIAG-01 | `leaf_stats.best_samples` を `top_k=50` へ拡張し、各サンプルに `residual_family_counts`（`sy:*`,`se:*`）を含める | `apps/api/app/api/v1/derivation.py` | `pytest`, 診断実測 |
+| S2-DIAG-02 | `basenum=2/3` の良好状態に対して `best_mid_state_samples`（`min_delta_unresolved`, `materialized_action_count`）を収集する | `apps/api/app/api/v1/derivation.py` | `pytest`, 診断実測 |
+| S2-DIAG-03 | residual 診断スクリプトを追加し、`best leaf / best mid-state` の残差族集計と局所死活率をJSON出力する | `apps/api/scripts/reachability_residual_diagnose.py`, `docs/specs/reachability-residual-diagnose-20260301.json` | CLI実測 |
+| DOC-RCH-07 | residual 診断結果をMarkdownへ整理し、persistent residual と次の切り分けアクションを記録する | `docs/specs/reachability-residual-diagnose-20260301.md` | 文書レビュー |
 
 ## API追加（S1-GRM-02）
 - `GET /v1/reference/grammars/{grammar_id}/rule-sources`

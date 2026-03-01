@@ -1863,6 +1863,41 @@ def _breaks_unique_partner_provider_constraint(
     return False
 
 
+def _collect_residual_family_counts(state: DerivationState) -> dict[str, int]:
+    counts: dict[str, int] = {}
+
+    def _inc(bucket: dict[str, int], key: str) -> None:
+        if key == "":
+            return
+        bucket[key] = bucket.get(key, 0) + 1
+
+    for index in range(1, state.basenum + 1):
+        row = state.base[index]
+        if row == "zero" or not isinstance(row, list):
+            continue
+        for node in _iter_tree_items_for_partner_scan(row):
+            sy_values = node[3] if len(node) > 3 and isinstance(node[3], list) else []
+            se_values = node[5] if len(node) > 5 and isinstance(node[5], list) else []
+            for feature in sy_values:
+                raw = str(feature).strip()
+                if raw == "":
+                    continue
+                parts = [part.strip() for part in raw.split(",")]
+                if len(parts) >= 2 and parts[1].isdigit():
+                    _inc(counts, f"sy:{parts[1]}")
+            for semantic in se_values:
+                raw = str(semantic)
+                if ":" not in raw:
+                    continue
+                rhs = raw.split(":", 1)[1].strip()
+                if rhs == "":
+                    continue
+                parts = [part.strip() for part in rhs.split(",")]
+                if len(parts) >= 2 and parts[1].isdigit():
+                    _inc(counts, f"se:{parts[1]}")
+    return dict(sorted(counts.items(), key=lambda row: row[0]))
+
+
 def _build_tree_node(item: object) -> dict[str, Any]:
     if not isinstance(item, list):
         return {
@@ -2037,7 +2072,9 @@ def _search_reachability(
     leaf_unresolved_min: Optional[int] = None
     leaf_unresolved_max: Optional[int] = None
     best_leaf_samples: list[dict[str, Any]] = []
-    best_leaf_sample_cap = 5
+    best_leaf_sample_cap = 50
+    best_mid_state_samples: list[dict[str, Any]] = []
+    best_mid_state_sample_cap = 50
 
     expanded_nodes = 0
     generated_nodes = 0
@@ -2137,7 +2174,14 @@ def _search_reachability(
         layer_stats[basenum] = bucket
         return bucket
 
-    def record_leaf_sample(summary: _StateSummary, unresolved_value: int, history_len: int) -> None:
+    def _sample_rank_key(sample: dict[str, Any]) -> tuple[int, int, int]:
+        return (
+            int(sample["unresolved"]),
+            len(sample["deficit_33"]) + len(sample["deficit_25"]),
+            int(sample["history_len"]),
+        )
+
+    def _base_sample(summary: _StateSummary, unresolved_value: int, history_len: int) -> dict[str, Any]:
         demand_33 = summary.demand_33
         provider_33 = summary.provider_33
         demand_25 = summary.demand_25
@@ -2152,7 +2196,7 @@ def _search_reachability(
             for label, demand in demand_25.items()
             if max(0, demand - provider_25.get(label, 0)) > 0
         }
-        sample = {
+        return {
             "unresolved": unresolved_value,
             "history_len": history_len,
             "deficit_33": dict(sorted(deficit_33.items())),
@@ -2162,16 +2206,53 @@ def _search_reachability(
             "demand_25_total": sum(demand_25.values()),
             "provider_25_total": sum(provider_25.values()),
         }
+
+    def record_leaf_sample(
+        *,
+        state: DerivationState,
+        summary: _StateSummary,
+        unresolved_value: int,
+        history_len: int,
+    ) -> None:
+        sample = _base_sample(summary, unresolved_value, history_len)
+        rank_key = _sample_rank_key(sample)
+        if len(best_leaf_samples) >= best_leaf_sample_cap:
+            worst_key = _sample_rank_key(best_leaf_samples[-1])
+            if rank_key >= worst_key:
+                return
+        sample["residual_family_counts"] = _collect_residual_family_counts(state)
         best_leaf_samples.append(sample)
         best_leaf_samples.sort(
-            key=lambda row: (
-                row["unresolved"],
-                len(row["deficit_33"]) + len(row["deficit_25"]),
-                row["history_len"],
-            )
+            key=_sample_rank_key
         )
         if len(best_leaf_samples) > best_leaf_sample_cap:
             del best_leaf_samples[best_leaf_sample_cap:]
+
+    def record_mid_state_sample(
+        *,
+        state: DerivationState,
+        summary: _StateSummary,
+        unresolved_value: int,
+        history_len: int,
+        min_delta_unresolved: Optional[int],
+        materialized_action_count: int,
+    ) -> None:
+        sample = _base_sample(summary, unresolved_value, history_len)
+        sample["basenum"] = state.basenum
+        sample["min_delta_unresolved"] = min_delta_unresolved
+        sample["materialized_action_count"] = materialized_action_count
+        sample["residual_family_counts"] = _collect_residual_family_counts(state)
+        best_mid_state_samples.append(sample)
+        best_mid_state_samples.sort(
+            key=lambda row: (
+                int(row["unresolved"]),
+                0 if row["min_delta_unresolved"] is not None and int(row["min_delta_unresolved"]) < 0 else 1,
+                int(row["min_delta_unresolved"]) if row["min_delta_unresolved"] is not None else 9999,
+                int(row["history_len"]),
+            )
+        )
+        if len(best_mid_state_samples) > best_mid_state_sample_cap:
+            del best_mid_state_samples[best_mid_state_sample_cap:]
 
     def report_progress(phase: str, message: str) -> None:
         if progress_hook is None:
@@ -2215,7 +2296,12 @@ def _search_reachability(
         if current.basenum == 1:
             bucket["leaf_count"] += 1
             leaf_unresolved_hist[current_unresolved] = leaf_unresolved_hist.get(current_unresolved, 0) + 1
-            record_leaf_sample(current_summary, current_unresolved, len(path))
+            record_leaf_sample(
+                state=current,
+                summary=current_summary,
+                unresolved_value=current_unresolved,
+                history_len=len(path),
+            )
             leaf_unresolved_min = (
                 current_unresolved
                 if leaf_unresolved_min is None
@@ -2282,6 +2368,8 @@ def _search_reachability(
             tuple[RuleCandidate, int, int, DerivationState, int, int, int, int, int, int, int]
         ] = []
         sibling_seen_structural: set[str] = set()
+        state_min_delta_unresolved: Optional[int] = None
+        state_materialized_action_count = 0
         post_filter_started_ns = time.perf_counter_ns()
         descriptors_exhausted = True
         for descriptor in descriptors:
@@ -2354,6 +2442,12 @@ def _search_reachability(
 
             next_unresolved = next_summary.unresolved
             delta_unresolved = next_unresolved - current_unresolved
+            state_materialized_action_count += 1
+            state_min_delta_unresolved = (
+                delta_unresolved
+                if state_min_delta_unresolved is None
+                else min(state_min_delta_unresolved, delta_unresolved)
+            )
             if not soften_hard_pruning_globally and delta_unresolved > 0:
                 bucket["pruned_delta_increase"] += 1
                 continue
@@ -2464,6 +2558,16 @@ def _search_reachability(
                     )
                 )
                 bucket["children_finalized"] += 1
+
+        if current.basenum in {2, 3} and state_materialized_action_count > 0:
+            record_mid_state_sample(
+                state=current,
+                summary=current_summary,
+                unresolved_value=current_unresolved,
+                history_len=len(path),
+                min_delta_unresolved=state_min_delta_unresolved,
+                materialized_action_count=state_materialized_action_count,
+            )
 
         if descriptors_exhausted:
             bucket["descriptors_exhausted"] += 1
@@ -2702,6 +2806,7 @@ def _search_reachability(
             for key, value in sorted(leaf_unresolved_hist.items(), key=lambda row: row[0])
         },
         "best_samples": best_leaf_samples,
+        "best_mid_state_samples": best_mid_state_samples,
     }
 
     count_basis = "packed_signature_v1" if search_signature_mode == "packed" else "structural_signature_v1"

@@ -333,6 +333,13 @@
 - [x] `DOC-RCH-06` fixed-action A/B レポートを更新し、dominance導入後の結果と次判断を追記する。
   - 成果物: [reachability-fixed-action-audit-20260301.md](/Users/tomonaga/Documents/syncsemphoneIMI/syncsemphone-next/docs/specs/reachability-fixed-action-audit-20260301.md)
 
+## 68. residual 診断（persistent residual の証拠化）
+- [x] `S2-DIAG-01` `leaf_stats.best_samples` を `top_k=50` まで保持し、`residual_family_counts` を含む診断向けサンプルへ拡張する。
+- [x] `S2-DIAG-02` `basenum=2/3` の良好状態サンプル（`best_mid_state_samples`）を追加し、`min_delta_unresolved` と `materialized_action_count` を記録する。
+- [x] `S2-DIAG-03` residual 診断スクリプトを追加し、`best leaf`/`best mid-state` の残差族集計と局所死活率（non-improving ratio）をJSON出力する。
+- [x] `DOC-RCH-07` residual 診断結果をMarkdownレポート化し、persistent residual（`se:33/sy:11/sy:17`）と次アクションを明記する。
+  - 成果物: [reachability-residual-diagnose-20260301.md](/Users/tomonaga/Documents/syncsemphoneIMI/syncsemphone-next/docs/specs/reachability-residual-diagnose-20260301.md)
+
 ## 62. 自動分割の語彙既知形再構成（ふわふわした/食べている/話している）
 - [x] `S1-MOR-03` Sudachi自動分割後に `X + する + た => Xした` と `動詞 + て + いる => 〜ている` を再構成し、語彙引き当て可能なトークン列へ正規化する。
 - [x] `S1-REG-20` `numeration/tokenize` 回帰で `ふわふわしたわたあめを食べているひつじと話しているうさぎがいる` が `ふわふわした / わたあめ / を / 食べている / ひつじ / と / 話している / うさぎ / が / いる / る` に分割されることを固定する。

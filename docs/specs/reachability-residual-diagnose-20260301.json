@@ -1,0 +1,1740 @@
+{
+  "generated_at": "2026-03-02",
+  "grammar_id": "imi01",
+  "numeration_relpath": "imi01/set-numeration/1608131500.num",
+  "budget_seconds": 600.0,
+  "max_nodes": 100000,
+  "max_depth": 28,
+  "top_k": 50,
+  "status": "unknown",
+  "completed": false,
+  "reason": "node_limit",
+  "metrics": {
+    "actions_attempted": 100000,
+    "expanded_nodes": 100000,
+    "generated_nodes": 100316,
+    "max_depth_reached": 12,
+    "cache_stats": {
+      "state_summary_cache_hits": 99999,
+      "state_summary_cache_misses": 1,
+      "node_summary_cache_hits": 229695,
+      "node_summary_cache_misses": 85449,
+      "avg_state_key_build_ms": 0.0,
+      "avg_node_key_build_ms": 0.008839,
+      "all_current_state_visits": 100000,
+      "unique_current_struct_states": 95574,
+      "revisited_current_struct_state_visits": 4426,
+      "revisit_ratio": 0.04426,
+      "unique_child_struct_states": 99993,
+      "cross_parent_duplicate_child_struct_states": 5055,
+      "cross_parent_duplicate_child_ratio": 0.050391,
+      "dominated_child_count": 435,
+      "dominance_improvement_count": 4620,
+      "post_filter_skipped_by_dominance": 435,
+      "dominated_child_ratio": 0.004336,
+      "unique_structural_states_per_100k_actions": 95574.0
+    },
+    "timing_ms": {
+      "pairs_scan": 34.894,
+      "rule_expand": 332.762,
+      "rule_expand_fast_path": 0.1,
+      "cheap_feature_extract": 182.553,
+      "execute_double_merge": 24876.882,
+      "next_unresolved": 0.045,
+      "next_signature": 1796.178,
+      "post_filter": 38728.391,
+      "descriptor_sort": 87.885,
+      "sibling_exact_dedup": 120.994,
+      "partner_counts": 0.045,
+      "summary_full_recompute": 0.045,
+      "summary_incremental": 5607.776,
+      "state_summary_cache_hit": 29.484,
+      "state_summary_cache_miss": 0.0,
+      "node_summary_cache_hit": 141.015,
+      "node_summary_cache_miss": 97.223,
+      "state_key_build": 0.0,
+      "node_key_build": 2785.565
+    }
+  },
+  "leaf_stats": {
+    "count": 63073,
+    "unresolved_min": 9,
+    "unresolved_max": 11,
+    "unresolved_histogram": {
+      "9": 21572,
+      "10": 28623,
+      "11": 12878
+    }
+  },
+  "best_leaf_samples": [
+    {
+      "unresolved": 9,
+      "history_len": 12,
+      "deficit_33": {},
+      "deficit_25": {},
+      "demand_33_total": 4,
+      "provider_33_total": 4,
+      "demand_25_total": 0,
+      "provider_25_total": 0,
+      "residual_family_counts": {
+        "se:33": 4,
+        "sy:11": 4,
+        "sy:17": 1
+      }
+    },
+    {
+      "unresolved": 9,
+      "history_len": 12,
+      "deficit_33": {},
+      "deficit_25": {},
+      "demand_33_total": 4,
+      "provider_33_total": 4,
+      "demand_25_total": 0,
+      "provider_25_total": 0,
+      "residual_family_counts": {
+        "se:33": 4,
+        "sy:11": 4,
+        "sy:17": 1
+      }
+    },
+    {
+      "unresolved": 9,
+      "history_len": 12,
+      "deficit_33": {},
+      "deficit_25": {},
+      "demand_33_total": 4,
+      "provider_33_total": 4,
+      "demand_25_total": 0,
+      "provider_25_total": 0,
+      "residual_family_counts": {
+        "se:33": 4,
+        "sy:11": 4,
+        "sy:17": 1
+      }
+    },
+    {
+      "unresolved": 9,
+      "history_len": 12,
+      "deficit_33": {},
+      "deficit_25": {},
+      "demand_33_total": 4,
+      "provider_33_total": 4,
+      "demand_25_total": 0,
+      "provider_25_total": 0,
+      "residual_family_counts": {
+        "se:33": 4,
+        "sy:11": 4,
+        "sy:17": 1
+      }
+    },
+    {
+      "unresolved": 9,
+      "history_len": 12,
+      "deficit_33": {},
+      "deficit_25": {},
+      "demand_33_total": 4,
+      "provider_33_total": 4,
+      "demand_25_total": 0,
+      "provider_25_total": 0,
+      "residual_family_counts": {
+        "se:33": 4,
+        "sy:11": 4,
+        "sy:17": 1
+      }
+    },
+    {
+      "unresolved": 9,
+      "history_len": 12,
+      "deficit_33": {},
+      "deficit_25": {},
+      "demand_33_total": 4,
+      "provider_33_total": 4,
+      "demand_25_total": 0,
+      "provider_25_total": 0,
+      "residual_family_counts": {
+        "se:33": 4,
+        "sy:11": 4,
+        "sy:17": 1
+      }
+    },
+    {
+      "unresolved": 9,
+      "history_len": 12,
+      "deficit_33": {},
+      "deficit_25": {},
+      "demand_33_total": 4,
+      "provider_33_total": 4,
+      "demand_25_total": 0,
+      "provider_25_total": 0,
+      "residual_family_counts": {
+        "se:33": 4,
+        "sy:11": 4,
+        "sy:17": 1
+      }
+    },
+    {
+      "unresolved": 9,
+      "history_len": 12,
+      "deficit_33": {},
+      "deficit_25": {},
+      "demand_33_total": 4,
+      "provider_33_total": 4,
+      "demand_25_total": 0,
+      "provider_25_total": 0,
+      "residual_family_counts": {
+        "se:33": 4,
+        "sy:11": 4,
+        "sy:17": 1
+      }
+    },
+    {
+      "unresolved": 9,
+      "history_len": 12,
+      "deficit_33": {},
+      "deficit_25": {},
+      "demand_33_total": 4,
+      "provider_33_total": 4,
+      "demand_25_total": 0,
+      "provider_25_total": 0,
+      "residual_family_counts": {
+        "se:33": 4,
+        "sy:11": 4,
+        "sy:17": 1
+      }
+    },
+    {
+      "unresolved": 9,
+      "history_len": 12,
+      "deficit_33": {},
+      "deficit_25": {},
+      "demand_33_total": 4,
+      "provider_33_total": 4,
+      "demand_25_total": 0,
+      "provider_25_total": 0,
+      "residual_family_counts": {
+        "se:33": 4,
+        "sy:11": 4,
+        "sy:17": 1
+      }
+    },
+    {
+      "unresolved": 9,
+      "history_len": 12,
+      "deficit_33": {},
+      "deficit_25": {},
+      "demand_33_total": 4,
+      "provider_33_total": 4,
+      "demand_25_total": 0,
+      "provider_25_total": 0,
+      "residual_family_counts": {
+        "se:33": 4,
+        "sy:11": 4,
+        "sy:17": 1
+      }
+    },
+    {
+      "unresolved": 9,
+      "history_len": 12,
+      "deficit_33": {},
+      "deficit_25": {},
+      "demand_33_total": 4,
+      "provider_33_total": 4,
+      "demand_25_total": 0,
+      "provider_25_total": 0,
+      "residual_family_counts": {
+        "se:33": 4,
+        "sy:11": 4,
+        "sy:17": 1
+      }
+    },
+    {
+      "unresolved": 9,
+      "history_len": 12,
+      "deficit_33": {},
+      "deficit_25": {},
+      "demand_33_total": 4,
+      "provider_33_total": 4,
+      "demand_25_total": 0,
+      "provider_25_total": 0,
+      "residual_family_counts": {
+        "se:33": 4,
+        "sy:11": 4,
+        "sy:17": 1
+      }
+    },
+    {
+      "unresolved": 9,
+      "history_len": 12,
+      "deficit_33": {},
+      "deficit_25": {},
+      "demand_33_total": 4,
+      "provider_33_total": 4,
+      "demand_25_total": 0,
+      "provider_25_total": 0,
+      "residual_family_counts": {
+        "se:33": 4,
+        "sy:11": 4,
+        "sy:17": 1
+      }
+    },
+    {
+      "unresolved": 9,
+      "history_len": 12,
+      "deficit_33": {},
+      "deficit_25": {},
+      "demand_33_total": 4,
+      "provider_33_total": 4,
+      "demand_25_total": 0,
+      "provider_25_total": 0,
+      "residual_family_counts": {
+        "se:33": 4,
+        "sy:11": 4,
+        "sy:17": 1
+      }
+    },
+    {
+      "unresolved": 9,
+      "history_len": 12,
+      "deficit_33": {},
+      "deficit_25": {},
+      "demand_33_total": 4,
+      "provider_33_total": 4,
+      "demand_25_total": 0,
+      "provider_25_total": 0,
+      "residual_family_counts": {
+        "se:33": 4,
+        "sy:11": 4,
+        "sy:17": 1
+      }
+    },
+    {
+      "unresolved": 9,
+      "history_len": 12,
+      "deficit_33": {},
+      "deficit_25": {},
+      "demand_33_total": 4,
+      "provider_33_total": 4,
+      "demand_25_total": 0,
+      "provider_25_total": 0,
+      "residual_family_counts": {
+        "se:33": 4,
+        "sy:11": 4,
+        "sy:17": 1
+      }
+    },
+    {
+      "unresolved": 9,
+      "history_len": 12,
+      "deficit_33": {},
+      "deficit_25": {},
+      "demand_33_total": 4,
+      "provider_33_total": 4,
+      "demand_25_total": 0,
+      "provider_25_total": 0,
+      "residual_family_counts": {
+        "se:33": 4,
+        "sy:11": 4,
+        "sy:17": 1
+      }
+    },
+    {
+      "unresolved": 9,
+      "history_len": 12,
+      "deficit_33": {},
+      "deficit_25": {},
+      "demand_33_total": 4,
+      "provider_33_total": 4,
+      "demand_25_total": 0,
+      "provider_25_total": 0,
+      "residual_family_counts": {
+        "se:33": 4,
+        "sy:11": 4,
+        "sy:17": 1
+      }
+    },
+    {
+      "unresolved": 9,
+      "history_len": 12,
+      "deficit_33": {},
+      "deficit_25": {},
+      "demand_33_total": 4,
+      "provider_33_total": 4,
+      "demand_25_total": 0,
+      "provider_25_total": 0,
+      "residual_family_counts": {
+        "se:33": 4,
+        "sy:11": 4,
+        "sy:17": 1
+      }
+    },
+    {
+      "unresolved": 9,
+      "history_len": 12,
+      "deficit_33": {},
+      "deficit_25": {},
+      "demand_33_total": 4,
+      "provider_33_total": 4,
+      "demand_25_total": 0,
+      "provider_25_total": 0,
+      "residual_family_counts": {
+        "se:33": 4,
+        "sy:11": 4,
+        "sy:17": 1
+      }
+    },
+    {
+      "unresolved": 9,
+      "history_len": 12,
+      "deficit_33": {},
+      "deficit_25": {},
+      "demand_33_total": 4,
+      "provider_33_total": 4,
+      "demand_25_total": 0,
+      "provider_25_total": 0,
+      "residual_family_counts": {
+        "se:33": 4,
+        "sy:11": 4,
+        "sy:17": 1
+      }
+    },
+    {
+      "unresolved": 9,
+      "history_len": 12,
+      "deficit_33": {},
+      "deficit_25": {},
+      "demand_33_total": 4,
+      "provider_33_total": 4,
+      "demand_25_total": 0,
+      "provider_25_total": 0,
+      "residual_family_counts": {
+        "se:33": 4,
+        "sy:11": 4,
+        "sy:17": 1
+      }
+    },
+    {
+      "unresolved": 9,
+      "history_len": 12,
+      "deficit_33": {},
+      "deficit_25": {},
+      "demand_33_total": 4,
+      "provider_33_total": 4,
+      "demand_25_total": 0,
+      "provider_25_total": 0,
+      "residual_family_counts": {
+        "se:33": 4,
+        "sy:11": 4,
+        "sy:17": 1
+      }
+    },
+    {
+      "unresolved": 9,
+      "history_len": 12,
+      "deficit_33": {},
+      "deficit_25": {},
+      "demand_33_total": 4,
+      "provider_33_total": 4,
+      "demand_25_total": 0,
+      "provider_25_total": 0,
+      "residual_family_counts": {
+        "se:33": 4,
+        "sy:11": 4,
+        "sy:17": 1
+      }
+    },
+    {
+      "unresolved": 9,
+      "history_len": 12,
+      "deficit_33": {},
+      "deficit_25": {},
+      "demand_33_total": 4,
+      "provider_33_total": 4,
+      "demand_25_total": 0,
+      "provider_25_total": 0,
+      "residual_family_counts": {
+        "se:33": 4,
+        "sy:11": 4,
+        "sy:17": 1
+      }
+    },
+    {
+      "unresolved": 9,
+      "history_len": 12,
+      "deficit_33": {},
+      "deficit_25": {},
+      "demand_33_total": 4,
+      "provider_33_total": 4,
+      "demand_25_total": 0,
+      "provider_25_total": 0,
+      "residual_family_counts": {
+        "se:33": 4,
+        "sy:11": 4,
+        "sy:17": 1
+      }
+    },
+    {
+      "unresolved": 9,
+      "history_len": 12,
+      "deficit_33": {},
+      "deficit_25": {},
+      "demand_33_total": 4,
+      "provider_33_total": 4,
+      "demand_25_total": 0,
+      "provider_25_total": 0,
+      "residual_family_counts": {
+        "se:33": 4,
+        "sy:11": 4,
+        "sy:17": 1
+      }
+    },
+    {
+      "unresolved": 9,
+      "history_len": 12,
+      "deficit_33": {},
+      "deficit_25": {},
+      "demand_33_total": 4,
+      "provider_33_total": 4,
+      "demand_25_total": 0,
+      "provider_25_total": 0,
+      "residual_family_counts": {
+        "se:33": 4,
+        "sy:11": 4,
+        "sy:17": 1
+      }
+    },
+    {
+      "unresolved": 9,
+      "history_len": 12,
+      "deficit_33": {},
+      "deficit_25": {},
+      "demand_33_total": 4,
+      "provider_33_total": 4,
+      "demand_25_total": 0,
+      "provider_25_total": 0,
+      "residual_family_counts": {
+        "se:33": 4,
+        "sy:11": 4,
+        "sy:17": 1
+      }
+    },
+    {
+      "unresolved": 9,
+      "history_len": 12,
+      "deficit_33": {},
+      "deficit_25": {},
+      "demand_33_total": 4,
+      "provider_33_total": 4,
+      "demand_25_total": 0,
+      "provider_25_total": 0,
+      "residual_family_counts": {
+        "se:33": 4,
+        "sy:11": 4,
+        "sy:17": 1
+      }
+    },
+    {
+      "unresolved": 9,
+      "history_len": 12,
+      "deficit_33": {},
+      "deficit_25": {},
+      "demand_33_total": 4,
+      "provider_33_total": 4,
+      "demand_25_total": 0,
+      "provider_25_total": 0,
+      "residual_family_counts": {
+        "se:33": 4,
+        "sy:11": 4,
+        "sy:17": 1
+      }
+    },
+    {
+      "unresolved": 9,
+      "history_len": 12,
+      "deficit_33": {},
+      "deficit_25": {},
+      "demand_33_total": 4,
+      "provider_33_total": 4,
+      "demand_25_total": 0,
+      "provider_25_total": 0,
+      "residual_family_counts": {
+        "se:33": 4,
+        "sy:11": 4,
+        "sy:17": 1
+      }
+    },
+    {
+      "unresolved": 9,
+      "history_len": 12,
+      "deficit_33": {},
+      "deficit_25": {},
+      "demand_33_total": 4,
+      "provider_33_total": 4,
+      "demand_25_total": 0,
+      "provider_25_total": 0,
+      "residual_family_counts": {
+        "se:33": 4,
+        "sy:11": 4,
+        "sy:17": 1
+      }
+    },
+    {
+      "unresolved": 9,
+      "history_len": 12,
+      "deficit_33": {},
+      "deficit_25": {},
+      "demand_33_total": 4,
+      "provider_33_total": 4,
+      "demand_25_total": 0,
+      "provider_25_total": 0,
+      "residual_family_counts": {
+        "se:33": 4,
+        "sy:11": 4,
+        "sy:17": 1
+      }
+    },
+    {
+      "unresolved": 9,
+      "history_len": 12,
+      "deficit_33": {},
+      "deficit_25": {},
+      "demand_33_total": 4,
+      "provider_33_total": 4,
+      "demand_25_total": 0,
+      "provider_25_total": 0,
+      "residual_family_counts": {
+        "se:33": 4,
+        "sy:11": 4,
+        "sy:17": 1
+      }
+    },
+    {
+      "unresolved": 9,
+      "history_len": 12,
+      "deficit_33": {},
+      "deficit_25": {},
+      "demand_33_total": 4,
+      "provider_33_total": 4,
+      "demand_25_total": 0,
+      "provider_25_total": 0,
+      "residual_family_counts": {
+        "se:33": 4,
+        "sy:11": 4,
+        "sy:17": 1
+      }
+    },
+    {
+      "unresolved": 9,
+      "history_len": 12,
+      "deficit_33": {},
+      "deficit_25": {},
+      "demand_33_total": 4,
+      "provider_33_total": 4,
+      "demand_25_total": 0,
+      "provider_25_total": 0,
+      "residual_family_counts": {
+        "se:33": 4,
+        "sy:11": 4,
+        "sy:17": 1
+      }
+    },
+    {
+      "unresolved": 9,
+      "history_len": 12,
+      "deficit_33": {},
+      "deficit_25": {},
+      "demand_33_total": 4,
+      "provider_33_total": 4,
+      "demand_25_total": 0,
+      "provider_25_total": 0,
+      "residual_family_counts": {
+        "se:33": 4,
+        "sy:11": 4,
+        "sy:17": 1
+      }
+    },
+    {
+      "unresolved": 9,
+      "history_len": 12,
+      "deficit_33": {},
+      "deficit_25": {},
+      "demand_33_total": 4,
+      "provider_33_total": 4,
+      "demand_25_total": 0,
+      "provider_25_total": 0,
+      "residual_family_counts": {
+        "se:33": 4,
+        "sy:11": 4,
+        "sy:17": 1
+      }
+    },
+    {
+      "unresolved": 9,
+      "history_len": 12,
+      "deficit_33": {},
+      "deficit_25": {},
+      "demand_33_total": 4,
+      "provider_33_total": 4,
+      "demand_25_total": 0,
+      "provider_25_total": 0,
+      "residual_family_counts": {
+        "se:33": 4,
+        "sy:11": 4,
+        "sy:17": 1
+      }
+    },
+    {
+      "unresolved": 9,
+      "history_len": 12,
+      "deficit_33": {},
+      "deficit_25": {},
+      "demand_33_total": 4,
+      "provider_33_total": 4,
+      "demand_25_total": 0,
+      "provider_25_total": 0,
+      "residual_family_counts": {
+        "se:33": 4,
+        "sy:11": 4,
+        "sy:17": 1
+      }
+    },
+    {
+      "unresolved": 9,
+      "history_len": 12,
+      "deficit_33": {},
+      "deficit_25": {},
+      "demand_33_total": 4,
+      "provider_33_total": 4,
+      "demand_25_total": 0,
+      "provider_25_total": 0,
+      "residual_family_counts": {
+        "se:33": 4,
+        "sy:11": 4,
+        "sy:17": 1
+      }
+    },
+    {
+      "unresolved": 9,
+      "history_len": 12,
+      "deficit_33": {},
+      "deficit_25": {},
+      "demand_33_total": 4,
+      "provider_33_total": 4,
+      "demand_25_total": 0,
+      "provider_25_total": 0,
+      "residual_family_counts": {
+        "se:33": 4,
+        "sy:11": 4,
+        "sy:17": 1
+      }
+    },
+    {
+      "unresolved": 9,
+      "history_len": 12,
+      "deficit_33": {},
+      "deficit_25": {},
+      "demand_33_total": 4,
+      "provider_33_total": 4,
+      "demand_25_total": 0,
+      "provider_25_total": 0,
+      "residual_family_counts": {
+        "se:33": 4,
+        "sy:11": 4,
+        "sy:17": 1
+      }
+    },
+    {
+      "unresolved": 9,
+      "history_len": 12,
+      "deficit_33": {},
+      "deficit_25": {},
+      "demand_33_total": 4,
+      "provider_33_total": 4,
+      "demand_25_total": 0,
+      "provider_25_total": 0,
+      "residual_family_counts": {
+        "se:33": 4,
+        "sy:11": 4,
+        "sy:17": 1
+      }
+    },
+    {
+      "unresolved": 9,
+      "history_len": 12,
+      "deficit_33": {},
+      "deficit_25": {},
+      "demand_33_total": 4,
+      "provider_33_total": 4,
+      "demand_25_total": 0,
+      "provider_25_total": 0,
+      "residual_family_counts": {
+        "se:33": 4,
+        "sy:11": 4,
+        "sy:17": 1
+      }
+    },
+    {
+      "unresolved": 9,
+      "history_len": 12,
+      "deficit_33": {},
+      "deficit_25": {},
+      "demand_33_total": 4,
+      "provider_33_total": 4,
+      "demand_25_total": 0,
+      "provider_25_total": 0,
+      "residual_family_counts": {
+        "se:33": 4,
+        "sy:11": 4,
+        "sy:17": 1
+      }
+    },
+    {
+      "unresolved": 9,
+      "history_len": 12,
+      "deficit_33": {},
+      "deficit_25": {},
+      "demand_33_total": 4,
+      "provider_33_total": 4,
+      "demand_25_total": 0,
+      "provider_25_total": 0,
+      "residual_family_counts": {
+        "se:33": 4,
+        "sy:11": 4,
+        "sy:17": 1
+      }
+    },
+    {
+      "unresolved": 9,
+      "history_len": 12,
+      "deficit_33": {},
+      "deficit_25": {},
+      "demand_33_total": 4,
+      "provider_33_total": 4,
+      "demand_25_total": 0,
+      "provider_25_total": 0,
+      "residual_family_counts": {
+        "se:33": 4,
+        "sy:11": 4,
+        "sy:17": 1
+      }
+    }
+  ],
+  "best_mid_state_samples": [
+    {
+      "unresolved": 9,
+      "history_len": 10,
+      "deficit_33": {},
+      "deficit_25": {},
+      "demand_33_total": 4,
+      "provider_33_total": 4,
+      "demand_25_total": 0,
+      "provider_25_total": 0,
+      "basenum": 3,
+      "min_delta_unresolved": 0,
+      "materialized_action_count": 12,
+      "residual_family_counts": {
+        "se:33": 4,
+        "sy:11": 4,
+        "sy:17": 1
+      }
+    },
+    {
+      "unresolved": 9,
+      "history_len": 10,
+      "deficit_33": {},
+      "deficit_25": {},
+      "demand_33_total": 4,
+      "provider_33_total": 4,
+      "demand_25_total": 0,
+      "provider_25_total": 0,
+      "basenum": 3,
+      "min_delta_unresolved": 0,
+      "materialized_action_count": 12,
+      "residual_family_counts": {
+        "se:33": 4,
+        "sy:11": 4,
+        "sy:17": 1
+      }
+    },
+    {
+      "unresolved": 9,
+      "history_len": 10,
+      "deficit_33": {},
+      "deficit_25": {},
+      "demand_33_total": 4,
+      "provider_33_total": 4,
+      "demand_25_total": 0,
+      "provider_25_total": 0,
+      "basenum": 3,
+      "min_delta_unresolved": 0,
+      "materialized_action_count": 12,
+      "residual_family_counts": {
+        "se:33": 4,
+        "sy:11": 4,
+        "sy:17": 1
+      }
+    },
+    {
+      "unresolved": 9,
+      "history_len": 10,
+      "deficit_33": {},
+      "deficit_25": {},
+      "demand_33_total": 4,
+      "provider_33_total": 4,
+      "demand_25_total": 0,
+      "provider_25_total": 0,
+      "basenum": 3,
+      "min_delta_unresolved": 0,
+      "materialized_action_count": 12,
+      "residual_family_counts": {
+        "se:33": 4,
+        "sy:11": 4,
+        "sy:17": 1
+      }
+    },
+    {
+      "unresolved": 9,
+      "history_len": 10,
+      "deficit_33": {},
+      "deficit_25": {},
+      "demand_33_total": 4,
+      "provider_33_total": 4,
+      "demand_25_total": 0,
+      "provider_25_total": 0,
+      "basenum": 3,
+      "min_delta_unresolved": 0,
+      "materialized_action_count": 12,
+      "residual_family_counts": {
+        "se:33": 4,
+        "sy:11": 4,
+        "sy:17": 1
+      }
+    },
+    {
+      "unresolved": 9,
+      "history_len": 10,
+      "deficit_33": {},
+      "deficit_25": {},
+      "demand_33_total": 4,
+      "provider_33_total": 4,
+      "demand_25_total": 0,
+      "provider_25_total": 0,
+      "basenum": 3,
+      "min_delta_unresolved": 0,
+      "materialized_action_count": 12,
+      "residual_family_counts": {
+        "se:33": 4,
+        "sy:11": 4,
+        "sy:17": 1
+      }
+    },
+    {
+      "unresolved": 9,
+      "history_len": 10,
+      "deficit_33": {},
+      "deficit_25": {},
+      "demand_33_total": 4,
+      "provider_33_total": 4,
+      "demand_25_total": 0,
+      "provider_25_total": 0,
+      "basenum": 3,
+      "min_delta_unresolved": 0,
+      "materialized_action_count": 12,
+      "residual_family_counts": {
+        "se:33": 4,
+        "sy:11": 4,
+        "sy:17": 1
+      }
+    },
+    {
+      "unresolved": 9,
+      "history_len": 10,
+      "deficit_33": {},
+      "deficit_25": {},
+      "demand_33_total": 4,
+      "provider_33_total": 4,
+      "demand_25_total": 0,
+      "provider_25_total": 0,
+      "basenum": 3,
+      "min_delta_unresolved": 0,
+      "materialized_action_count": 12,
+      "residual_family_counts": {
+        "se:33": 4,
+        "sy:11": 4,
+        "sy:17": 1
+      }
+    },
+    {
+      "unresolved": 9,
+      "history_len": 10,
+      "deficit_33": {},
+      "deficit_25": {},
+      "demand_33_total": 4,
+      "provider_33_total": 4,
+      "demand_25_total": 0,
+      "provider_25_total": 0,
+      "basenum": 3,
+      "min_delta_unresolved": 0,
+      "materialized_action_count": 12,
+      "residual_family_counts": {
+        "se:33": 4,
+        "sy:11": 4,
+        "sy:17": 1
+      }
+    },
+    {
+      "unresolved": 9,
+      "history_len": 10,
+      "deficit_33": {},
+      "deficit_25": {},
+      "demand_33_total": 4,
+      "provider_33_total": 4,
+      "demand_25_total": 0,
+      "provider_25_total": 0,
+      "basenum": 3,
+      "min_delta_unresolved": 0,
+      "materialized_action_count": 12,
+      "residual_family_counts": {
+        "se:33": 4,
+        "sy:11": 4,
+        "sy:17": 1
+      }
+    },
+    {
+      "unresolved": 9,
+      "history_len": 10,
+      "deficit_33": {},
+      "deficit_25": {},
+      "demand_33_total": 4,
+      "provider_33_total": 4,
+      "demand_25_total": 0,
+      "provider_25_total": 0,
+      "basenum": 3,
+      "min_delta_unresolved": 0,
+      "materialized_action_count": 12,
+      "residual_family_counts": {
+        "se:33": 4,
+        "sy:11": 4,
+        "sy:17": 1
+      }
+    },
+    {
+      "unresolved": 9,
+      "history_len": 10,
+      "deficit_33": {},
+      "deficit_25": {},
+      "demand_33_total": 4,
+      "provider_33_total": 4,
+      "demand_25_total": 0,
+      "provider_25_total": 0,
+      "basenum": 3,
+      "min_delta_unresolved": 0,
+      "materialized_action_count": 12,
+      "residual_family_counts": {
+        "se:33": 4,
+        "sy:11": 4,
+        "sy:17": 1
+      }
+    },
+    {
+      "unresolved": 9,
+      "history_len": 10,
+      "deficit_33": {},
+      "deficit_25": {},
+      "demand_33_total": 4,
+      "provider_33_total": 4,
+      "demand_25_total": 0,
+      "provider_25_total": 0,
+      "basenum": 3,
+      "min_delta_unresolved": 0,
+      "materialized_action_count": 12,
+      "residual_family_counts": {
+        "se:33": 4,
+        "sy:11": 4,
+        "sy:17": 1
+      }
+    },
+    {
+      "unresolved": 9,
+      "history_len": 10,
+      "deficit_33": {},
+      "deficit_25": {},
+      "demand_33_total": 4,
+      "provider_33_total": 4,
+      "demand_25_total": 0,
+      "provider_25_total": 0,
+      "basenum": 3,
+      "min_delta_unresolved": 0,
+      "materialized_action_count": 12,
+      "residual_family_counts": {
+        "se:33": 4,
+        "sy:11": 4,
+        "sy:17": 1
+      }
+    },
+    {
+      "unresolved": 9,
+      "history_len": 10,
+      "deficit_33": {},
+      "deficit_25": {},
+      "demand_33_total": 4,
+      "provider_33_total": 4,
+      "demand_25_total": 0,
+      "provider_25_total": 0,
+      "basenum": 3,
+      "min_delta_unresolved": 0,
+      "materialized_action_count": 12,
+      "residual_family_counts": {
+        "se:33": 4,
+        "sy:11": 4,
+        "sy:17": 1
+      }
+    },
+    {
+      "unresolved": 9,
+      "history_len": 10,
+      "deficit_33": {},
+      "deficit_25": {},
+      "demand_33_total": 4,
+      "provider_33_total": 4,
+      "demand_25_total": 0,
+      "provider_25_total": 0,
+      "basenum": 3,
+      "min_delta_unresolved": 0,
+      "materialized_action_count": 12,
+      "residual_family_counts": {
+        "se:33": 4,
+        "sy:11": 4,
+        "sy:17": 1
+      }
+    },
+    {
+      "unresolved": 9,
+      "history_len": 10,
+      "deficit_33": {},
+      "deficit_25": {},
+      "demand_33_total": 4,
+      "provider_33_total": 4,
+      "demand_25_total": 0,
+      "provider_25_total": 0,
+      "basenum": 3,
+      "min_delta_unresolved": 0,
+      "materialized_action_count": 12,
+      "residual_family_counts": {
+        "se:33": 4,
+        "sy:11": 4,
+        "sy:17": 1
+      }
+    },
+    {
+      "unresolved": 9,
+      "history_len": 10,
+      "deficit_33": {},
+      "deficit_25": {},
+      "demand_33_total": 4,
+      "provider_33_total": 4,
+      "demand_25_total": 0,
+      "provider_25_total": 0,
+      "basenum": 3,
+      "min_delta_unresolved": 0,
+      "materialized_action_count": 12,
+      "residual_family_counts": {
+        "se:33": 4,
+        "sy:11": 4,
+        "sy:17": 1
+      }
+    },
+    {
+      "unresolved": 9,
+      "history_len": 10,
+      "deficit_33": {},
+      "deficit_25": {},
+      "demand_33_total": 4,
+      "provider_33_total": 4,
+      "demand_25_total": 0,
+      "provider_25_total": 0,
+      "basenum": 3,
+      "min_delta_unresolved": 0,
+      "materialized_action_count": 12,
+      "residual_family_counts": {
+        "se:33": 4,
+        "sy:11": 4,
+        "sy:17": 1
+      }
+    },
+    {
+      "unresolved": 9,
+      "history_len": 10,
+      "deficit_33": {},
+      "deficit_25": {},
+      "demand_33_total": 4,
+      "provider_33_total": 4,
+      "demand_25_total": 0,
+      "provider_25_total": 0,
+      "basenum": 3,
+      "min_delta_unresolved": 0,
+      "materialized_action_count": 12,
+      "residual_family_counts": {
+        "se:33": 4,
+        "sy:11": 4,
+        "sy:17": 1
+      }
+    },
+    {
+      "unresolved": 9,
+      "history_len": 10,
+      "deficit_33": {},
+      "deficit_25": {},
+      "demand_33_total": 4,
+      "provider_33_total": 4,
+      "demand_25_total": 0,
+      "provider_25_total": 0,
+      "basenum": 3,
+      "min_delta_unresolved": 0,
+      "materialized_action_count": 12,
+      "residual_family_counts": {
+        "se:33": 4,
+        "sy:11": 4,
+        "sy:17": 1
+      }
+    },
+    {
+      "unresolved": 9,
+      "history_len": 10,
+      "deficit_33": {},
+      "deficit_25": {},
+      "demand_33_total": 4,
+      "provider_33_total": 4,
+      "demand_25_total": 0,
+      "provider_25_total": 0,
+      "basenum": 3,
+      "min_delta_unresolved": 0,
+      "materialized_action_count": 12,
+      "residual_family_counts": {
+        "se:33": 4,
+        "sy:11": 4,
+        "sy:17": 1
+      }
+    },
+    {
+      "unresolved": 9,
+      "history_len": 10,
+      "deficit_33": {},
+      "deficit_25": {},
+      "demand_33_total": 4,
+      "provider_33_total": 4,
+      "demand_25_total": 0,
+      "provider_25_total": 0,
+      "basenum": 3,
+      "min_delta_unresolved": 0,
+      "materialized_action_count": 12,
+      "residual_family_counts": {
+        "se:33": 4,
+        "sy:11": 4,
+        "sy:17": 1
+      }
+    },
+    {
+      "unresolved": 9,
+      "history_len": 10,
+      "deficit_33": {},
+      "deficit_25": {},
+      "demand_33_total": 4,
+      "provider_33_total": 4,
+      "demand_25_total": 0,
+      "provider_25_total": 0,
+      "basenum": 3,
+      "min_delta_unresolved": 0,
+      "materialized_action_count": 12,
+      "residual_family_counts": {
+        "se:33": 4,
+        "sy:11": 4,
+        "sy:17": 1
+      }
+    },
+    {
+      "unresolved": 9,
+      "history_len": 10,
+      "deficit_33": {},
+      "deficit_25": {},
+      "demand_33_total": 4,
+      "provider_33_total": 4,
+      "demand_25_total": 0,
+      "provider_25_total": 0,
+      "basenum": 3,
+      "min_delta_unresolved": 0,
+      "materialized_action_count": 12,
+      "residual_family_counts": {
+        "se:33": 4,
+        "sy:11": 4,
+        "sy:17": 1
+      }
+    },
+    {
+      "unresolved": 9,
+      "history_len": 10,
+      "deficit_33": {},
+      "deficit_25": {},
+      "demand_33_total": 4,
+      "provider_33_total": 4,
+      "demand_25_total": 0,
+      "provider_25_total": 0,
+      "basenum": 3,
+      "min_delta_unresolved": 0,
+      "materialized_action_count": 12,
+      "residual_family_counts": {
+        "se:33": 4,
+        "sy:11": 4,
+        "sy:17": 1
+      }
+    },
+    {
+      "unresolved": 9,
+      "history_len": 10,
+      "deficit_33": {},
+      "deficit_25": {},
+      "demand_33_total": 4,
+      "provider_33_total": 4,
+      "demand_25_total": 0,
+      "provider_25_total": 0,
+      "basenum": 3,
+      "min_delta_unresolved": 0,
+      "materialized_action_count": 12,
+      "residual_family_counts": {
+        "se:33": 4,
+        "sy:11": 4,
+        "sy:17": 1
+      }
+    },
+    {
+      "unresolved": 9,
+      "history_len": 10,
+      "deficit_33": {},
+      "deficit_25": {},
+      "demand_33_total": 4,
+      "provider_33_total": 4,
+      "demand_25_total": 0,
+      "provider_25_total": 0,
+      "basenum": 3,
+      "min_delta_unresolved": 0,
+      "materialized_action_count": 12,
+      "residual_family_counts": {
+        "se:33": 4,
+        "sy:11": 4,
+        "sy:17": 1
+      }
+    },
+    {
+      "unresolved": 9,
+      "history_len": 10,
+      "deficit_33": {},
+      "deficit_25": {},
+      "demand_33_total": 4,
+      "provider_33_total": 4,
+      "demand_25_total": 0,
+      "provider_25_total": 0,
+      "basenum": 3,
+      "min_delta_unresolved": 0,
+      "materialized_action_count": 12,
+      "residual_family_counts": {
+        "se:33": 4,
+        "sy:11": 4,
+        "sy:17": 1
+      }
+    },
+    {
+      "unresolved": 9,
+      "history_len": 10,
+      "deficit_33": {},
+      "deficit_25": {},
+      "demand_33_total": 4,
+      "provider_33_total": 4,
+      "demand_25_total": 0,
+      "provider_25_total": 0,
+      "basenum": 3,
+      "min_delta_unresolved": 0,
+      "materialized_action_count": 12,
+      "residual_family_counts": {
+        "se:33": 4,
+        "sy:11": 4,
+        "sy:17": 1
+      }
+    },
+    {
+      "unresolved": 9,
+      "history_len": 10,
+      "deficit_33": {},
+      "deficit_25": {},
+      "demand_33_total": 4,
+      "provider_33_total": 4,
+      "demand_25_total": 0,
+      "provider_25_total": 0,
+      "basenum": 3,
+      "min_delta_unresolved": 0,
+      "materialized_action_count": 12,
+      "residual_family_counts": {
+        "se:33": 4,
+        "sy:11": 4,
+        "sy:17": 1
+      }
+    },
+    {
+      "unresolved": 9,
+      "history_len": 10,
+      "deficit_33": {},
+      "deficit_25": {},
+      "demand_33_total": 4,
+      "provider_33_total": 4,
+      "demand_25_total": 0,
+      "provider_25_total": 0,
+      "basenum": 3,
+      "min_delta_unresolved": 0,
+      "materialized_action_count": 12,
+      "residual_family_counts": {
+        "se:33": 4,
+        "sy:11": 4,
+        "sy:17": 1
+      }
+    },
+    {
+      "unresolved": 9,
+      "history_len": 10,
+      "deficit_33": {},
+      "deficit_25": {},
+      "demand_33_total": 4,
+      "provider_33_total": 4,
+      "demand_25_total": 0,
+      "provider_25_total": 0,
+      "basenum": 3,
+      "min_delta_unresolved": 0,
+      "materialized_action_count": 12,
+      "residual_family_counts": {
+        "se:33": 4,
+        "sy:11": 4,
+        "sy:17": 1
+      }
+    },
+    {
+      "unresolved": 9,
+      "history_len": 10,
+      "deficit_33": {},
+      "deficit_25": {},
+      "demand_33_total": 4,
+      "provider_33_total": 4,
+      "demand_25_total": 0,
+      "provider_25_total": 0,
+      "basenum": 3,
+      "min_delta_unresolved": 0,
+      "materialized_action_count": 12,
+      "residual_family_counts": {
+        "se:33": 4,
+        "sy:11": 4,
+        "sy:17": 1
+      }
+    },
+    {
+      "unresolved": 9,
+      "history_len": 10,
+      "deficit_33": {},
+      "deficit_25": {},
+      "demand_33_total": 4,
+      "provider_33_total": 4,
+      "demand_25_total": 0,
+      "provider_25_total": 0,
+      "basenum": 3,
+      "min_delta_unresolved": 0,
+      "materialized_action_count": 12,
+      "residual_family_counts": {
+        "se:33": 4,
+        "sy:11": 4,
+        "sy:17": 1
+      }
+    },
+    {
+      "unresolved": 9,
+      "history_len": 10,
+      "deficit_33": {},
+      "deficit_25": {},
+      "demand_33_total": 4,
+      "provider_33_total": 4,
+      "demand_25_total": 0,
+      "provider_25_total": 0,
+      "basenum": 3,
+      "min_delta_unresolved": 0,
+      "materialized_action_count": 12,
+      "residual_family_counts": {
+        "se:33": 4,
+        "sy:11": 4,
+        "sy:17": 1
+      }
+    },
+    {
+      "unresolved": 9,
+      "history_len": 10,
+      "deficit_33": {},
+      "deficit_25": {},
+      "demand_33_total": 4,
+      "provider_33_total": 4,
+      "demand_25_total": 0,
+      "provider_25_total": 0,
+      "basenum": 3,
+      "min_delta_unresolved": 0,
+      "materialized_action_count": 12,
+      "residual_family_counts": {
+        "se:33": 4,
+        "sy:11": 4,
+        "sy:17": 1
+      }
+    },
+    {
+      "unresolved": 9,
+      "history_len": 10,
+      "deficit_33": {},
+      "deficit_25": {},
+      "demand_33_total": 4,
+      "provider_33_total": 4,
+      "demand_25_total": 0,
+      "provider_25_total": 0,
+      "basenum": 3,
+      "min_delta_unresolved": 0,
+      "materialized_action_count": 12,
+      "residual_family_counts": {
+        "se:33": 4,
+        "sy:11": 4,
+        "sy:17": 1
+      }
+    },
+    {
+      "unresolved": 9,
+      "history_len": 10,
+      "deficit_33": {},
+      "deficit_25": {},
+      "demand_33_total": 4,
+      "provider_33_total": 4,
+      "demand_25_total": 0,
+      "provider_25_total": 0,
+      "basenum": 3,
+      "min_delta_unresolved": 0,
+      "materialized_action_count": 12,
+      "residual_family_counts": {
+        "se:33": 4,
+        "sy:11": 4,
+        "sy:17": 1
+      }
+    },
+    {
+      "unresolved": 9,
+      "history_len": 10,
+      "deficit_33": {},
+      "deficit_25": {},
+      "demand_33_total": 4,
+      "provider_33_total": 4,
+      "demand_25_total": 0,
+      "provider_25_total": 0,
+      "basenum": 3,
+      "min_delta_unresolved": 0,
+      "materialized_action_count": 12,
+      "residual_family_counts": {
+        "se:33": 4,
+        "sy:11": 4,
+        "sy:17": 1
+      }
+    },
+    {
+      "unresolved": 9,
+      "history_len": 10,
+      "deficit_33": {},
+      "deficit_25": {},
+      "demand_33_total": 4,
+      "provider_33_total": 4,
+      "demand_25_total": 0,
+      "provider_25_total": 0,
+      "basenum": 3,
+      "min_delta_unresolved": 0,
+      "materialized_action_count": 12,
+      "residual_family_counts": {
+        "se:33": 4,
+        "sy:11": 4,
+        "sy:17": 1
+      }
+    },
+    {
+      "unresolved": 9,
+      "history_len": 10,
+      "deficit_33": {},
+      "deficit_25": {},
+      "demand_33_total": 4,
+      "provider_33_total": 4,
+      "demand_25_total": 0,
+      "provider_25_total": 0,
+      "basenum": 3,
+      "min_delta_unresolved": 0,
+      "materialized_action_count": 12,
+      "residual_family_counts": {
+        "se:33": 4,
+        "sy:11": 4,
+        "sy:17": 1
+      }
+    },
+    {
+      "unresolved": 9,
+      "history_len": 10,
+      "deficit_33": {},
+      "deficit_25": {},
+      "demand_33_total": 4,
+      "provider_33_total": 4,
+      "demand_25_total": 0,
+      "provider_25_total": 0,
+      "basenum": 3,
+      "min_delta_unresolved": 0,
+      "materialized_action_count": 12,
+      "residual_family_counts": {
+        "se:33": 4,
+        "sy:11": 4,
+        "sy:17": 1
+      }
+    },
+    {
+      "unresolved": 9,
+      "history_len": 10,
+      "deficit_33": {},
+      "deficit_25": {},
+      "demand_33_total": 4,
+      "provider_33_total": 4,
+      "demand_25_total": 0,
+      "provider_25_total": 0,
+      "basenum": 3,
+      "min_delta_unresolved": 0,
+      "materialized_action_count": 12,
+      "residual_family_counts": {
+        "se:33": 4,
+        "sy:11": 4,
+        "sy:17": 1
+      }
+    },
+    {
+      "unresolved": 9,
+      "history_len": 10,
+      "deficit_33": {},
+      "deficit_25": {},
+      "demand_33_total": 4,
+      "provider_33_total": 4,
+      "demand_25_total": 0,
+      "provider_25_total": 0,
+      "basenum": 3,
+      "min_delta_unresolved": 0,
+      "materialized_action_count": 12,
+      "residual_family_counts": {
+        "se:33": 4,
+        "sy:11": 4,
+        "sy:17": 1
+      }
+    },
+    {
+      "unresolved": 9,
+      "history_len": 10,
+      "deficit_33": {},
+      "deficit_25": {},
+      "demand_33_total": 4,
+      "provider_33_total": 4,
+      "demand_25_total": 0,
+      "provider_25_total": 0,
+      "basenum": 3,
+      "min_delta_unresolved": 0,
+      "materialized_action_count": 12,
+      "residual_family_counts": {
+        "se:33": 4,
+        "sy:11": 4,
+        "sy:17": 1
+      }
+    },
+    {
+      "unresolved": 9,
+      "history_len": 10,
+      "deficit_33": {},
+      "deficit_25": {},
+      "demand_33_total": 4,
+      "provider_33_total": 4,
+      "demand_25_total": 0,
+      "provider_25_total": 0,
+      "basenum": 3,
+      "min_delta_unresolved": 0,
+      "materialized_action_count": 12,
+      "residual_family_counts": {
+        "se:33": 4,
+        "sy:11": 4,
+        "sy:17": 1
+      }
+    },
+    {
+      "unresolved": 9,
+      "history_len": 10,
+      "deficit_33": {},
+      "deficit_25": {},
+      "demand_33_total": 4,
+      "provider_33_total": 4,
+      "demand_25_total": 0,
+      "provider_25_total": 0,
+      "basenum": 3,
+      "min_delta_unresolved": 0,
+      "materialized_action_count": 12,
+      "residual_family_counts": {
+        "se:33": 4,
+        "sy:11": 4,
+        "sy:17": 1
+      }
+    },
+    {
+      "unresolved": 9,
+      "history_len": 10,
+      "deficit_33": {},
+      "deficit_25": {},
+      "demand_33_total": 4,
+      "provider_33_total": 4,
+      "demand_25_total": 0,
+      "provider_25_total": 0,
+      "basenum": 3,
+      "min_delta_unresolved": 0,
+      "materialized_action_count": 12,
+      "residual_family_counts": {
+        "se:33": 4,
+        "sy:11": 4,
+        "sy:17": 1
+      }
+    },
+    {
+      "unresolved": 9,
+      "history_len": 10,
+      "deficit_33": {},
+      "deficit_25": {},
+      "demand_33_total": 4,
+      "provider_33_total": 4,
+      "demand_25_total": 0,
+      "provider_25_total": 0,
+      "basenum": 3,
+      "min_delta_unresolved": 0,
+      "materialized_action_count": 12,
+      "residual_family_counts": {
+        "se:33": 4,
+        "sy:11": 4,
+        "sy:17": 1
+      }
+    }
+  ],
+  "aggregates": {
+    "best_leaf_residual_family_totals": {
+      "se:33": 200,
+      "sy:11": 200,
+      "sy:17": 50
+    },
+    "best_mid_residual_family_totals": {
+      "se:33": 200,
+      "sy:11": 200,
+      "sy:17": 50
+    },
+    "best_mid_local_dead_end": {
+      "sample_count": 50,
+      "non_improving_count": 50,
+      "non_improving_ratio": 1.0
+    }
+  }
+}
