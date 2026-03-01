@@ -1381,12 +1381,15 @@ def _descriptor_action_keys(
     rh_version: str,
     lh_version: str,
     force_fast_path: bool,
+    use_global_deficit_ordering: bool = True,
 ) -> set[tuple[int, str, str, int, int, int]]:
     descriptors = _iter_action_descriptors(
         state=state,
         legacy_root=legacy_root,
         rh_merge_version=rh_version,
         lh_merge_version=lh_version,
+        current_summary=_build_state_summary(state),
+        global_deficit_ordering_enabled=use_global_deficit_ordering,
         imi_fast_path_override=force_fast_path,
     )
     return {
@@ -1454,6 +1457,37 @@ def test_derivation_imi_fast_path_action_set_matches_generic_on_representative_s
             force_fast_path=True,
         )
         assert generic_keys == fast_keys
+
+
+def test_derivation_global_deficit_ordering_keeps_action_set() -> None:
+    legacy_root = _legacy_root()
+    profile = resolve_rule_versions(
+        profile=get_grammar_profile("imi01"),
+        legacy_root=legacy_root,
+    )
+    state = build_initial_derivation_state(
+        grammar_id="imi01",
+        numeration_text=_load_num_file("imi01/set-numeration/1608131500.num"),
+        legacy_root=legacy_root,
+    )
+
+    enabled_keys = _descriptor_action_keys(
+        state=state,
+        legacy_root=legacy_root,
+        rh_version=profile.rh_merge_version,
+        lh_version=profile.lh_merge_version,
+        force_fast_path=True,
+        use_global_deficit_ordering=True,
+    )
+    disabled_keys = _descriptor_action_keys(
+        state=state,
+        legacy_root=legacy_root,
+        rh_version=profile.rh_merge_version,
+        lh_version=profile.lh_merge_version,
+        force_fast_path=True,
+        use_global_deficit_ordering=False,
+    )
+    assert enabled_keys == disabled_keys
 
 
 def test_derivation_incremental_state_summary_matches_full_recompute_for_double_merge() -> None:
@@ -1619,6 +1653,9 @@ def test_derivation_head_assist_returns_reachability_fields_for_imi03() -> None:
     body = reachability.json()
     assert body["status"] in {"reachable", "unreachable", "unknown"}
     assert isinstance(body["metrics"]["actions_attempted"], int)
+    assert "cache_stats" in body["metrics"]
+    assert "state_summary_cache_hits" in body["metrics"]["cache_stats"]
+    assert "unique_current_struct_states" in body["metrics"]["cache_stats"]
     assert body["counts"]["count_unit"] == "derivation_tree"
     assert body["counts"]["rule_max_per_pair_bound"] >= body["counts"]["rule_max_per_pair_observed"]
 

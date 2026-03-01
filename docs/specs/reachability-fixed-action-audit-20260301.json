@@ -1,0 +1,739 @@
+{
+  "generated_at": "2026-03-01",
+  "legacy_root": "/Users/tomonaga/Documents/syncsemphoneIMI",
+  "grammar_id": "imi01",
+  "numeration_relpath": "imi01/set-numeration/1608131500.num",
+  "search_signature_mode": "structural",
+  "runs": [
+    {
+      "label": "fixed_action_ordering_off_25000",
+      "global_deficit_ordering_enabled": false,
+      "max_nodes": 25000,
+      "budget_seconds": 300.0,
+      "max_depth": 24,
+      "status": "unknown",
+      "completed": false,
+      "reason": "node_limit",
+      "actions_attempted": 25000,
+      "expanded_nodes": 25000,
+      "generated_nodes": 25344,
+      "max_depth_reached": 12,
+      "max_frontier": 79,
+      "timing_ms": {
+        "pairs_scan": 10.55,
+        "rule_expand": 105.433,
+        "rule_expand_fast_path": 0.031,
+        "cheap_feature_extract": 59.157,
+        "execute_double_merge": 6375.832,
+        "next_unresolved": 0.044,
+        "next_signature": 460.358,
+        "post_filter": 9738.259,
+        "descriptor_sort": 24.354,
+        "sibling_exact_dedup": 32.046,
+        "partner_counts": 0.044,
+        "summary_full_recompute": 0.044,
+        "summary_incremental": 1432.804,
+        "state_summary_cache_hit": 7.686,
+        "state_summary_cache_miss": 0.0,
+        "node_summary_cache_hit": 34.619,
+        "node_summary_cache_miss": 24.16,
+        "state_key_build": 0.0,
+        "node_key_build": 694.448
+      },
+      "cache_stats": {
+        "state_summary_cache_hits": 24999,
+        "state_summary_cache_misses": 1,
+        "node_summary_cache_hits": 58057,
+        "node_summary_cache_misses": 22697,
+        "avg_state_key_build_ms": 0.0,
+        "avg_node_key_build_ms": 0.0086,
+        "all_current_state_visits": 25000,
+        "unique_current_struct_states": 25000,
+        "revisited_current_struct_state_visits": 0,
+        "revisit_ratio": 0.0,
+        "unique_child_struct_states": 26918,
+        "cross_parent_duplicate_child_struct_states": 0,
+        "cross_parent_duplicate_child_ratio": 0.0
+      },
+      "leaf_stats": {
+        "count": 14208,
+        "unresolved_min": 9,
+        "unresolved_max": 10,
+        "unresolved_histogram": {
+          "9": 8884,
+          "10": 5324
+        },
+        "best_samples": [
+          {
+            "unresolved": 9,
+            "history_len": 12,
+            "deficit_33": {},
+            "deficit_25": {},
+            "demand_33_total": 4,
+            "provider_33_total": 4,
+            "demand_25_total": 0,
+            "provider_25_total": 0
+          },
+          {
+            "unresolved": 9,
+            "history_len": 12,
+            "deficit_33": {},
+            "deficit_25": {},
+            "demand_33_total": 4,
+            "provider_33_total": 4,
+            "demand_25_total": 0,
+            "provider_25_total": 0
+          },
+          {
+            "unresolved": 9,
+            "history_len": 12,
+            "deficit_33": {},
+            "deficit_25": {},
+            "demand_33_total": 4,
+            "provider_33_total": 4,
+            "demand_25_total": 0,
+            "provider_25_total": 0
+          },
+          {
+            "unresolved": 9,
+            "history_len": 12,
+            "deficit_33": {},
+            "deficit_25": {},
+            "demand_33_total": 4,
+            "provider_33_total": 4,
+            "demand_25_total": 0,
+            "provider_25_total": 0
+          },
+          {
+            "unresolved": 9,
+            "history_len": 12,
+            "deficit_33": {},
+            "deficit_25": {},
+            "demand_33_total": 4,
+            "provider_33_total": 4,
+            "demand_25_total": 0,
+            "provider_25_total": 0
+          }
+        ]
+      },
+      "best_sample_normalized_partner_residuals": {},
+      "aggregates": {
+        "descriptors_emitted_total": 26918,
+        "children_materialized_total": 26918,
+        "children_finalized_total": 26918,
+        "rule_expand_per_descriptor_ms": 0.003917,
+        "execute_per_materialized_ms": 0.236861,
+        "post_filter_per_finalized_ms": 0.361775
+      }
+    },
+    {
+      "label": "fixed_action_ordering_on_25000",
+      "global_deficit_ordering_enabled": true,
+      "max_nodes": 25000,
+      "budget_seconds": 300.0,
+      "max_depth": 24,
+      "status": "unknown",
+      "completed": false,
+      "reason": "node_limit",
+      "actions_attempted": 25000,
+      "expanded_nodes": 25000,
+      "generated_nodes": 25344,
+      "max_depth_reached": 12,
+      "max_frontier": 79,
+      "timing_ms": {
+        "pairs_scan": 10.586,
+        "rule_expand": 104.557,
+        "rule_expand_fast_path": 0.031,
+        "cheap_feature_extract": 58.304,
+        "execute_double_merge": 6411.654,
+        "next_unresolved": 0.047,
+        "next_signature": 456.06,
+        "post_filter": 9772.158,
+        "descriptor_sort": 24.217,
+        "sibling_exact_dedup": 32.072,
+        "partner_counts": 0.047,
+        "summary_full_recompute": 0.047,
+        "summary_incremental": 1430.064,
+        "state_summary_cache_hit": 7.382,
+        "state_summary_cache_miss": 0.0,
+        "node_summary_cache_hit": 34.206,
+        "node_summary_cache_miss": 23.908,
+        "state_key_build": 0.0,
+        "node_key_build": 694.275
+      },
+      "cache_stats": {
+        "state_summary_cache_hits": 24999,
+        "state_summary_cache_misses": 1,
+        "node_summary_cache_hits": 58057,
+        "node_summary_cache_misses": 22697,
+        "avg_state_key_build_ms": 0.0,
+        "avg_node_key_build_ms": 0.008597,
+        "all_current_state_visits": 25000,
+        "unique_current_struct_states": 25000,
+        "revisited_current_struct_state_visits": 0,
+        "revisit_ratio": 0.0,
+        "unique_child_struct_states": 26918,
+        "cross_parent_duplicate_child_struct_states": 0,
+        "cross_parent_duplicate_child_ratio": 0.0
+      },
+      "leaf_stats": {
+        "count": 14208,
+        "unresolved_min": 9,
+        "unresolved_max": 10,
+        "unresolved_histogram": {
+          "9": 8884,
+          "10": 5324
+        },
+        "best_samples": [
+          {
+            "unresolved": 9,
+            "history_len": 12,
+            "deficit_33": {},
+            "deficit_25": {},
+            "demand_33_total": 4,
+            "provider_33_total": 4,
+            "demand_25_total": 0,
+            "provider_25_total": 0
+          },
+          {
+            "unresolved": 9,
+            "history_len": 12,
+            "deficit_33": {},
+            "deficit_25": {},
+            "demand_33_total": 4,
+            "provider_33_total": 4,
+            "demand_25_total": 0,
+            "provider_25_total": 0
+          },
+          {
+            "unresolved": 9,
+            "history_len": 12,
+            "deficit_33": {},
+            "deficit_25": {},
+            "demand_33_total": 4,
+            "provider_33_total": 4,
+            "demand_25_total": 0,
+            "provider_25_total": 0
+          },
+          {
+            "unresolved": 9,
+            "history_len": 12,
+            "deficit_33": {},
+            "deficit_25": {},
+            "demand_33_total": 4,
+            "provider_33_total": 4,
+            "demand_25_total": 0,
+            "provider_25_total": 0
+          },
+          {
+            "unresolved": 9,
+            "history_len": 12,
+            "deficit_33": {},
+            "deficit_25": {},
+            "demand_33_total": 4,
+            "provider_33_total": 4,
+            "demand_25_total": 0,
+            "provider_25_total": 0
+          }
+        ]
+      },
+      "best_sample_normalized_partner_residuals": {},
+      "aggregates": {
+        "descriptors_emitted_total": 26918,
+        "children_materialized_total": 26918,
+        "children_finalized_total": 26918,
+        "rule_expand_per_descriptor_ms": 0.003884,
+        "execute_per_materialized_ms": 0.238192,
+        "post_filter_per_finalized_ms": 0.363034
+      }
+    },
+    {
+      "label": "fixed_action_ordering_off_50000",
+      "global_deficit_ordering_enabled": false,
+      "max_nodes": 50000,
+      "budget_seconds": 300.0,
+      "max_depth": 24,
+      "status": "unknown",
+      "completed": false,
+      "reason": "node_limit",
+      "actions_attempted": 50000,
+      "expanded_nodes": 49997,
+      "generated_nodes": 50333,
+      "max_depth_reached": 12,
+      "max_frontier": 79,
+      "timing_ms": {
+        "pairs_scan": 20.991,
+        "rule_expand": 207.489,
+        "rule_expand_fast_path": 0.061,
+        "cheap_feature_extract": 114.783,
+        "execute_double_merge": 12810.272,
+        "next_unresolved": 0.044,
+        "next_signature": 909.698,
+        "post_filter": 19512.82,
+        "descriptor_sort": 48.379,
+        "sibling_exact_dedup": 63.838,
+        "partner_counts": 0.044,
+        "summary_full_recompute": 0.044,
+        "summary_incremental": 2872.302,
+        "state_summary_cache_hit": 15.029,
+        "state_summary_cache_miss": 0.0,
+        "node_summary_cache_hit": 69.202,
+        "node_summary_cache_miss": 49.048,
+        "state_key_build": 0.0,
+        "node_key_build": 1395.272
+      },
+      "cache_stats": {
+        "state_summary_cache_hits": 49999,
+        "state_summary_cache_misses": 1,
+        "node_summary_cache_hits": 114585,
+        "node_summary_cache_misses": 44565,
+        "avg_state_key_build_ms": 0.0,
+        "avg_node_key_build_ms": 0.008767,
+        "all_current_state_visits": 50000,
+        "unique_current_struct_states": 49997,
+        "revisited_current_struct_state_visits": 3,
+        "revisit_ratio": 6e-05,
+        "unique_child_struct_states": 53047,
+        "cross_parent_duplicate_child_struct_states": 3,
+        "cross_parent_duplicate_child_ratio": 6e-05
+      },
+      "leaf_stats": {
+        "count": 28424,
+        "unresolved_min": 9,
+        "unresolved_max": 11,
+        "unresolved_histogram": {
+          "9": 12750,
+          "10": 13012,
+          "11": 2662
+        },
+        "best_samples": [
+          {
+            "unresolved": 9,
+            "history_len": 12,
+            "deficit_33": {},
+            "deficit_25": {},
+            "demand_33_total": 4,
+            "provider_33_total": 4,
+            "demand_25_total": 0,
+            "provider_25_total": 0
+          },
+          {
+            "unresolved": 9,
+            "history_len": 12,
+            "deficit_33": {},
+            "deficit_25": {},
+            "demand_33_total": 4,
+            "provider_33_total": 4,
+            "demand_25_total": 0,
+            "provider_25_total": 0
+          },
+          {
+            "unresolved": 9,
+            "history_len": 12,
+            "deficit_33": {},
+            "deficit_25": {},
+            "demand_33_total": 4,
+            "provider_33_total": 4,
+            "demand_25_total": 0,
+            "provider_25_total": 0
+          },
+          {
+            "unresolved": 9,
+            "history_len": 12,
+            "deficit_33": {},
+            "deficit_25": {},
+            "demand_33_total": 4,
+            "provider_33_total": 4,
+            "demand_25_total": 0,
+            "provider_25_total": 0
+          },
+          {
+            "unresolved": 9,
+            "history_len": 12,
+            "deficit_33": {},
+            "deficit_25": {},
+            "demand_33_total": 4,
+            "provider_33_total": 4,
+            "demand_25_total": 0,
+            "provider_25_total": 0
+          }
+        ]
+      },
+      "best_sample_normalized_partner_residuals": {},
+      "aggregates": {
+        "descriptors_emitted_total": 53050,
+        "children_materialized_total": 53050,
+        "children_finalized_total": 53050,
+        "rule_expand_per_descriptor_ms": 0.003911,
+        "execute_per_materialized_ms": 0.241475,
+        "post_filter_per_finalized_ms": 0.367819
+      }
+    },
+    {
+      "label": "fixed_action_ordering_on_50000",
+      "global_deficit_ordering_enabled": true,
+      "max_nodes": 50000,
+      "budget_seconds": 300.0,
+      "max_depth": 24,
+      "status": "unknown",
+      "completed": false,
+      "reason": "node_limit",
+      "actions_attempted": 50000,
+      "expanded_nodes": 49997,
+      "generated_nodes": 50333,
+      "max_depth_reached": 12,
+      "max_frontier": 79,
+      "timing_ms": {
+        "pairs_scan": 21.004,
+        "rule_expand": 207.336,
+        "rule_expand_fast_path": 0.061,
+        "cheap_feature_extract": 116.054,
+        "execute_double_merge": 12854.517,
+        "next_unresolved": 0.05,
+        "next_signature": 907.345,
+        "post_filter": 19581.627,
+        "descriptor_sort": 48.36,
+        "sibling_exact_dedup": 63.744,
+        "partner_counts": 0.05,
+        "summary_full_recompute": 0.05,
+        "summary_incremental": 2869.423,
+        "state_summary_cache_hit": 14.99,
+        "state_summary_cache_miss": 0.0,
+        "node_summary_cache_hit": 69.141,
+        "node_summary_cache_miss": 48.862,
+        "state_key_build": 0.0,
+        "node_key_build": 1390.468
+      },
+      "cache_stats": {
+        "state_summary_cache_hits": 49999,
+        "state_summary_cache_misses": 1,
+        "node_summary_cache_hits": 114585,
+        "node_summary_cache_misses": 44565,
+        "avg_state_key_build_ms": 0.0,
+        "avg_node_key_build_ms": 0.008737,
+        "all_current_state_visits": 50000,
+        "unique_current_struct_states": 49997,
+        "revisited_current_struct_state_visits": 3,
+        "revisit_ratio": 6e-05,
+        "unique_child_struct_states": 53047,
+        "cross_parent_duplicate_child_struct_states": 3,
+        "cross_parent_duplicate_child_ratio": 6e-05
+      },
+      "leaf_stats": {
+        "count": 28424,
+        "unresolved_min": 9,
+        "unresolved_max": 11,
+        "unresolved_histogram": {
+          "9": 12750,
+          "10": 13012,
+          "11": 2662
+        },
+        "best_samples": [
+          {
+            "unresolved": 9,
+            "history_len": 12,
+            "deficit_33": {},
+            "deficit_25": {},
+            "demand_33_total": 4,
+            "provider_33_total": 4,
+            "demand_25_total": 0,
+            "provider_25_total": 0
+          },
+          {
+            "unresolved": 9,
+            "history_len": 12,
+            "deficit_33": {},
+            "deficit_25": {},
+            "demand_33_total": 4,
+            "provider_33_total": 4,
+            "demand_25_total": 0,
+            "provider_25_total": 0
+          },
+          {
+            "unresolved": 9,
+            "history_len": 12,
+            "deficit_33": {},
+            "deficit_25": {},
+            "demand_33_total": 4,
+            "provider_33_total": 4,
+            "demand_25_total": 0,
+            "provider_25_total": 0
+          },
+          {
+            "unresolved": 9,
+            "history_len": 12,
+            "deficit_33": {},
+            "deficit_25": {},
+            "demand_33_total": 4,
+            "provider_33_total": 4,
+            "demand_25_total": 0,
+            "provider_25_total": 0
+          },
+          {
+            "unresolved": 9,
+            "history_len": 12,
+            "deficit_33": {},
+            "deficit_25": {},
+            "demand_33_total": 4,
+            "provider_33_total": 4,
+            "demand_25_total": 0,
+            "provider_25_total": 0
+          }
+        ]
+      },
+      "best_sample_normalized_partner_residuals": {},
+      "aggregates": {
+        "descriptors_emitted_total": 53050,
+        "children_materialized_total": 53050,
+        "children_finalized_total": 53050,
+        "rule_expand_per_descriptor_ms": 0.003908,
+        "execute_per_materialized_ms": 0.242309,
+        "post_filter_per_finalized_ms": 0.369116
+      }
+    },
+    {
+      "label": "fixed_action_ordering_off_100000",
+      "global_deficit_ordering_enabled": false,
+      "max_nodes": 100000,
+      "budget_seconds": 300.0,
+      "max_depth": 24,
+      "status": "unknown",
+      "completed": false,
+      "reason": "node_limit",
+      "actions_attempted": 100000,
+      "expanded_nodes": 99221,
+      "generated_nodes": 100331,
+      "max_depth_reached": 12,
+      "max_frontier": 79,
+      "timing_ms": {
+        "pairs_scan": 36.624,
+        "rule_expand": 338.402,
+        "rule_expand_fast_path": 0.097,
+        "cheap_feature_extract": 187.818,
+        "execute_double_merge": 25993.041,
+        "next_unresolved": 0.047,
+        "next_signature": 1794.772,
+        "post_filter": 39018.291,
+        "descriptor_sort": 94.769,
+        "sibling_exact_dedup": 126.46,
+        "partner_counts": 0.047,
+        "summary_full_recompute": 0.047,
+        "summary_incremental": 5628.878,
+        "state_summary_cache_hit": 30.231,
+        "state_summary_cache_miss": 0.0,
+        "node_summary_cache_hit": 154.362,
+        "node_summary_cache_miss": 91.153,
+        "state_key_build": 0.0,
+        "node_key_build": 2830.077
+      },
+      "cache_stats": {
+        "state_summary_cache_hits": 99999,
+        "state_summary_cache_misses": 1,
+        "node_summary_cache_hits": 234455,
+        "node_summary_cache_misses": 79141,
+        "avg_state_key_build_ms": 0.0,
+        "avg_node_key_build_ms": 0.009025,
+        "all_current_state_visits": 100000,
+        "unique_current_struct_states": 88543,
+        "revisited_current_struct_state_visits": 11457,
+        "revisit_ratio": 0.11457,
+        "unique_child_struct_states": 92689,
+        "cross_parent_duplicate_child_struct_states": 11843,
+        "cross_parent_duplicate_child_ratio": 0.118039
+      },
+      "leaf_stats": {
+        "count": 63920,
+        "unresolved_min": 9,
+        "unresolved_max": 11,
+        "unresolved_histogram": {
+          "9": 26766,
+          "10": 27766,
+          "11": 9388
+        },
+        "best_samples": [
+          {
+            "unresolved": 9,
+            "history_len": 12,
+            "deficit_33": {},
+            "deficit_25": {},
+            "demand_33_total": 4,
+            "provider_33_total": 4,
+            "demand_25_total": 0,
+            "provider_25_total": 0
+          },
+          {
+            "unresolved": 9,
+            "history_len": 12,
+            "deficit_33": {},
+            "deficit_25": {},
+            "demand_33_total": 4,
+            "provider_33_total": 4,
+            "demand_25_total": 0,
+            "provider_25_total": 0
+          },
+          {
+            "unresolved": 9,
+            "history_len": 12,
+            "deficit_33": {},
+            "deficit_25": {},
+            "demand_33_total": 4,
+            "provider_33_total": 4,
+            "demand_25_total": 0,
+            "provider_25_total": 0
+          },
+          {
+            "unresolved": 9,
+            "history_len": 12,
+            "deficit_33": {},
+            "deficit_25": {},
+            "demand_33_total": 4,
+            "provider_33_total": 4,
+            "demand_25_total": 0,
+            "provider_25_total": 0
+          },
+          {
+            "unresolved": 9,
+            "history_len": 12,
+            "deficit_33": {},
+            "deficit_25": {},
+            "demand_33_total": 4,
+            "provider_33_total": 4,
+            "demand_25_total": 0,
+            "provider_25_total": 0
+          }
+        ]
+      },
+      "best_sample_normalized_partner_residuals": {},
+      "aggregates": {
+        "descriptors_emitted_total": 104532,
+        "children_materialized_total": 104532,
+        "children_finalized_total": 104532,
+        "rule_expand_per_descriptor_ms": 0.003237,
+        "execute_per_materialized_ms": 0.248661,
+        "post_filter_per_finalized_ms": 0.373266
+      }
+    },
+    {
+      "label": "fixed_action_ordering_on_100000",
+      "global_deficit_ordering_enabled": true,
+      "max_nodes": 100000,
+      "budget_seconds": 300.0,
+      "max_depth": 24,
+      "status": "unknown",
+      "completed": false,
+      "reason": "node_limit",
+      "actions_attempted": 100000,
+      "expanded_nodes": 99221,
+      "generated_nodes": 100331,
+      "max_depth_reached": 12,
+      "max_frontier": 79,
+      "timing_ms": {
+        "pairs_scan": 36.516,
+        "rule_expand": 338.991,
+        "rule_expand_fast_path": 0.097,
+        "cheap_feature_extract": 186.963,
+        "execute_double_merge": 26058.387,
+        "next_unresolved": 0.044,
+        "next_signature": 1792.913,
+        "post_filter": 39084.922,
+        "descriptor_sort": 95.166,
+        "sibling_exact_dedup": 126.505,
+        "partner_counts": 0.044,
+        "summary_full_recompute": 0.044,
+        "summary_incremental": 5629.109,
+        "state_summary_cache_hit": 30.068,
+        "state_summary_cache_miss": 0.0,
+        "node_summary_cache_hit": 154.704,
+        "node_summary_cache_miss": 91.25,
+        "state_key_build": 0.0,
+        "node_key_build": 2832.373
+      },
+      "cache_stats": {
+        "state_summary_cache_hits": 99999,
+        "state_summary_cache_misses": 1,
+        "node_summary_cache_hits": 234455,
+        "node_summary_cache_misses": 79141,
+        "avg_state_key_build_ms": 0.0,
+        "avg_node_key_build_ms": 0.009032,
+        "all_current_state_visits": 100000,
+        "unique_current_struct_states": 88543,
+        "revisited_current_struct_state_visits": 11457,
+        "revisit_ratio": 0.11457,
+        "unique_child_struct_states": 92689,
+        "cross_parent_duplicate_child_struct_states": 11843,
+        "cross_parent_duplicate_child_ratio": 0.118039
+      },
+      "leaf_stats": {
+        "count": 63920,
+        "unresolved_min": 9,
+        "unresolved_max": 11,
+        "unresolved_histogram": {
+          "9": 26766,
+          "10": 27766,
+          "11": 9388
+        },
+        "best_samples": [
+          {
+            "unresolved": 9,
+            "history_len": 12,
+            "deficit_33": {},
+            "deficit_25": {},
+            "demand_33_total": 4,
+            "provider_33_total": 4,
+            "demand_25_total": 0,
+            "provider_25_total": 0
+          },
+          {
+            "unresolved": 9,
+            "history_len": 12,
+            "deficit_33": {},
+            "deficit_25": {},
+            "demand_33_total": 4,
+            "provider_33_total": 4,
+            "demand_25_total": 0,
+            "provider_25_total": 0
+          },
+          {
+            "unresolved": 9,
+            "history_len": 12,
+            "deficit_33": {},
+            "deficit_25": {},
+            "demand_33_total": 4,
+            "provider_33_total": 4,
+            "demand_25_total": 0,
+            "provider_25_total": 0
+          },
+          {
+            "unresolved": 9,
+            "history_len": 12,
+            "deficit_33": {},
+            "deficit_25": {},
+            "demand_33_total": 4,
+            "provider_33_total": 4,
+            "demand_25_total": 0,
+            "provider_25_total": 0
+          },
+          {
+            "unresolved": 9,
+            "history_len": 12,
+            "deficit_33": {},
+            "deficit_25": {},
+            "demand_33_total": 4,
+            "provider_33_total": 4,
+            "demand_25_total": 0,
+            "provider_25_total": 0
+          }
+        ]
+      },
+      "best_sample_normalized_partner_residuals": {},
+      "aggregates": {
+        "descriptors_emitted_total": 104532,
+        "children_materialized_total": 104532,
+        "children_finalized_total": 104532,
+        "rule_expand_per_descriptor_ms": 0.003243,
+        "execute_per_materialized_ms": 0.249286,
+        "post_filter_per_finalized_ms": 0.373904
+      }
+    }
+  ]
+}

@@ -419,6 +419,11 @@
 | S2-REG-30 | summary cache key の回帰（same-content一致 / different-content分離）をテストで固定する | `apps/api/tests/test_derivation.py` | `pytest` |
 | S2-AUD-05 | `6cdb979` 基準で long structural A/B（fast OFF/ON）を再計測し、correctness fix 後の新ベースラインを取得する | `docs/specs/reachability-ab-audit-20260301-postfix.json` | 実測スクリプト |
 | DOC-RCH-04 | 再ベースライン監査の報告書（postfix版）を保存し、旧 quality 結論の再評価前提を明記する | `docs/specs/reachability-ab-audit-20260301-postfix.md` | 文書レビュー |
+| S2-HDA-52 | Reachability探索に `global_deficit_ordering_enabled` を追加し、`33/25` の不足量（multiplicity）に基づく order-only 優先順位へ切替可能にする | `apps/api/app/api/v1/derivation.py` | `pytest`, fixed-action A/B |
+| S2-PROF-08 | `cache_stats` に current/child structural の再訪・重複率指標（`revisit_ratio`, `cross_parent_duplicate_child_ratio`）を追加する | `apps/api/app/api/v1/derivation.py` | `pytest`, API実測 |
+| S2-AUD-06 | fixed-action 予算（`25k/50k/100k`）で ordering `OFF/ON` 比較を行う監査スクリプトを追加し、JSONを出力する | `apps/api/scripts/reachability_fixed_action_audit.py`, `docs/specs/reachability-fixed-action-audit-20260301.json` | CLI実測 |
+| S2-REG-31 | `global_deficit_ordering_enabled` 切替で descriptor `action_key` 集合が一致する回帰テストを追加する | `apps/api/tests/test_derivation.py` | `pytest` |
+| DOC-RCH-05 | fixed-action A/B 結果をMarkdownへ整理し、質が不変（`unresolved_min=9`）であることと次の意思決定条件を明文化する | `docs/specs/reachability-fixed-action-audit-20260301.md` | 文書レビュー |
 
 ## API追加（S1-GRM-02）
 - `GET /v1/reference/grammars/{grammar_id}/rule-sources`

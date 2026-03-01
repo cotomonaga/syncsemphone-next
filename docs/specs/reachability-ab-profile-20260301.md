@@ -70,3 +70,13 @@
 - imi fast path（RH/LH double 専用 expander）で `rule_expand` を直接削る。
 - best leaf の残差ラベルを 33/25 以外（sy由来）まで展開し、grammar/lexicon 側要因と探索順要因を分離する。
 
+## 4. fixed-action A/B（ordering ON/OFF）
+
+追補（同日）:
+- 固定 action 予算（25k/50k/100k）で `global_deficit_ordering_enabled` を `OFF/ON` 比較した。
+- 結果は `status=unknown` / `unresolved_min=9` で全予算同一。
+- 100k 時点で `revisit_ratio=0.11457`、`cross_parent_duplicate_child_ratio=0.118039` まで増加。
+
+詳細:
+- [reachability-fixed-action-audit-20260301.md](/Users/tomonaga/Documents/syncsemphoneIMI/syncsemphone-next/docs/specs/reachability-fixed-action-audit-20260301.md)
+- [reachability-fixed-action-audit-20260301.json](/Users/tomonaga/Documents/syncsemphoneIMI/syncsemphone-next/docs/specs/reachability-fixed-action-audit-20260301.json)

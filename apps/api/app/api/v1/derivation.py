@@ -806,17 +806,36 @@ def _iter_action_descriptors(
     legacy_root: Path,
     rh_merge_version: str,
     lh_merge_version: str,
+    current_summary: Optional[_StateSummary] = None,
+    global_deficit_ordering_enabled: bool = True,
     profile_ns: Optional[dict[str, int]] = None,
     imi_fast_path_override: Optional[bool] = None,
 ) -> Iterator[_ActionDescriptor]:
     seen_actions: set[tuple[int, str, str, int, int, int]] = set()
-    empty_sets = (set(), set(), set(), set())
-    partner_sets_by_index: dict[int, tuple[set[str], set[str], set[str], set[str]]] = {}
+    empty_counts: tuple[dict[str, int], dict[str, int], dict[str, int], dict[str, int]] = (
+        {},
+        {},
+        {},
+        {},
+    )
+    partner_counts_by_index: dict[int, tuple[dict[str, int], dict[str, int], dict[str, int], dict[str, int]]] = {}
     for index in range(1, state.basenum + 1):
         row = _item_for_index(state, index)
         if row is None:
             continue
-        partner_sets_by_index[index] = _collect_item_partner_labels(row)
+        partner_counts_by_index[index] = _collect_item_partner_demand_provider_counts(row)
+
+    deficit_33: dict[str, int] = {}
+    deficit_25: dict[str, int] = {}
+    if global_deficit_ordering_enabled and current_summary is not None:
+        for label, demand in current_summary.demand_33.items():
+            deficit = demand - current_summary.provider_33.get(label, 0)
+            if deficit > 0:
+                deficit_33[label] = deficit
+        for label, demand in current_summary.demand_25.items():
+            deficit = demand - current_summary.provider_25.get(label, 0)
+            if deficit > 0:
+                deficit_25[label] = deficit
 
     pair_schedule: list[tuple[int, int, int, int, int]] = []
     # 1) cheap pair schedule (rule展開前)。
@@ -831,20 +850,36 @@ def _iter_action_descriptors(
                     )
                 continue
             cheap_started_ns = time.perf_counter_ns()
-            left_d33, left_d25, left_p33, left_p25 = partner_sets_by_index.get(
+            left_d33, left_p33, left_d25, left_p25 = partner_counts_by_index.get(
                 left,
-                empty_sets,
+                empty_counts,
             )
-            right_d33, right_d25, right_p33, right_p25 = partner_sets_by_index.get(
+            right_d33, right_p33, right_d25, right_p25 = partner_counts_by_index.get(
                 right,
-                empty_sets,
+                empty_counts,
             )
-            cheap_overlap = (
-                len(left_d33.intersection(right_p33))
-                + len(right_d33.intersection(left_p33))
-                + len(left_d25.intersection(right_p25))
-                + len(right_d25.intersection(left_p25))
-            )
+            if global_deficit_ordering_enabled and (deficit_33 or deficit_25):
+                overlap_33 = 0
+                overlap_25 = 0
+                for label, deficit in deficit_33.items():
+                    overlap_33 += deficit * (
+                        min(left_d33.get(label, 0), right_p33.get(label, 0))
+                        + min(right_d33.get(label, 0), left_p33.get(label, 0))
+                    )
+                for label, deficit in deficit_25.items():
+                    overlap_25 += deficit * (
+                        min(left_d25.get(label, 0), right_p25.get(label, 0))
+                        + min(right_d25.get(label, 0), left_p25.get(label, 0))
+                    )
+                cheap_overlap = (4 * overlap_33) + (2 * overlap_25)
+            else:
+                # Fallback ordering: set-wise overlap only.
+                cheap_overlap = (
+                    len(set(left_d33.keys()).intersection(set(right_p33.keys())))
+                    + len(set(right_d33.keys()).intersection(set(left_p33.keys())))
+                    + len(set(left_d25.keys()).intersection(set(right_p25.keys())))
+                    + len(set(right_d25.keys()).intersection(set(left_p25.keys())))
+                )
             distance = abs(left - right)
             local_priority = 2
             if distance == 1:
@@ -1927,6 +1962,7 @@ def _search_reachability(
     search_signature_mode: str,
     progress_hook: Optional[Callable[[float, str, str], None]] = None,
     imi_fast_path_enabled: bool = True,
+    global_deficit_ordering_enabled: bool = True,
 ) -> _ReachabilityResultInternal:
     max_evidences = _resolve_reachability_max_evidences(request.max_evidences)
     max_depth = _resolve_reachability_max_depth(request.max_depth, state=request.state)
@@ -2005,6 +2041,11 @@ def _search_reachability(
     max_depth_reached = 0
     actions_attempted = 0
     rule_max_observed = 0
+    all_current_state_visits = 0
+    revisited_current_struct_state_visits = 0
+    unique_current_struct_states_seen: set[str] = set()
+    child_structural_signatures_seen_global: set[str] = set()
+    cross_parent_duplicate_child_struct_states = 0
 
     aborted_reason: Optional[str] = None
     progress_tick_interval = 200
@@ -2142,6 +2183,8 @@ def _search_reachability(
         nonlocal expanded_nodes, generated_nodes, max_frontier, max_depth_reached
         nonlocal actions_attempted, rule_max_observed, aborted_reason
         nonlocal leaf_unresolved_min, leaf_unresolved_max
+        nonlocal all_current_state_visits, revisited_current_struct_state_visits
+        nonlocal cross_parent_duplicate_child_struct_states
 
         max_depth_reached = max(max_depth_reached, len(path))
         if time.perf_counter() >= deadline:
@@ -2153,6 +2196,11 @@ def _search_reachability(
 
         bucket = layer_bucket(current.basenum)
         current_structural_sig = _state_structural_signature(current)
+        all_current_state_visits += 1
+        if current_structural_sig in unique_current_struct_states_seen:
+            revisited_current_struct_state_visits += 1
+        else:
+            unique_current_struct_states_seen.add(current_structural_sig)
         current_summary = state_summary(current, signature=current_structural_sig)
         current_unresolved = current_summary.unresolved
         if current.basenum == 1:
@@ -2210,6 +2258,8 @@ def _search_reachability(
             legacy_root=legacy_root,
             rh_merge_version=rh_version,
             lh_merge_version=lh_version,
+            current_summary=current_summary,
+            global_deficit_ordering_enabled=global_deficit_ordering_enabled,
             profile_ns=timing_ns,
             imi_fast_path_override=(None if imi_fast_path_enabled else False),
         )
@@ -2256,6 +2306,10 @@ def _search_reachability(
                 continue
             sibling_seen_structural.add(next_structural_sig)
             timing_ns["sibling_exact_dedup"] += time.perf_counter_ns() - dedup_started_ns
+            if next_structural_sig in child_structural_signatures_seen_global:
+                cross_parent_duplicate_child_struct_states += 1
+            else:
+                child_structural_signatures_seen_global.add(next_structural_sig)
             summary_started_ns = time.perf_counter_ns()
             next_summary: Optional[_StateSummary] = None
             if candidate.rule_kind == "double":
@@ -2577,6 +2631,23 @@ def _search_reachability(
         "avg_node_key_build_ms": round(
             (float(node_key_build_ns_total) / float(node_key_build_count) / 1_000_000.0)
             if node_key_build_count > 0
+            else 0.0,
+            6,
+        ),
+        "all_current_state_visits": all_current_state_visits,
+        "unique_current_struct_states": len(unique_current_struct_states_seen),
+        "revisited_current_struct_state_visits": revisited_current_struct_state_visits,
+        "revisit_ratio": round(
+            (float(revisited_current_struct_state_visits) / float(all_current_state_visits))
+            if all_current_state_visits > 0
+            else 0.0,
+            6,
+        ),
+        "unique_child_struct_states": len(child_structural_signatures_seen_global),
+        "cross_parent_duplicate_child_struct_states": cross_parent_duplicate_child_struct_states,
+        "cross_parent_duplicate_child_ratio": round(
+            (float(cross_parent_duplicate_child_struct_states) / float(generated_nodes))
+            if generated_nodes > 0
             else 0.0,
             6,
         ),

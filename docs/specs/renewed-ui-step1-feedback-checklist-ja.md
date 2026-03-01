@@ -318,6 +318,14 @@
 - [x] `S1-REG-23` API回帰で、`ジョンが本を読む` の `226(読む)` に対して単体系 `ga/wo` 候補が優先選択されることを固定する。
 - [x] `S1-REG-24` Web回帰で、`25(ga/wo)` が満たせない構成時に赤警告が表示されることを固定する。
 
+## 66. fixed-action A/B（global deficit ordering + 再訪計測）
+- [x] `S2-HDA-52` Reachability探索に `global_deficit_ordering_enabled` を追加し、`33/25` の不足量（multiplicity）を使った order-only 優先順位を導入する（候補集合は不変）。
+- [x] `S2-PROF-08` `cache_stats` に `all_current_state_visits / unique_current_struct_states / revisit_ratio / unique_child_struct_states / cross_parent_duplicate_child_ratio` を追加し、再訪率と cross-parent 重複率を直接観測できるようにする。
+- [x] `S2-AUD-06` fixed-action 予算（`25k/50k/100k`）で ordering `OFF/ON` を比較する監査スクリプトを追加し、JSONレポートを生成する。
+- [x] `S2-REG-31` `global_deficit_ordering_enabled` の有無で `action_key` 集合が一致することをテストで固定する。
+- [x] `DOC-RCH-05` fixed-action A/B の結果（速度・質・再訪率）をMarkdownレポートに整理し、次判断（ordering継続かPareto先行か）の根拠を文書化する。
+  - 成果物: [reachability-fixed-action-audit-20260301.md](/Users/tomonaga/Documents/syncsemphoneIMI/syncsemphone-next/docs/specs/reachability-fixed-action-audit-20260301.md)
+
 ## 62. 自動分割の語彙既知形再構成（ふわふわした/食べている/話している）
 - [x] `S1-MOR-03` Sudachi自動分割後に `X + する + た => Xした` と `動詞 + て + いる => 〜ている` を再構成し、語彙引き当て可能なトークン列へ正規化する。
 - [x] `S1-REG-20` `numeration/tokenize` 回帰で `ふわふわしたわたあめを食べているひつじと話しているうさぎがいる` が `ふわふわした / わたあめ / を / 食べている / ひつじ / と / 話している / うさぎ / が / いる / る` に分割されることを固定する。
