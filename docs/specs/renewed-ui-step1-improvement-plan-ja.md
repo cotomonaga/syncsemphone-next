@@ -415,6 +415,10 @@
 | S2-BUG-04 | summary キャッシュキーを `id()` 依存から内容キー（state: structural signature / node: JSON signature）へ修正し、ID再利用による誤判定を防止する | `apps/api/app/api/v1/derivation.py` | `pytest` |
 | S2-REG-28 | incremental summary と full recompute の一致を differential audit テストで固定する | `apps/api/tests/test_derivation.py` | `pytest` |
 | S2-REG-29 | 上記反映後に `apps/api/tests/test_derivation.py` と API 全体テストを再実行し回帰なしを確認する | `apps/api/tests` | `python3 -m pytest -q` |
+| S2-PROF-07 | Reachability `metrics` に `cache_stats`（state/node hit/miss, avg key build ms）を追加し、content-key cache のコストを可視化する | `apps/api/app/api/v1/derivation.py` | `pytest`, A/B実測 |
+| S2-REG-30 | summary cache key の回帰（same-content一致 / different-content分離）をテストで固定する | `apps/api/tests/test_derivation.py` | `pytest` |
+| S2-AUD-05 | `6cdb979` 基準で long structural A/B（fast OFF/ON）を再計測し、correctness fix 後の新ベースラインを取得する | `docs/specs/reachability-ab-audit-20260301-postfix.json` | 実測スクリプト |
+| DOC-RCH-04 | 再ベースライン監査の報告書（postfix版）を保存し、旧 quality 結論の再評価前提を明記する | `docs/specs/reachability-ab-audit-20260301-postfix.md` | 文書レビュー |
 
 ## API追加（S1-GRM-02）
 - `GET /v1/reference/grammars/{grammar_id}/rule-sources`

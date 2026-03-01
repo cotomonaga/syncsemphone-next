@@ -543,3 +543,9 @@
 - [x] `S2-BUG-04` summary キャッシュを `id()` キーから内容キー（`state: structural signature`, `node: JSON signature`）へ変更し、オブジェクトID再利用による `reachable` 誤判定を防止する。
 - [x] `S2-REG-28` differential audit テスト `test_derivation_incremental_state_summary_matches_full_recompute_for_double_merge` を追加し、incremental更新と full recompute が一致することを回帰固定する。
 - [x] `S2-REG-29` `apps/api/tests/test_derivation.py` 全件実行で手戻りがないことを再確認する。
+
+## 94. 正しさ修正後の再ベースライン（cache統計つき）
+- [x] `S2-PROF-07` Reachability `metrics` に `cache_stats`（state/node hit/miss、avg key build ms）を追加し、content-key 化後のコストと有効性を可視化する。
+- [x] `S2-REG-30` same-content / different-content の summary cache key 回帰テストを追加し、内容同値・内容差分の挙動を固定する。
+- [x] `S2-AUD-05` `6cdb979` 基準で long structural A/B（fast OFF/ON）と sanity を再計測し、旧ベースラインを置換する。
+- [x] `DOC-RCH-04` 再ベースライン結果を `reachability-ab-audit-20260301-postfix.md/.json` に保存する。

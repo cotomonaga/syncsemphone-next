@@ -111,6 +111,7 @@ class ReachabilityMetricsResponse(BaseModel):
     max_depth_reached: int
     actions_attempted: int
     timing_ms: dict[str, float] = Field(default_factory=dict)
+    cache_stats: dict[str, Any] = Field(default_factory=dict)
     layer_stats: dict[str, dict[str, int]] = Field(default_factory=dict)
     leaf_stats: dict[str, Any] = Field(default_factory=dict)
 
@@ -479,6 +480,7 @@ class _ReachabilityResultInternal:
     rule_max_per_pair_observed: int
     elapsed_ms: int
     timing_ms: dict[str, float]
+    cache_stats: dict[str, Any]
     layer_stats: dict[str, dict[str, int]]
     leaf_stats: dict[str, Any]
     count_status: str
@@ -1672,6 +1674,14 @@ def _build_node_summary(node: object, *, serialized: Optional[str] = None) -> _N
     )
 
 
+def _node_summary_cache_key(node: object) -> str:
+    return json.dumps(node, ensure_ascii=False, separators=(",", ":"))
+
+
+def _state_summary_cache_key(state: DerivationState) -> str:
+    return _state_structural_signature(state)
+
+
 def _build_state_summary(state: DerivationState) -> _StateSummary:
     unresolved = _count_uninterpretable_like_perl(state)
     demand_33, provider_33, demand_25, provider_25 = _collect_partner_demand_provider_counts(state)
@@ -1953,6 +1963,14 @@ def _search_reachability(
     explored_by_signature: dict[str, dict[int, int]] = {}
     state_summary_cache: dict[str, _StateSummary] = {}
     node_summary_cache: dict[str, _NodeSummary] = {}
+    state_summary_cache_hits = 0
+    state_summary_cache_misses = 0
+    node_summary_cache_hits = 0
+    node_summary_cache_misses = 0
+    state_key_build_ns_total = 0
+    node_key_build_ns_total = 0
+    state_key_build_count = 0
+    node_key_build_count = 0
     timing_ns: dict[str, int] = {
         "pairs_scan": 0,
         "rule_expand": 0,
@@ -1967,6 +1985,12 @@ def _search_reachability(
         "partner_counts": 0,
         "summary_full_recompute": 0,
         "summary_incremental": 0,
+        "state_summary_cache_hit": 0,
+        "state_summary_cache_miss": 0,
+        "node_summary_cache_hit": 0,
+        "node_summary_cache_miss": 0,
+        "state_key_build": 0,
+        "node_key_build": 0,
     }
     layer_stats: dict[int, dict[str, int]] = {}
     leaf_unresolved_hist: dict[int, int] = {}
@@ -1986,19 +2010,48 @@ def _search_reachability(
     progress_tick_interval = 200
 
     def node_summary(node: object) -> _NodeSummary:
-        serialized_node = json.dumps(node, ensure_ascii=False, separators=(",", ":"))
+        nonlocal node_summary_cache_hits, node_summary_cache_misses
+        nonlocal node_key_build_ns_total, node_key_build_count
+        key_started_ns = time.perf_counter_ns()
+        serialized_node = _node_summary_cache_key(node)
+        key_elapsed_ns = time.perf_counter_ns() - key_started_ns
+        timing_ns["node_key_build"] += key_elapsed_ns
+        node_key_build_ns_total += key_elapsed_ns
+        node_key_build_count += 1
+
+        lookup_started_ns = time.perf_counter_ns()
         cached = node_summary_cache.get(serialized_node)
         if cached is not None:
+            node_summary_cache_hits += 1
+            timing_ns["node_summary_cache_hit"] += time.perf_counter_ns() - lookup_started_ns
             return cached
+        node_summary_cache_misses += 1
+        timing_ns["node_summary_cache_miss"] += time.perf_counter_ns() - lookup_started_ns
         value = _build_node_summary(node, serialized=serialized_node)
         node_summary_cache[serialized_node] = value
         return value
 
     def state_summary(state: DerivationState, *, signature: Optional[str] = None) -> _StateSummary:
-        state_key = signature if signature is not None else _state_structural_signature(state)
+        nonlocal state_summary_cache_hits, state_summary_cache_misses
+        nonlocal state_key_build_ns_total, state_key_build_count
+        if signature is None:
+            key_started_ns = time.perf_counter_ns()
+            state_key = _state_summary_cache_key(state)
+            key_elapsed_ns = time.perf_counter_ns() - key_started_ns
+            timing_ns["state_key_build"] += key_elapsed_ns
+            state_key_build_ns_total += key_elapsed_ns
+            state_key_build_count += 1
+        else:
+            state_key = signature
+
+        lookup_started_ns = time.perf_counter_ns()
         cached = state_summary_cache.get(state_key)
         if cached is not None:
+            state_summary_cache_hits += 1
+            timing_ns["state_summary_cache_hit"] += time.perf_counter_ns() - lookup_started_ns
             return cached
+        state_summary_cache_misses += 1
+        timing_ns["state_summary_cache_miss"] += time.perf_counter_ns() - lookup_started_ns
         started_ns = time.perf_counter_ns()
         value = _build_state_summary(state)
         elapsed_ns = time.perf_counter_ns() - started_ns
@@ -2510,6 +2563,24 @@ def _search_reachability(
         key: round(float(value) / 1_000_000.0, 3)
         for key, value in timing_ns.items()
     }
+    cache_stats = {
+        "state_summary_cache_hits": state_summary_cache_hits,
+        "state_summary_cache_misses": state_summary_cache_misses,
+        "node_summary_cache_hits": node_summary_cache_hits,
+        "node_summary_cache_misses": node_summary_cache_misses,
+        "avg_state_key_build_ms": round(
+            (float(state_key_build_ns_total) / float(state_key_build_count) / 1_000_000.0)
+            if state_key_build_count > 0
+            else 0.0,
+            6,
+        ),
+        "avg_node_key_build_ms": round(
+            (float(node_key_build_ns_total) / float(node_key_build_count) / 1_000_000.0)
+            if node_key_build_count > 0
+            else 0.0,
+            6,
+        ),
+    }
     layer_stats_response = {
         str(key): value
         for key, value in sorted(layer_stats.items(), key=lambda row: row[0], reverse=True)
@@ -2542,6 +2613,7 @@ def _search_reachability(
         rule_max_per_pair_observed=rule_max_observed,
         elapsed_ms=elapsed_ms,
         timing_ms=timing_ms,
+        cache_stats=cache_stats,
         layer_stats=layer_stats_response,
         leaf_stats=leaf_stats,
         count_status=count_status,
@@ -2614,6 +2686,7 @@ def _build_reachability_response(
         max_depth_reached=internal.max_depth_reached,
         actions_attempted=internal.actions_attempted,
         timing_ms=internal.timing_ms,
+        cache_stats=internal.cache_stats,
         layer_stats=internal.layer_stats,
         leaf_stats=internal.leaf_stats,
     )

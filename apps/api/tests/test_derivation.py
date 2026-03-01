@@ -12,10 +12,12 @@ from app.api.v1.derivation import (
     _HEAD_ASSIST_SEARCH_BUDGET_SECONDS,
     _build_node_summary,
     _build_state_summary,
+    _node_summary_cache_key,
     _enumerate_candidate_transitions,
     _head_nonhead_indices,
     _item_for_index,
     _iter_action_descriptors,
+    _state_summary_cache_key,
     _resolve_head_assist_parallel_cores,
     _state_packed_signature,
     _state_structural_signature,
@@ -1549,6 +1551,45 @@ def test_derivation_incremental_state_summary_matches_full_recompute_for_double_
                 break
 
     assert checked >= 10
+
+
+def test_derivation_summary_cache_key_matches_for_same_content_different_instances() -> None:
+    legacy_root = _legacy_root()
+    state = build_initial_derivation_state(
+        grammar_id="imi01",
+        numeration_text=_load_num_file("imi01/set-numeration/04.num"),
+        legacy_root=legacy_root,
+    )
+    copied = state.model_copy(deep=True)
+
+    assert id(state) != id(copied)
+    assert _state_summary_cache_key(state) == _state_summary_cache_key(copied)
+
+    original_node = _item_for_index(state, 1)
+    copied_node = _item_for_index(copied, 1)
+    assert original_node is not None
+    assert copied_node is not None
+    assert id(original_node) != id(copied_node)
+    assert _node_summary_cache_key(original_node) == _node_summary_cache_key(copied_node)
+
+
+def test_derivation_summary_cache_key_separates_different_content() -> None:
+    legacy_root = _legacy_root()
+    state = build_initial_derivation_state(
+        grammar_id="imi01",
+        numeration_text=_load_num_file("imi01/set-numeration/04.num"),
+        legacy_root=legacy_root,
+    )
+    altered = state.model_copy(deep=True)
+    altered.base[1][6] = "ジョン改"
+
+    assert _state_summary_cache_key(state) != _state_summary_cache_key(altered)
+
+    original_node = _item_for_index(state, 1)
+    altered_node = _item_for_index(altered, 1)
+    assert original_node is not None
+    assert altered_node is not None
+    assert _node_summary_cache_key(original_node) != _node_summary_cache_key(altered_node)
 
 
 def test_derivation_head_assist_returns_reachability_fields_for_imi03() -> None:
