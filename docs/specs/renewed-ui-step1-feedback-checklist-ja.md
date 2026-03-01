@@ -326,6 +326,13 @@
 - [x] `DOC-RCH-05` fixed-action A/B の結果（速度・質・再訪率）をMarkdownレポートに整理し、次判断（ordering継続かPareto先行か）の根拠を文書化する。
   - 成果物: [reachability-fixed-action-audit-20260301.md](/Users/tomonaga/Documents/syncsemphoneIMI/syncsemphone-next/docs/specs/reachability-fixed-action-audit-20260301.md)
 
+## 67. imi01 min-streak dominance（安全側圧縮）
+- [x] `S2-HDA-53` imi01 で `min_zero_delta_streak_by_struct_sig` を child評価段へ導入し、dominated child を `partner/unique` 判定前に除外する。
+- [x] `S2-PROF-09` `cache_stats` に `dominated_child_count / dominated_child_ratio / dominance_improvement_count / post_filter_skipped_by_dominance / unique_structural_states_per_100k_actions` を追加する。
+- [x] `S2-AUD-07` fixed-action 予算（`25k/50k/100k`）を再実行し、dominance 導入後の `revisit_ratio` と `cross_parent_duplicate_child_ratio` の変化を記録する。
+- [x] `DOC-RCH-06` fixed-action A/B レポートを更新し、dominance導入後の結果と次判断を追記する。
+  - 成果物: [reachability-fixed-action-audit-20260301.md](/Users/tomonaga/Documents/syncsemphoneIMI/syncsemphone-next/docs/specs/reachability-fixed-action-audit-20260301.md)
+
 ## 62. 自動分割の語彙既知形再構成（ふわふわした/食べている/話している）
 - [x] `S1-MOR-03` Sudachi自動分割後に `X + する + た => Xした` と `動詞 + て + いる => 〜ている` を再構成し、語彙引き当て可能なトークン列へ正規化する。
 - [x] `S1-REG-20` `numeration/tokenize` 回帰で `ふわふわしたわたあめを食べているひつじと話しているうさぎがいる` が `ふわふわした / わたあめ / を / 食べている / ひつじ / と / 話している / うさぎ / が / いる / る` に分割されることを固定する。

@@ -1997,6 +1997,10 @@ def _search_reachability(
     # (signature, streak) 個別再訪より強い支配判定:
     # 同一signatureで「より小さい/同じstreakかつより深いremaining_depth」が既出なら現在は不要。
     explored_by_signature: dict[str, dict[int, int]] = {}
+    # imi01 は double merge のみで basenum が毎手 1 減るため、同一 structural signature では
+    # remaining_depth が実質固定になる。よって child 側は min(streak) のみで安全側圧縮できる。
+    use_min_streak_dominance = request.state.grammar_id == "imi01"
+    min_zero_delta_streak_by_struct_sig: dict[str, int] = {}
     state_summary_cache: dict[str, _StateSummary] = {}
     node_summary_cache: dict[str, _NodeSummary] = {}
     state_summary_cache_hits = 0
@@ -2046,6 +2050,9 @@ def _search_reachability(
     unique_current_struct_states_seen: set[str] = set()
     child_structural_signatures_seen_global: set[str] = set()
     cross_parent_duplicate_child_struct_states = 0
+    dominated_child_count = 0
+    dominance_improvement_count = 0
+    post_filter_skipped_by_dominance = 0
 
     aborted_reason: Optional[str] = None
     progress_tick_interval = 200
@@ -2185,6 +2192,8 @@ def _search_reachability(
         nonlocal leaf_unresolved_min, leaf_unresolved_max
         nonlocal all_current_state_visits, revisited_current_struct_state_visits
         nonlocal cross_parent_duplicate_child_struct_states
+        nonlocal dominated_child_count, dominance_improvement_count
+        nonlocal post_filter_skipped_by_dominance
 
         max_depth_reached = max(max_depth_reached, len(path))
         if time.perf_counter() >= deadline:
@@ -2345,34 +2354,9 @@ def _search_reachability(
 
             next_unresolved = next_summary.unresolved
             delta_unresolved = next_unresolved - current_unresolved
-            breaks_unique_provider = _breaks_unique_partner_provider_constraint_from_summary(
-                before=current_summary,
-                after=next_summary,
-            )
             if not soften_hard_pruning_globally and delta_unresolved > 0:
                 bucket["pruned_delta_increase"] += 1
                 continue
-            if not soften_hard_pruning_globally and breaks_unique_provider:
-                bucket["pruned_unique_provider"] += 1
-                continue
-            next_partner_deficit = _partner_deficit_from_summary(next_summary)
-            partner_priority = 1
-            if (
-                current.grammar_id.startswith("imi")
-                and current.basenum >= 10
-                and _is_partner_resolving_transition(
-                state=current,
-                candidate=candidate,
-                left=actual_left,
-                right=actual_right,
-                )
-            ):
-                partner_priority = 0
-            transition_priority = _head_assist_transition_priority(
-                state=current,
-                row=(candidate, actual_left, actual_right, next_state),
-            )
-            unique_provider_penalty = 1 if breaks_unique_provider else 0
             next_zero_delta_streak = 0
             if delta_unresolved == 0:
                 # 未解釈素性が減らない遷移は、次のいずれかに限定許可する:
@@ -2391,6 +2375,44 @@ def _search_reachability(
                 if next_zero_delta_streak > _REACHABILITY_ZERO_DELTA_STREAK_LIMIT:
                     bucket["pruned_zero_delta_streak"] += 1
                     continue
+            if use_min_streak_dominance:
+                best_streak = min_zero_delta_streak_by_struct_sig.get(next_structural_sig)
+                if best_streak is not None and best_streak <= next_zero_delta_streak:
+                    bucket["pruned_by_revisit_dominance"] += 1
+                    dominated_child_count += 1
+                    post_filter_skipped_by_dominance += 1
+                    continue
+                if best_streak is not None and next_zero_delta_streak < best_streak:
+                    dominance_improvement_count += 1
+                min_zero_delta_streak_by_struct_sig[next_structural_sig] = next_zero_delta_streak
+
+            breaks_unique_provider = _breaks_unique_partner_provider_constraint_from_summary(
+                before=current_summary,
+                after=next_summary,
+            )
+            if not soften_hard_pruning_globally and breaks_unique_provider:
+                bucket["pruned_unique_provider"] += 1
+                continue
+            next_partner_deficit = _partner_deficit_from_summary(next_summary)
+            partner_priority = 1
+            if (
+                current.grammar_id.startswith("imi")
+                and current.basenum >= 10
+                and _is_partner_resolving_transition(
+                    state=current,
+                    candidate=candidate,
+                    left=actual_left,
+                    right=actual_right,
+                )
+            ):
+                partner_priority = 0
+            transition_priority = _head_assist_transition_priority(
+                state=current,
+                row=(candidate, actual_left, actual_right, next_state),
+            )
+            unique_provider_penalty = 1 if breaks_unique_provider else 0
+
+            if delta_unresolved == 0:
                 plateau_rows.append(
                     (
                         candidate,
@@ -2648,6 +2670,21 @@ def _search_reachability(
         "cross_parent_duplicate_child_ratio": round(
             (float(cross_parent_duplicate_child_struct_states) / float(generated_nodes))
             if generated_nodes > 0
+            else 0.0,
+            6,
+        ),
+        "dominated_child_count": dominated_child_count,
+        "dominance_improvement_count": dominance_improvement_count,
+        "post_filter_skipped_by_dominance": post_filter_skipped_by_dominance,
+        "dominated_child_ratio": round(
+            (float(dominated_child_count) / float(generated_nodes))
+            if generated_nodes > 0
+            else 0.0,
+            6,
+        ),
+        "unique_structural_states_per_100k_actions": round(
+            (float(len(unique_current_struct_states_seen)) / float(actions_attempted)) * 100000.0
+            if actions_attempted > 0
             else 0.0,
             6,
         ),

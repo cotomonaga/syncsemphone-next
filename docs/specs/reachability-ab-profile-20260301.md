@@ -75,7 +75,7 @@
 追補（同日）:
 - 固定 action 予算（25k/50k/100k）で `global_deficit_ordering_enabled` を `OFF/ON` 比較した。
 - 結果は `status=unknown` / `unresolved_min=9` で全予算同一。
-- 100k 時点で `revisit_ratio=0.11457`、`cross_parent_duplicate_child_ratio=0.118039` まで増加。
+- さらに imi01 で `min_zero_delta_streak_by_struct_sig` を導入後に再測定し、100k 時点で `revisit_ratio=0.04426`、`cross_parent_duplicate_child_ratio=0.050391` まで低下。
 
 詳細:
 - [reachability-fixed-action-audit-20260301.md](/Users/tomonaga/Documents/syncsemphoneIMI/syncsemphone-next/docs/specs/reachability-fixed-action-audit-20260301.md)

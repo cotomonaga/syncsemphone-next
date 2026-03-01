@@ -424,6 +424,10 @@
 | S2-AUD-06 | fixed-action 予算（`25k/50k/100k`）で ordering `OFF/ON` 比較を行う監査スクリプトを追加し、JSONを出力する | `apps/api/scripts/reachability_fixed_action_audit.py`, `docs/specs/reachability-fixed-action-audit-20260301.json` | CLI実測 |
 | S2-REG-31 | `global_deficit_ordering_enabled` 切替で descriptor `action_key` 集合が一致する回帰テストを追加する | `apps/api/tests/test_derivation.py` | `pytest` |
 | DOC-RCH-05 | fixed-action A/B 結果をMarkdownへ整理し、質が不変（`unresolved_min=9`）であることと次の意思決定条件を明文化する | `docs/specs/reachability-fixed-action-audit-20260301.md` | 文書レビュー |
+| S2-HDA-53 | imi01 の child評価段で `min_zero_delta_streak_by_struct_sig` を導入し、dominated child を `partner/unique` 計算前に除外する | `apps/api/app/api/v1/derivation.py` | `pytest`, fixed-action A/B |
+| S2-PROF-09 | `cache_stats` に dominance関連指標（`dominated_child_count/ratio`, `dominance_improvement_count`, `post_filter_skipped_by_dominance`, `unique_structural_states_per_100k_actions`）を追加する | `apps/api/app/api/v1/derivation.py` | `pytest`, API実測 |
+| S2-AUD-07 | dominance導入後に fixed-action（25k/50k/100k）を再測定し、`revisit/cross-parent duplicate` の改善量を比較する | `docs/specs/reachability-fixed-action-audit-20260301.json` | CLI実測 |
+| DOC-RCH-06 | fixed-action 監査レポートを dominance導入後の数値へ更新し、次判断（Pareto先行継続）を追記する | `docs/specs/reachability-fixed-action-audit-20260301.md` | 文書レビュー |
 
 ## API追加（S1-GRM-02）
 - `GET /v1/reference/grammars/{grammar_id}/rule-sources`
