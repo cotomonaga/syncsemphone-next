@@ -402,6 +402,10 @@
 | S2-REG-25 | 変更後に `apps/api/tests/test_derivation.py` 全件通過を再確認する | `apps/api/tests/test_derivation.py` | `python3 -m pytest tests/test_derivation.py -q` |
 | S2-HDA-49 | `_search_reachability` の DFS ホットパスから `descriptors=list(...)` を除去し、`_iter_action_descriptors` iterator を逐次消費する実装へ置換する | `apps/api/app/api/v1/derivation.py` | `pytest`, A/B実測 |
 | S2-REG-26 | 上記ストリーム化後に `apps/api/tests/test_derivation.py` 全件通過を再確認する | `apps/api/tests/test_derivation.py` | `python3 -m pytest tests/test_derivation.py -q` |
+| S2-MET-01 | `layer_stats` に `descriptors_emitted/descriptors_exhausted/descriptors_partial` を追加し、lazy列挙メトリクスの exact/lower-bound 判定を明示する | `apps/api/app/api/v1/derivation.py` | `pytest`, API実測 |
+| S2-HDA-50 | `_iter_action_descriptors` に IMI double-only fast path（RH/LH直接emit）を追加し、generic rule 展開呼び出しを回避する | `apps/api/app/api/v1/derivation.py` | `pytest`, A/B実測 |
+| S2-PROF-06 | `timing_ms.rule_expand_fast_path` を追加し、fast path 適用回数を観測可能にする | `apps/api/app/api/v1/derivation.py` | `pytest`, API実測 |
+| S2-REG-27 | 上記変更後に `apps/api/tests/test_derivation.py` 全件通過を再確認する | `apps/api/tests/test_derivation.py` | `python3 -m pytest tests/test_derivation.py -q` |
 
 ## API追加（S1-GRM-02）
 - `GET /v1/reference/grammars/{grammar_id}/rule-sources`

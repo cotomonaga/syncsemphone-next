@@ -11,6 +11,7 @@ import threading
 import time
 import uuid
 from dataclasses import dataclass
+from functools import lru_cache
 from pathlib import Path
 from typing import Any, Callable, Iterator, Optional
 
@@ -710,6 +711,54 @@ def _resolve_head_assist_signature_mode(mode: Optional[str]) -> str:
     )
 
 
+@lru_cache(maxsize=64)
+def _resolve_imi_double_only_rule_numbers(
+    grammar_id: str,
+    legacy_root_str: str,
+) -> Optional[tuple[int, int]]:
+    if not grammar_id.startswith("imi"):
+        return None
+    try:
+        catalog = load_rule_catalog(grammar_id=grammar_id, legacy_root=Path(legacy_root_str))
+    except ValueError:
+        return None
+    if not catalog:
+        return None
+    # imi fast path は RH/LH の double のみで構成される文法に限定する。
+    if any(rule.kind != 2 for rule in catalog):
+        return None
+    if not {rule.name for rule in catalog}.issubset({"RH-Merge", "LH-Merge"}):
+        return None
+    rh = next((rule.number for rule in catalog if rule.name == "RH-Merge"), None)
+    lh = next((rule.number for rule in catalog if rule.name == "LH-Merge"), None)
+    if rh is None or lh is None:
+        return None
+    return (rh, lh)
+
+
+def _rh_merge_applicable_for_version(right_category: str, version: str) -> bool:
+    if version in {"03", "01"}:
+        return True
+    if version == "04":
+        return right_category != "T"
+    raise ValueError(f"Unsupported RH-Merge version: {version}")
+
+
+def _lh_merge_applicable_for_version(right_category: str, version: str) -> bool:
+    if version == "03":
+        return True
+    if version == "04":
+        return right_category == "T"
+    if version == "01":
+        return right_category in {"T", "J"}
+    raise ValueError(f"Unsupported LH-Merge version: {version}")
+
+
+def _is_uninterpretable_slot_value(value: str) -> bool:
+    parts = [part.strip() for part in str(value).split(",")]
+    return len(parts) > 1 and parts[1].isdigit()
+
+
 def _execute_candidate_for_assist(
     *,
     state: DerivationState,
@@ -822,22 +871,68 @@ def _iter_action_descriptors(
                 )
 
     pair_schedule.sort(key=lambda row: (-row[4], row[3], row[2], row[0], row[1]))
+    imi_fast_rule_numbers = _resolve_imi_double_only_rule_numbers(
+        state.grammar_id,
+        str(legacy_root.resolve()),
+    )
 
     # 2) pairごとに rule 展開して descriptor を逐次 yield。
     for left, right, distance, local_priority, cheap_overlap in pair_schedule:
         rule_expand_started_ns = time.perf_counter_ns()
-        candidates = list_merge_candidates(
-            state=state,
-            left=left,
-            right=right,
-            legacy_root=legacy_root,
-            rh_merge_version=rh_merge_version,
-            lh_merge_version=lh_merge_version,
-        )
-        if profile_ns is not None:
-            profile_ns["rule_expand"] = profile_ns.get("rule_expand", 0) + (
-                time.perf_counter_ns() - rule_expand_started_ns
+        if imi_fast_rule_numbers is not None:
+            rh_rule_number, lh_rule_number = imi_fast_rule_numbers
+            candidates: list[RuleCandidate] = []
+            right_category = _item_category_for_index(state, right)
+            left_category = _item_category_for_index(state, left)
+            left_row = _item_for_index(state, left)
+            right_row = _item_for_index(state, right)
+            left_sl = str(left_row[4]) if left_row is not None and len(left_row) > 4 else ""
+            right_sl = str(right_row[4]) if right_row is not None and len(right_row) > 4 else ""
+            rh_applicable = _rh_merge_applicable_for_version(right_category, rh_merge_version)
+            if rh_applicable and rh_merge_version == "01":
+                if (left_category == "N" and right_category == "J") or (
+                    _is_uninterpretable_slot_value(left_sl)
+                    and _is_uninterpretable_slot_value(right_sl)
+                ):
+                    rh_applicable = False
+            if rh_applicable:
+                candidates.append(
+                    RuleCandidate(
+                        rule_number=rh_rule_number,
+                        rule_name="RH-Merge",
+                        rule_kind="double",
+                        left=left,
+                        right=right,
+                    )
+                )
+            if _lh_merge_applicable_for_version(right_category, lh_merge_version):
+                candidates.append(
+                    RuleCandidate(
+                        rule_number=lh_rule_number,
+                        rule_name="LH-Merge",
+                        rule_kind="double",
+                        left=left,
+                        right=right,
+                    )
+                )
+            if profile_ns is not None:
+                profile_ns["rule_expand"] = profile_ns.get("rule_expand", 0) + (
+                    time.perf_counter_ns() - rule_expand_started_ns
+                )
+                profile_ns["rule_expand_fast_path"] = profile_ns.get("rule_expand_fast_path", 0) + 1
+        else:
+            candidates = list_merge_candidates(
+                state=state,
+                left=left,
+                right=right,
+                legacy_root=legacy_root,
+                rh_merge_version=rh_merge_version,
+                lh_merge_version=lh_merge_version,
             )
+            if profile_ns is not None:
+                profile_ns["rule_expand"] = profile_ns.get("rule_expand", 0) + (
+                    time.perf_counter_ns() - rule_expand_started_ns
+                )
         for candidate in candidates:
             if candidate.rule_kind != "double":
                 continue
@@ -1660,6 +1755,7 @@ def _search_reachability(
     timing_ns: dict[str, int] = {
         "pairs_scan": 0,
         "rule_expand": 0,
+        "rule_expand_fast_path": 0,
         "cheap_feature_extract": 0,
         "execute_double_merge": 0,
         "next_unresolved": 0,
@@ -1715,6 +1811,9 @@ def _search_reachability(
         bucket = {
             "expanded": 0,
             "candidates_raw": 0,
+            "descriptors_emitted": 0,
+            "descriptors_exhausted": 0,
+            "descriptors_partial": 0,
             "after_delta_unique_filter": 0,
             "after_zero_delta_filter": 0,
             "after_worsening_cap": 0,
@@ -1871,8 +1970,18 @@ def _search_reachability(
         ] = []
         sibling_seen_structural: set[str] = set()
         post_filter_started_ns = time.perf_counter_ns()
+        descriptors_exhausted = True
         for descriptor in descriptors:
+            if time.perf_counter() >= deadline:
+                descriptors_exhausted = False
+                aborted_reason = "timeout"
+                break
+            if actions_attempted >= max_nodes:
+                descriptors_exhausted = False
+                aborted_reason = "node_limit"
+                break
             bucket["candidates_raw"] += 1
+            bucket["descriptors_emitted"] += 1
             materialized = _materialize_action_descriptor(
                 state=current,
                 descriptor=descriptor,
@@ -1989,6 +2098,13 @@ def _search_reachability(
                         unique_provider_penalty,
                     )
                 )
+
+        if descriptors_exhausted:
+            bucket["descriptors_exhausted"] += 1
+        else:
+            bucket["descriptors_partial"] += 1
+            timing_ns["post_filter"] += time.perf_counter_ns() - post_filter_started_ns
+            return False
 
         bucket["after_delta_unique_filter"] += (
             len(decreasing_rows) + len(plateau_rows) + len(worsening_rows)

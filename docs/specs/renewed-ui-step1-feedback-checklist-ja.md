@@ -524,3 +524,9 @@
 ## 90. Reachability DFSホットパスのdescriptorストリーム化（list除去）
 - [x] `S2-HDA-49` `_search_reachability` 内の `descriptors = list(_iter_action_descriptors(...))` を撤去し、iterator 直処理に変更して descriptor 一括構築コストを除去する。
 - [x] `S2-REG-26` 上記変更後に `apps/api/tests/test_derivation.py` 全件通過を再確認する。
+
+## 91. Reachability lazy境界の可視化 + IMI fast path
+- [x] `S2-MET-01` `layer_stats` に `descriptors_emitted / descriptors_exhausted / descriptors_partial` を追加し、lazy列挙が exact か lower-bound かを状態単位で識別できるようにする。
+- [x] `S2-HDA-50` `_iter_action_descriptors` に IMI double-only fast path（RH/LH直接emit）を追加し、generic `list_merge_candidates` 呼び出しを回避する。
+- [x] `S2-PROF-06` `timing_ms.rule_expand_fast_path` を追加し、fast path 適用回数を観測できるようにする。
+- [x] `S2-REG-27` 上記変更後に `apps/api/tests/test_derivation.py` 全件通過を再確認する。
