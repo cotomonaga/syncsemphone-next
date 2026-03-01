@@ -385,6 +385,13 @@
 | DOC-BRF-11 | `zero_delta_streak` の題材依存の実効性（imi01 double-onlyでの効きの弱さ）を注記する | `docs/specs/fuwafuwa-natural-reachability-consulting-brief-ja.md` | 文書レビュー |
 | DOC-BRF-12 | `partner_deficit` の式と `case-local/vt-local` の参照領域（base配列隣接）を定義表で明文化する | `docs/specs/fuwafuwa-natural-reachability-consulting-brief-ja.md` | 文書レビュー |
 | DOC-BRF-13 | 4.5擬似コードの変数宣言を補い、`append_merge_relation_semantic` の before-state 参照を明示する | `docs/specs/fuwafuwa-natural-reachability-consulting-brief-ja.md` | 文書レビュー |
+| S2-PROF-01 | Reachabilityレスポンス `metrics` に `timing_ms` を追加し、時間消費の内訳（enumerate/sort/unresolved/partner/sibling_dedup）を可視化する | `apps/api/app/api/v1/derivation.py` | `pytest`, API実測 |
+| S2-PROF-02 | `metrics.layer_stats` を追加し、`basenum` 層ごとの候補数・刈り込み数・圧縮数を記録する | `apps/api/app/api/v1/derivation.py` | `pytest`, API実測 |
+| S2-PROF-03 | `metrics.leaf_stats` を追加し、`basenum=1` 終端の `unresolved` 分布（min/max/histogram）を返す | `apps/api/app/api/v1/derivation.py` | `pytest`, API実測 |
+| S2-HDA-43 | 同一親から生成される兄弟遷移を `next structural signature` で1件へ圧縮する（安全寄りdedup） | `apps/api/app/api/v1/derivation.py` | `pytest`, API実測 |
+| S2-HDA-44 | 再訪抑制を streak 支配（小さい `zero_delta_streak` が大きい streak を支配）へ強化する | `apps/api/app/api/v1/derivation.py` | `pytest`, API実測 |
+| S2-REG-24 | `apps/api/tests/test_derivation.py` 全件通過を再確認する | `apps/api/tests/test_derivation.py` | `python3 -m pytest tests/test_derivation.py -q` |
+| S2-RCH-26 | 長文 `imi01`（ふわふわ…）の `structural/packed` A/B を同条件で取得し、到達状況とleaf分布を比較する | 調査ログ（API直叩き） | CLI実測 |
 
 ## API追加（S1-GRM-02）
 - `GET /v1/reference/grammars/{grammar_id}/rule-sources`

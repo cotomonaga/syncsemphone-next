@@ -109,6 +109,9 @@ class ReachabilityMetricsResponse(BaseModel):
     elapsed_ms: int
     max_depth_reached: int
     actions_attempted: int
+    timing_ms: dict[str, float] = Field(default_factory=dict)
+    layer_stats: dict[str, dict[str, int]] = Field(default_factory=dict)
+    leaf_stats: dict[str, Any] = Field(default_factory=dict)
 
 
 class ReachabilityCountsResponse(BaseModel):
@@ -464,6 +467,9 @@ class _ReachabilityResultInternal:
     actions_attempted: int
     rule_max_per_pair_observed: int
     elapsed_ms: int
+    timing_ms: dict[str, float]
+    layer_stats: dict[str, dict[str, int]]
+    leaf_stats: dict[str, Any]
     count_status: str
     goal_count_exact: Optional[int]
     total_exact: Optional[int]
@@ -1507,10 +1513,23 @@ def _search_reachability(
     soften_hard_pruning_globally = (
         request.state.grammar_id.startswith("imi") and request.state.basenum >= 10
     )
-    explored_remaining_depth: dict[tuple[str, int], int] = {}
+    # (signature, streak) 個別再訪より強い支配判定:
+    # 同一signatureで「より小さい/同じstreakかつより深いremaining_depth」が既出なら現在は不要。
+    explored_by_signature: dict[str, dict[int, int]] = {}
     unresolved_count_cache: dict[int, int] = {}
     partner_counts_cache: dict[int, tuple[dict[str, int], dict[str, int], dict[str, int], dict[str, int]]] = {}
     partner_deficit_cache: dict[int, int] = {}
+    timing_ns: dict[str, int] = {
+        "enumerate_transitions": 0,
+        "sort_and_rank": 0,
+        "unresolved_count": 0,
+        "partner_counts": 0,
+        "sibling_dedup": 0,
+    }
+    layer_stats: dict[int, dict[str, int]] = {}
+    leaf_unresolved_hist: dict[int, int] = {}
+    leaf_unresolved_min: Optional[int] = None
+    leaf_unresolved_max: Optional[int] = None
 
     expanded_nodes = 0
     generated_nodes = 0
@@ -1527,7 +1546,9 @@ def _search_reachability(
         cached = unresolved_count_cache.get(state_obj_id)
         if cached is not None:
             return cached
+        started_ns = time.perf_counter_ns()
         value = _count_uninterpretable_like_perl(state)
+        timing_ns["unresolved_count"] += time.perf_counter_ns() - started_ns
         unresolved_count_cache[state_obj_id] = value
         return value
 
@@ -1536,9 +1557,33 @@ def _search_reachability(
         cached = partner_counts_cache.get(state_obj_id)
         if cached is not None:
             return cached
+        started_ns = time.perf_counter_ns()
         value = _collect_partner_demand_provider_counts(state)
+        timing_ns["partner_counts"] += time.perf_counter_ns() - started_ns
         partner_counts_cache[state_obj_id] = value
         return value
+
+    def layer_bucket(basenum: int) -> dict[str, int]:
+        bucket = layer_stats.get(basenum)
+        if bucket is not None:
+            return bucket
+        bucket = {
+            "expanded": 0,
+            "candidates_raw": 0,
+            "after_delta_unique_filter": 0,
+            "after_zero_delta_filter": 0,
+            "after_worsening_cap": 0,
+            "after_sibling_dedup": 0,
+            "unique_next_structural": 0,
+            "pruned_delta_increase": 0,
+            "pruned_unique_provider": 0,
+            "pruned_zero_delta_gate": 0,
+            "pruned_zero_delta_streak": 0,
+            "pruned_by_revisit_dominance": 0,
+            "leaf_count": 0,
+        }
+        layer_stats[basenum] = bucket
+        return bucket
 
     def partner_deficit(state: DerivationState) -> int:
         state_obj_id = id(state)
@@ -1565,6 +1610,7 @@ def _search_reachability(
     ) -> bool:
         nonlocal expanded_nodes, generated_nodes, max_frontier, max_depth_reached
         nonlocal actions_attempted, rule_max_observed, aborted_reason
+        nonlocal leaf_unresolved_min, leaf_unresolved_max
 
         max_depth_reached = max(max_depth_reached, len(path))
         if time.perf_counter() >= deadline:
@@ -1574,7 +1620,23 @@ def _search_reachability(
             aborted_reason = "node_limit"
             return False
 
-        if unresolved_count(current) == 0:
+        bucket = layer_bucket(current.basenum)
+        current_unresolved = unresolved_count(current)
+        if current.basenum == 1:
+            bucket["leaf_count"] += 1
+            leaf_unresolved_hist[current_unresolved] = leaf_unresolved_hist.get(current_unresolved, 0) + 1
+            leaf_unresolved_min = (
+                current_unresolved
+                if leaf_unresolved_min is None
+                else min(leaf_unresolved_min, current_unresolved)
+            )
+            leaf_unresolved_max = (
+                current_unresolved
+                if leaf_unresolved_max is None
+                else max(leaf_unresolved_max, current_unresolved)
+            )
+
+        if current_unresolved == 0:
             tree_root = _select_tree_root(current)
             tree_sig = _canonical_tree_signature(tree_root)
             goal_tree_sigs.add(tree_sig)
@@ -1590,14 +1652,28 @@ def _search_reachability(
             return True
 
         current_sig = search_signature_fn(current)
-        current_unresolved = unresolved_count(current)
-        current_partner_counts = partner_counts(current)
-        explored_key = (current_sig, zero_delta_streak)
-        best_remaining = explored_remaining_depth.get(explored_key)
-        if best_remaining is not None and best_remaining >= remaining_depth:
-            return True
-        explored_remaining_depth[explored_key] = remaining_depth
+        sig_bucket = explored_by_signature.get(current_sig)
+        if sig_bucket is not None:
+            for seen_streak, seen_remaining in sig_bucket.items():
+                if seen_streak <= zero_delta_streak and seen_remaining >= remaining_depth:
+                    bucket["pruned_by_revisit_dominance"] += 1
+                    return True
+        else:
+            sig_bucket = {}
+            explored_by_signature[current_sig] = sig_bucket
+        prev_remaining = sig_bucket.get(zero_delta_streak, -1)
+        if remaining_depth > prev_remaining:
+            sig_bucket[zero_delta_streak] = remaining_depth
+            # 新規登録した (streak, remaining) が同一signature内の他エントリを支配する場合は圧縮。
+            for seen_streak, seen_remaining in list(sig_bucket.items()):
+                if seen_streak == zero_delta_streak:
+                    continue
+                if seen_streak >= zero_delta_streak and seen_remaining <= remaining_depth:
+                    del sig_bucket[seen_streak]
 
+        current_partner_counts = partner_counts(current)
+
+        enumerate_started_ns = time.perf_counter_ns()
         transitions = _enumerate_candidate_transitions(
             state=current,
             legacy_root=legacy_root,
@@ -1606,6 +1682,8 @@ def _search_reachability(
             state_signature_fn=_state_structural_signature,
             cache=transition_cache,
         )
+        timing_ns["enumerate_transitions"] += time.perf_counter_ns() - enumerate_started_ns
+        bucket["candidates_raw"] += len(transitions)
         decreasing_rows: list[
             tuple[RuleCandidate, int, int, DerivationState, int, int, int, int, int, int, int]
         ] = []
@@ -1624,8 +1702,10 @@ def _search_reachability(
                 after_counts=next_partner_counts,
             )
             if not soften_hard_pruning_globally and delta_unresolved > 0:
+                bucket["pruned_delta_increase"] += 1
                 continue
             if not soften_hard_pruning_globally and breaks_unique_provider:
+                bucket["pruned_unique_provider"] += 1
                 continue
             next_partner_deficit = partner_deficit(next_state)
             partner_priority = 1
@@ -1657,9 +1737,11 @@ def _search_reachability(
                 ):
                     allow_zero_delta = True
                 if not allow_zero_delta:
+                    bucket["pruned_zero_delta_gate"] += 1
                     continue
                 next_zero_delta_streak = zero_delta_streak + 1
                 if next_zero_delta_streak > _REACHABILITY_ZERO_DELTA_STREAK_LIMIT:
+                    bucket["pruned_zero_delta_streak"] += 1
                     continue
                 plateau_rows.append(
                     (
@@ -1710,7 +1792,12 @@ def _search_reachability(
                     )
                 )
 
+        bucket["after_delta_unique_filter"] += (
+            len(decreasing_rows) + len(plateau_rows) + len(worsening_rows)
+        )
+
         # 原則は「未解釈を減らす遷移」を優先。悪化遷移は hard prune せず、少量を後順位で保持する。
+        sort_started_ns = time.perf_counter_ns()
         if decreasing_rows:
             plateau_seed = sorted(
                 plateau_rows,
@@ -1762,6 +1849,7 @@ def _search_reachability(
             )
         else:
             filtered = worsening_rows
+        bucket["after_worsening_cap"] += len(filtered)
 
         # imi系の case-local / vt-local は hard prune ではなく優先順で扱う。
         ordered = sorted(
@@ -1781,6 +1869,20 @@ def _search_reachability(
                 row[0].check if row[0].check is not None else 0,
             ),
         )
+        timing_ns["sort_and_rank"] += time.perf_counter_ns() - sort_started_ns
+
+        dedup_started_ns = time.perf_counter_ns()
+        deduped: dict[str, tuple[RuleCandidate, int, int, DerivationState, int, int, int, int, int, int, int]] = {}
+        for row in ordered:
+            next_sig = _state_structural_signature(row[3])
+            if next_sig in deduped:
+                continue
+            deduped[next_sig] = row
+        ordered = list(deduped.values())
+        timing_ns["sibling_dedup"] += time.perf_counter_ns() - dedup_started_ns
+        bucket["unique_next_structural"] += len(deduped)
+        bucket["after_sibling_dedup"] += len(ordered)
+
         generated_nodes += len(ordered)
         max_frontier = max(max_frontier, len(ordered))
         # observed は「1 pair あたりで実際に使われた rule 種別数」の観測値として保持する。
@@ -1790,6 +1892,7 @@ def _search_reachability(
             len({candidate.rule_number for candidate, *_ in ordered}),
         )
         expanded_nodes += 1
+        bucket["expanded"] += 1
 
         for (
             candidate,
@@ -1862,6 +1965,23 @@ def _search_reachability(
 
     elapsed_ms = int((time.perf_counter() - started) * 1000)
     report_progress("finalizing", "結果を整形中")
+    timing_ms = {
+        key: round(float(value) / 1_000_000.0, 3)
+        for key, value in timing_ns.items()
+    }
+    layer_stats_response = {
+        str(key): value
+        for key, value in sorted(layer_stats.items(), key=lambda row: row[0], reverse=True)
+    }
+    leaf_stats = {
+        "count": sum(leaf_unresolved_hist.values()),
+        "unresolved_min": leaf_unresolved_min,
+        "unresolved_max": leaf_unresolved_max,
+        "unresolved_histogram": {
+            str(key): value
+            for key, value in sorted(leaf_unresolved_hist.items(), key=lambda row: row[0])
+        },
+    }
 
     count_basis = "packed_signature_v1" if search_signature_mode == "packed" else "structural_signature_v1"
     evidences = sorted(
@@ -1879,6 +1999,9 @@ def _search_reachability(
         actions_attempted=actions_attempted,
         rule_max_per_pair_observed=rule_max_observed,
         elapsed_ms=elapsed_ms,
+        timing_ms=timing_ms,
+        layer_stats=layer_stats_response,
+        leaf_stats=leaf_stats,
         count_status=count_status,
         goal_count_exact=goal_count_exact,
         total_exact=total_exact,
@@ -1948,6 +2071,9 @@ def _build_reachability_response(
         elapsed_ms=internal.elapsed_ms,
         max_depth_reached=internal.max_depth_reached,
         actions_attempted=internal.actions_attempted,
+        timing_ms=internal.timing_ms,
+        layer_stats=internal.layer_stats,
+        leaf_stats=internal.leaf_stats,
     )
     counts = ReachabilityCountsResponse(
         count_unit="derivation_tree",

@@ -499,3 +499,12 @@
 - [x] `DOC-BRF-11` `zero_delta_streak=12` の題材依存の実効性（imi01 double-only では枝刈り強度が高くない可能性）を注記する。
 - [x] `DOC-BRF-12` `partner_deficit` の式（全ラベル合計）と `case-local/vt-local` の参照領域（現在のbase配列隣接）を定義表へ明記する。
 - [x] `DOC-BRF-13` 4.5 擬似コードの変数宣言を補い、`append_merge_relation_semantic` が before-state の `hb[4]/nb[4]` を参照する点を明示する。
+
+## 87. Reachability計測強化と安全圧縮（A/B前提整備）
+- [x] `S2-PROF-01` Reachabilityレスポンス `metrics` に `timing_ms`（enumerate/sort/unresolved/partner/sibling_dedup）を追加し、time支配箇所を可視化する。
+- [x] `S2-PROF-02` `metrics.layer_stats` を追加し、`basenum` 層ごとに候補数・刈り込み数・重複圧縮数（sibling dedup）を記録する。
+- [x] `S2-PROF-03` `metrics.leaf_stats` を追加し、`basenum=1` 終端の `unresolved` 分布（min/max/histogram）を返す。
+- [x] `S2-HDA-43` 同一親から生成される兄弟遷移を `next structural signature` で1件へ圧縮し、到達性を落とさず重複展開を削減する。
+- [x] `S2-HDA-44` 再訪抑制を `(signature,streak)` 個別判定から「小さい `zero_delta_streak` が大きい streak を支配する」判定に強化する。
+- [x] `S2-REG-24` `apps/api/tests/test_derivation.py` 全件通過で回帰がないことを確認する。
+- [x] `S2-RCH-26` 長文 `imi01`（ふわふわ…）で `structural/packed` A/B を実測し、`max_depth=12到達済み・timeout継続・leaf unresolved最小=9` を確認する。
