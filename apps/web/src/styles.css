@@ -1455,6 +1455,15 @@ td {
   margin: 0 0 8px;
 }
 
+.lexicon-markdown-preview-body .lexicon-md-image {
+  display: block;
+  max-width: 120%;
+  height: auto;
+  transform: scale(1.2);
+  transform-origin: top left;
+  margin: 0 0 12px;
+}
+
 .lexicon-md-gap {
   height: 8px;
 }
