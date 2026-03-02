@@ -579,3 +579,14 @@
 - [x] `S2-DIAG-06` 各ケースで `initial_family_counts`・`best_leaf_residual_family_avg`・`residual source top` を集計し、`se:33/sy:11/sy:17` の discharge 観測表を作成する。
 - [x] `DOC-RCH-09` discharge 監査結果を JSON/Markdown で保存し、`φ追加はcount補完だが質改善に直結しない` こと（S2/S3/S4で `unknown` 継続）を明記する。
   - 成果物: [reachability-discharge-matrix-20260302.md](/Users/tomonaga/Documents/syncsemphoneIMI/syncsemphone-next/docs/specs/reachability-discharge-matrix-20260302.md)
+
+## 96. japanese2 lexical-only 実装（Step1入口 + 9301固定 + を文脈選択）
+- [x] `J2-LEX-01` `japanese2.csv` に Step1 lookup-deployable な最低限語彙（`264/265/266/267/269/270/271/9301/183`）を追加し、`ふわふわした...` で `generation_failed` が起きない入口を整備する。
+- [x] `J2-LEX-02` `と` の正式候補として `9301(171-lite, Content:0,24なし)` を導入し、`171` を既定選択に戻さない。
+- [x] `J2-LEX-03` Step1 自動選択（`grammar_id=japanese2`）で、`と -> 9301` 優先、`...を食べている...` 文脈で `を -> 181`（次点 `189`）を優先する文脈選択を実装する。
+- [x] `J2-LEX-04` `が=183` を secondary candidate として維持し、`を` 再選択だけで不足するときのみ二段目比較できる状態にする（既定は `19` 維持）。
+- [x] `J2-REG-01` API回帰を追加し、`japanese2` 長文自動生成で `lexicon_ids=[264,265,181,266,267,9301,269,270,19,271,204]` が選ばれることを固定する。
+- [x] `J2-REG-02` API回帰を追加し、`japanese2` 長文 `init/from-sentence` が 200 を返し、`generation_failed` 経路へ落ちないことを固定する。
+- [x] `J2-RPT-01` explicit numeration / Step1 auto の再実測レポート（baseline vs after IDs, status/reason, leaf_min, history_top, evidence）を出力する。
+  - 成果物: [reachability-japanese2-lexical-selection-impl-20260302.md](/Users/tomonaga/Documents/syncsemphoneIMI/syncsemphone-next/docs/specs/reachability-japanese2-lexical-selection-impl-20260302.md)
+  - 成果物: [reachability-japanese2-lexical-selection-impl-20260302.json](/Users/tomonaga/Documents/syncsemphoneIMI/syncsemphone-next/docs/specs/reachability-japanese2-lexical-selection-impl-20260302.json)

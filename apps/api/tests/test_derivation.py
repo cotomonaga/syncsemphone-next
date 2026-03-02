@@ -287,6 +287,56 @@ def test_derivation_numeration_generate_japanese2_defaults_hon_227() -> None:
     assert by_token["本"]["candidate_lexicon_ids"][:2] == [227, 100]
 
 
+def test_derivation_numeration_generate_japanese2_long_sentence_prefers_9301_and_wo181() -> None:
+    client = TestClient(app)
+    response = client.post(
+        "/v1/derivation/numeration/generate",
+        json={
+            "grammar_id": "japanese2",
+            "sentence": "ふわふわしたわたあめを食べているひつじと話しているうさぎがいる",
+            "split_mode": "A",
+            "legacy_root": str(_legacy_root()),
+        },
+    )
+    assert response.status_code == 200
+    body = response.json()
+    assert body["lexicon_ids"] == [264, 265, 181, 266, 267, 9301, 269, 270, 19, 271, 204]
+    by_token = {row["token"]: row for row in body["token_resolutions"]}
+    assert by_token["を"]["lexicon_id"] == 181
+    assert by_token["と"]["lexicon_id"] == 9301
+    assert 189 in by_token["を"]["candidate_lexicon_ids"]
+    assert 171 in by_token["と"]["candidate_lexicon_ids"]
+
+
+def test_derivation_init_from_sentence_japanese2_long_sentence_no_generation_failed() -> None:
+    client = TestClient(app)
+    initialized = client.post(
+        "/v1/derivation/init/from-sentence",
+        json={
+            "grammar_id": "japanese2",
+            "sentence": "ふわふわしたわたあめを食べているひつじと話しているうさぎがいる",
+            "split_mode": "A",
+            "legacy_root": str(_legacy_root()),
+        },
+    )
+    assert initialized.status_code == 200
+    body = initialized.json()
+    assert body["numeration"]["lexicon_ids"] == [264, 265, 181, 266, 267, 9301, 269, 270, 19, 271, 204]
+    assert [row["token"] for row in body["numeration"]["token_resolutions"]] == [
+        "ふわふわした",
+        "わたあめ",
+        "を",
+        "食べている",
+        "ひつじ",
+        "と",
+        "話している",
+        "うさぎ",
+        "が",
+        "いる",
+        "る",
+    ]
+
+
 def test_derivation_numeration_tokenize_auto_mode_compounds_shita_and_teiru() -> None:
     client = TestClient(app)
     response = client.post(

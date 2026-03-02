@@ -345,7 +345,10 @@ def _candidate_sort_key(
     token: str,
     lexicon_id: int,
     lexicon: dict[int, LexiconEntry],
-) -> tuple[int, int, int, int, int, int, int, int, int]:
+    *,
+    token_prev: str | None = None,
+    token_next: str | None = None,
+ ) -> tuple[int, ...]:
     entry = lexicon[lexicon_id]
     token_norm = _normalize_token(token)
     entry_norm = _normalize_token(entry.entry)
@@ -370,8 +373,33 @@ def _candidate_sort_key(
         elif lexicon_id == 100:
             japanese2_hon_priority = 1
 
+    # japanese2 の「と」は 171-lite(9301) を既定選択にし、Content:0,24 の副作用を避ける。
+    japanese2_to_priority = 0
+    if grammar_id == "japanese2" and token_norm == "と":
+        if lexicon_id == 9301:
+            japanese2_to_priority = -1
+        elif lexicon_id == 171:
+            japanese2_to_priority = 1
+
+    # japanese2 の「を」は「...を食べている...」文脈で Z 系(181/189)を優先する。
+    # 既定は 181(状況) を先に、次点で 189(Path) を試す。
+    japanese2_wo_priority = 0
+    if (
+        grammar_id == "japanese2"
+        and token_norm == "を"
+        and _normalize_token(token_next or "") == "食べている"
+    ):
+        if lexicon_id == 181:
+            japanese2_wo_priority = -2
+        elif lexicon_id == 189:
+            japanese2_wo_priority = -1
+        elif lexicon_id in {23, 197, 297}:
+            japanese2_wo_priority = 1
+
     # 既存 .num に寄せるため、まず可視音形を優先し、次に文法片の傾向に合わせて選ぶ。
     return (
+        japanese2_wo_priority,
+        japanese2_to_priority,
         japanese2_hon_priority,
         -entry_exact,
         -non_silent,
@@ -392,6 +420,8 @@ def _resolve_token(
     surface_index: dict[str, list[int]],
     lexicon: dict[int, LexiconEntry],
     grammar_rule_names: set[str],
+    token_prev: str | None = None,
+    token_next: str | None = None,
 ) -> TokenResolution:
     normalized = _normalize_token(token)
     if normalized == "":
@@ -401,7 +431,14 @@ def _resolve_token(
         raise ValueError(f"Unknown token for lexicon lookup: {token}")
     deduped = sorted(
         set(candidates),
-        key=lambda lexicon_id: _candidate_sort_key(grammar_id, normalized, lexicon_id, lexicon),
+        key=lambda lexicon_id: _candidate_sort_key(
+            grammar_id,
+            normalized,
+            lexicon_id,
+            lexicon,
+            token_prev=token_prev,
+            token_next=token_next,
+        ),
     )
     compatibilities = [
         _infer_candidate_compatibility(
@@ -664,11 +701,16 @@ def generate_numeration_from_sentence(
     else:
         token_values = tokens
 
-    resolutions: list[TokenResolution] = []
+    normalized_tokens: list[str] = []
     for token in token_values:
         normalized = _normalize_token(token)
-        if normalized == "":
-            continue
+        if normalized != "":
+            normalized_tokens.append(normalized)
+
+    resolutions: list[TokenResolution] = []
+    for index, normalized in enumerate(normalized_tokens):
+        prev_token = normalized_tokens[index - 1] if index > 0 else None
+        next_token = normalized_tokens[index + 1] if index + 1 < len(normalized_tokens) else None
         resolutions.append(
             _resolve_token(
                 grammar_id=grammar_id,
@@ -676,6 +718,8 @@ def generate_numeration_from_sentence(
                 surface_index=surface_index,
                 lexicon=lexicon,
                 grammar_rule_names=grammar_rule_names,
+                token_prev=prev_token,
+                token_next=next_token,
             )
         )
 

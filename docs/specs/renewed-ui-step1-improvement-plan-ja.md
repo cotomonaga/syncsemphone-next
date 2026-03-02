@@ -437,6 +437,13 @@
 | S2-DIAG-05 | 4文（`うさぎがいる` / `わたあめを食べているひつじがいる` / `ひつじと話しているうさぎがいる` / `ふわふわした...うさぎがいる`）を対象に、`imi01/imi02/imi03` × `φなし/φ+2` の reachability 実測マトリクスを追加する | `apps/api/scripts/reachability_discharge_matrix.py` | CLI実測 |
 | S2-DIAG-06 | 各ケースで `initial_family_counts` / `best_leaf_residual_family_avg` / `best_leaf_residual_source_totals` を集計し、`se:33/sy:11/sy:17` の discharge 観測表を出力する | `apps/api/scripts/reachability_discharge_matrix.py`, `docs/specs/reachability-discharge-matrix-20260302.json` | CLI実測 |
 | DOC-RCH-09 | discharge 監査レポートを作成し、`φ追加はcount補完だがS2/S3/S4の質改善に直結しない` ことを文書化する | `docs/specs/reachability-discharge-matrix-20260302.md` | 文書レビュー |
+| J2-LEX-01 | `japanese2.csv` に Step1 lookup-deployable な最低限語彙（`264/265/266/267/269/270/271/9301/183`）を追加し、長文自動生成の入口失敗を解消する | `/Users/tomonaga/Documents/syncsemphoneIMI/japanese2/japanese2.csv` | API実測 |
+| J2-LEX-02 | `と` の既定選択を `9301(171-lite)` へ固定し、`171(Content:0,24)` を自動既定へ戻さない | `packages/domain/src/domain/numeration/generator.py` | `pytest`, API実測 |
+| J2-LEX-03 | `japanese2` 自動選択で `...を食べている...` 文脈時に `を=181`（次点`189`）を優先する文脈選択を実装する | `packages/domain/src/domain/numeration/generator.py` | `pytest`, API実測 |
+| J2-LEX-04 | `が=183` を secondary candidate として明示比較できるよう `japanese2.csv` へ追加し、一次対応の既定は `19` を維持する | `/Users/tomonaga/Documents/syncsemphoneIMI/japanese2/japanese2.csv` | API実測 |
+| J2-REG-01 | API回帰で `japanese2` 長文生成の既定ID列（`264,265,181,266,267,9301,269,270,19,271,204`）を固定する | `apps/api/tests/test_derivation.py` | `pytest` |
+| J2-REG-02 | API回帰で `japanese2` 長文 `init/from-sentence` が成功し `generation_failed` しないことを固定する | `apps/api/tests/test_derivation.py` | `pytest` |
+| J2-RPT-01 | explicit/auto 比較レポート（S2/T3/T1/S4、baseline/after IDs、status/reason、leaf_min、history_top、evidence有無）を出力する | `apps/api/scripts/reachability_japanese2_lexical_selection_impl_20260302.py`, `docs/specs/reachability-japanese2-lexical-selection-impl-20260302.{md,json}` | CLI実測 |
 
 ## API追加（S1-GRM-02）
 - `GET /v1/reference/grammars/{grammar_id}/rule-sources`

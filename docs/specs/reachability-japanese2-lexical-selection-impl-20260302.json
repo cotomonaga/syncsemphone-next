@@ -1,0 +1,2100 @@
+{
+  "generated_at": "2026-03-02T19:35:56.812503",
+  "settings": {
+    "grammar_id": "japanese2",
+    "auto_add_ga_phi": false,
+    "budget_seconds": 20.0,
+    "max_nodes": 120000,
+    "max_depth": 28,
+    "top_k": 10,
+    "notes": [
+      "S4/T1 baseline already fixed with 9301",
+      "No grammar change, no search tweak, no phi auto supplement, no 266/9304 retry"
+    ]
+  },
+  "explicit": {
+    "runs": {
+      "S2": {
+        "baseline": {
+          "sentence": "わたあめを食べているひつじがいる",
+          "sentence_key": "S2",
+          "proposal_id": "baseline",
+          "explicit_lexicon_ids": [
+            265,
+            23,
+            266,
+            267,
+            19,
+            271,
+            204
+          ],
+          "status": "unknown",
+          "reason": "timeout",
+          "actions_attempted": 10292,
+          "max_depth_reached": 9,
+          "best_leaf_unresolved_min": 1,
+          "best_leaf_residual_family_totals": {
+            "sy:17": 5
+          },
+          "best_leaf_exact_source_top5": [
+            {
+              "family": "sy:17",
+              "exact_label": "2,17,N,,,left,nonhead",
+              "item_id": "x3-1",
+              "surface": "",
+              "initial_slot": 3,
+              "lexicon_id": -1,
+              "count_in_top5_samples": 5
+            }
+          ],
+          "history_top": [],
+          "evidence_present": false
+        },
+        "after_wo181": {
+          "sentence": "わたあめを食べているひつじがいる",
+          "sentence_key": "S2",
+          "proposal_id": "after_wo181",
+          "explicit_lexicon_ids": [
+            265,
+            181,
+            266,
+            267,
+            19,
+            271,
+            204
+          ],
+          "status": "reachable",
+          "reason": "timeout",
+          "actions_attempted": 10337,
+          "max_depth_reached": 9,
+          "best_leaf_unresolved_min": 1,
+          "best_leaf_residual_family_totals": {
+            "se:24": 2,
+            "se:33": 15,
+            "sy:1": 2,
+            "sy:17": 10
+          },
+          "best_leaf_exact_source_top5": [
+            {
+              "family": "se:33",
+              "exact_label": "Agent:2,33,ga",
+              "item_id": "x3-1",
+              "surface": "食べている",
+              "initial_slot": 3,
+              "lexicon_id": -1,
+              "count_in_top5_samples": 5
+            },
+            {
+              "family": "se:33",
+              "exact_label": "Theme:2,33,wo",
+              "item_id": "x3-1",
+              "surface": "食べている",
+              "initial_slot": 3,
+              "lexicon_id": -1,
+              "count_in_top5_samples": 5
+            },
+            {
+              "family": "se:33",
+              "exact_label": "Theme:2,33,ga",
+              "item_id": "x6-1",
+              "surface": "",
+              "initial_slot": 6,
+              "lexicon_id": -1,
+              "count_in_top5_samples": 5
+            },
+            {
+              "family": "sy:17",
+              "exact_label": "2,17,N,,,left,nonhead",
+              "item_id": "x3-1",
+              "surface": "食べている",
+              "initial_slot": 3,
+              "lexicon_id": -1,
+              "count_in_top5_samples": 5
+            },
+            {
+              "family": "sy:17",
+              "exact_label": "2,17,T,,,left,head",
+              "item_id": "x6-1",
+              "surface": "",
+              "initial_slot": 6,
+              "lexicon_id": -1,
+              "count_in_top5_samples": 5
+            }
+          ],
+          "history_top": [
+            "[{'step': 1, 'rule_name': 'J-Merge', 'rule_number': 7, 'rule_kind': 'double', 'left': 4, 'right': 5, 'check': None, 'left_id': 'x4-1', 'right_id': 'x5-1'}, {'step': 2, 'rule_name': 'RH-Merge', 'rule_number': 11, 'rule_kind': 'double', 'left': 3, 'right': 2, 'check': None, 'left_id': 'x3-1', 'right_id': 'x2-1'}, {'step': 3, 'rule_name': 'property-Merge', 'rule_number': 9, 'rule_kind': 'double', 'left': 2, 'right': 5, 'check': None, 'left_id': 'x2-1', 'right_id': 'x7-1'}, {'step': 4, 'rule_name': 'rel-Merge', 'rule_number': 10, 'rule_kind': 'double', 'left': 4, 'right': 1, 'check': None, 'left_id': 'x7-1', 'right_id': 'x1-1'}, {'step': 5, 'rule_name': 'RH-Merge', 'rule_number': 11, 'rule_kind': 'double', 'left': 2, 'right': 1, 'check': None, 'left_id': 'x4-1', 'right_id': 'x1-1'}]",
+            "[{'step': 1, 'rule_name': 'J-Merge', 'rule_number': 7, 'rule_kind': 'double', 'left': 4, 'right': 5, 'check': None, 'left_id': 'x4-1', 'right_id': 'x5-1'}, {'step': 2, 'rule_name': 'RH-Merge', 'rule_number': 11, 'rule_kind': 'double', 'left': 3, 'right': 2, 'check': None, 'left_id': 'x3-1', 'right_id': 'x2-1'}, {'step': 3, 'rule_name': 'property-Merge', 'rule_number': 9, 'rule_kind': 'double', 'left': 2, 'right': 5, 'check': None, 'left_id': 'x2-1', 'right_id': 'x7-1'}, {'step': 4, 'rule_name': 'RH-Merge', 'rule_number': 11, 'rule_kind': 'double', 'left': 2, 'right': 4, 'check': None, 'left_id': 'x4-1', 'right_id': 'x7-1'}, {'step': 5, 'rule_name': 'rel-Merge', 'rule_number': 10, 'rule_kind': 'double', 'left': 3, 'right': 1, 'check': None, 'left_id': 'x7-1', 'right_id': 'x1-1'}]",
+            "[{'step': 1, 'rule_name': 'J-Merge', 'rule_number': 7, 'rule_kind': 'double', 'left': 4, 'right': 5, 'check': None, 'left_id': 'x4-1', 'right_id': 'x5-1'}, {'step': 2, 'rule_name': 'RH-Merge', 'rule_number': 11, 'rule_kind': 'double', 'left': 3, 'right': 2, 'check': None, 'left_id': 'x3-1', 'right_id': 'x2-1'}, {'step': 3, 'rule_name': 'RH-Merge', 'rule_number': 11, 'rule_kind': 'double', 'left': 3, 'right': 2, 'check': None, 'left_id': 'x4-1', 'right_id': 'x2-1'}, {'step': 4, 'rule_name': 'property-Merge', 'rule_number': 9, 'rule_kind': 'double', 'left': 2, 'right': 4, 'check': None, 'left_id': 'x2-1', 'right_id': 'x7-1'}, {'step': 5, 'rule_name': 'rel-Merge', 'rule_number': 10, 'rule_kind': 'double', 'left': 3, 'right': 1, 'check': None, 'left_id': 'x7-1', 'right_id': 'x1-1'}]",
+            "[{'step': 1, 'rule_name': 'J-Merge', 'rule_number': 7, 'rule_kind': 'double', 'left': 4, 'right': 5, 'check': None, 'left_id': 'x4-1', 'right_id': 'x5-1'}, {'step': 2, 'rule_name': 'RH-Merge', 'rule_number': 11, 'rule_kind': 'double', 'left': 3, 'right': 2, 'check': None, 'left_id': 'x3-1', 'right_id': 'x2-1'}, {'step': 3, 'rule_name': 'property-Merge', 'rule_number': 9, 'rule_kind': 'double', 'left': 2, 'right': 5, 'check': None, 'left_id': 'x2-1', 'right_id': 'x7-1'}, {'step': 4, 'rule_name': 'RH-Merge', 'rule_number': 11, 'rule_kind': 'double', 'left': 2, 'right': 1, 'check': None, 'left_id': 'x4-1', 'right_id': 'x1-1'}, {'step': 5, 'rule_name': 'rel-Merge', 'rule_number': 10, 'rule_kind': 'double', 'left': 3, 'right': 1, 'check': None, 'left_id': 'x7-1', 'right_id': 'x1-1'}]"
+          ],
+          "evidence_present": true
+        },
+        "after_wo189": {
+          "sentence": "わたあめを食べているひつじがいる",
+          "sentence_key": "S2",
+          "proposal_id": "after_wo189",
+          "explicit_lexicon_ids": [
+            265,
+            189,
+            266,
+            267,
+            19,
+            271,
+            204
+          ],
+          "status": "reachable",
+          "reason": "timeout",
+          "actions_attempted": 10248,
+          "max_depth_reached": 9,
+          "best_leaf_unresolved_min": 1,
+          "best_leaf_residual_family_totals": {
+            "se:24": 2,
+            "se:33": 15,
+            "sy:1": 2,
+            "sy:17": 10
+          },
+          "best_leaf_exact_source_top5": [
+            {
+              "family": "se:33",
+              "exact_label": "Agent:2,33,ga",
+              "item_id": "x3-1",
+              "surface": "食べている",
+              "initial_slot": 3,
+              "lexicon_id": -1,
+              "count_in_top5_samples": 5
+            },
+            {
+              "family": "se:33",
+              "exact_label": "Theme:2,33,wo",
+              "item_id": "x3-1",
+              "surface": "食べている",
+              "initial_slot": 3,
+              "lexicon_id": -1,
+              "count_in_top5_samples": 5
+            },
+            {
+              "family": "se:33",
+              "exact_label": "Theme:2,33,ga",
+              "item_id": "x6-1",
+              "surface": "",
+              "initial_slot": 6,
+              "lexicon_id": -1,
+              "count_in_top5_samples": 5
+            },
+            {
+              "family": "sy:17",
+              "exact_label": "2,17,N,,,left,nonhead",
+              "item_id": "x3-1",
+              "surface": "食べている",
+              "initial_slot": 3,
+              "lexicon_id": -1,
+              "count_in_top5_samples": 5
+            },
+            {
+              "family": "sy:17",
+              "exact_label": "2,17,T,,,left,head",
+              "item_id": "x6-1",
+              "surface": "",
+              "initial_slot": 6,
+              "lexicon_id": -1,
+              "count_in_top5_samples": 5
+            }
+          ],
+          "history_top": [
+            "[{'step': 1, 'rule_name': 'J-Merge', 'rule_number': 7, 'rule_kind': 'double', 'left': 4, 'right': 5, 'check': None, 'left_id': 'x4-1', 'right_id': 'x5-1'}, {'step': 2, 'rule_name': 'RH-Merge', 'rule_number': 11, 'rule_kind': 'double', 'left': 3, 'right': 2, 'check': None, 'left_id': 'x3-1', 'right_id': 'x2-1'}, {'step': 3, 'rule_name': 'property-Merge', 'rule_number': 9, 'rule_kind': 'double', 'left': 2, 'right': 5, 'check': None, 'left_id': 'x2-1', 'right_id': 'x7-1'}, {'step': 4, 'rule_name': 'rel-Merge', 'rule_number': 10, 'rule_kind': 'double', 'left': 4, 'right': 1, 'check': None, 'left_id': 'x7-1', 'right_id': 'x1-1'}, {'step': 5, 'rule_name': 'RH-Merge', 'rule_number': 11, 'rule_kind': 'double', 'left': 2, 'right': 1, 'check': None, 'left_id': 'x4-1', 'right_id': 'x1-1'}]",
+            "[{'step': 1, 'rule_name': 'J-Merge', 'rule_number': 7, 'rule_kind': 'double', 'left': 4, 'right': 5, 'check': None, 'left_id': 'x4-1', 'right_id': 'x5-1'}, {'step': 2, 'rule_name': 'RH-Merge', 'rule_number': 11, 'rule_kind': 'double', 'left': 3, 'right': 2, 'check': None, 'left_id': 'x3-1', 'right_id': 'x2-1'}, {'step': 3, 'rule_name': 'property-Merge', 'rule_number': 9, 'rule_kind': 'double', 'left': 2, 'right': 5, 'check': None, 'left_id': 'x2-1', 'right_id': 'x7-1'}, {'step': 4, 'rule_name': 'RH-Merge', 'rule_number': 11, 'rule_kind': 'double', 'left': 2, 'right': 4, 'check': None, 'left_id': 'x4-1', 'right_id': 'x7-1'}, {'step': 5, 'rule_name': 'rel-Merge', 'rule_number': 10, 'rule_kind': 'double', 'left': 3, 'right': 1, 'check': None, 'left_id': 'x7-1', 'right_id': 'x1-1'}]",
+            "[{'step': 1, 'rule_name': 'J-Merge', 'rule_number': 7, 'rule_kind': 'double', 'left': 4, 'right': 5, 'check': None, 'left_id': 'x4-1', 'right_id': 'x5-1'}, {'step': 2, 'rule_name': 'RH-Merge', 'rule_number': 11, 'rule_kind': 'double', 'left': 3, 'right': 2, 'check': None, 'left_id': 'x3-1', 'right_id': 'x2-1'}, {'step': 3, 'rule_name': 'RH-Merge', 'rule_number': 11, 'rule_kind': 'double', 'left': 3, 'right': 2, 'check': None, 'left_id': 'x4-1', 'right_id': 'x2-1'}, {'step': 4, 'rule_name': 'property-Merge', 'rule_number': 9, 'rule_kind': 'double', 'left': 2, 'right': 4, 'check': None, 'left_id': 'x2-1', 'right_id': 'x7-1'}, {'step': 5, 'rule_name': 'rel-Merge', 'rule_number': 10, 'rule_kind': 'double', 'left': 3, 'right': 1, 'check': None, 'left_id': 'x7-1', 'right_id': 'x1-1'}]",
+            "[{'step': 1, 'rule_name': 'J-Merge', 'rule_number': 7, 'rule_kind': 'double', 'left': 4, 'right': 5, 'check': None, 'left_id': 'x4-1', 'right_id': 'x5-1'}, {'step': 2, 'rule_name': 'RH-Merge', 'rule_number': 11, 'rule_kind': 'double', 'left': 3, 'right': 2, 'check': None, 'left_id': 'x3-1', 'right_id': 'x2-1'}, {'step': 3, 'rule_name': 'property-Merge', 'rule_number': 9, 'rule_kind': 'double', 'left': 2, 'right': 5, 'check': None, 'left_id': 'x2-1', 'right_id': 'x7-1'}, {'step': 4, 'rule_name': 'RH-Merge', 'rule_number': 11, 'rule_kind': 'double', 'left': 2, 'right': 1, 'check': None, 'left_id': 'x4-1', 'right_id': 'x1-1'}, {'step': 5, 'rule_name': 'rel-Merge', 'rule_number': 10, 'rule_kind': 'double', 'left': 3, 'right': 1, 'check': None, 'left_id': 'x7-1', 'right_id': 'x1-1'}]"
+          ],
+          "evidence_present": true
+        },
+        "secondary_wo181_ga183": {
+          "sentence": "わたあめを食べているひつじがいる",
+          "sentence_key": "S2",
+          "proposal_id": "secondary_wo181_ga183",
+          "explicit_lexicon_ids": [
+            265,
+            181,
+            266,
+            267,
+            183,
+            271,
+            204
+          ],
+          "status": "reachable",
+          "reason": "timeout",
+          "actions_attempted": 10595,
+          "max_depth_reached": 9,
+          "best_leaf_unresolved_min": 0,
+          "best_leaf_residual_family_totals": {
+            "se:33": 15,
+            "sy:17": 10
+          },
+          "best_leaf_exact_source_top5": [
+            {
+              "family": "se:33",
+              "exact_label": "Agent:2,33,ga",
+              "item_id": "x3-1",
+              "surface": "食べている",
+              "initial_slot": 3,
+              "lexicon_id": -1,
+              "count_in_top5_samples": 5
+            },
+            {
+              "family": "se:33",
+              "exact_label": "Theme:2,33,wo",
+              "item_id": "x3-1",
+              "surface": "食べている",
+              "initial_slot": 3,
+              "lexicon_id": -1,
+              "count_in_top5_samples": 5
+            },
+            {
+              "family": "se:33",
+              "exact_label": "Theme:2,33,ga",
+              "item_id": "x6-1",
+              "surface": "",
+              "initial_slot": 6,
+              "lexicon_id": -1,
+              "count_in_top5_samples": 5
+            },
+            {
+              "family": "sy:17",
+              "exact_label": "2,17,N,,,left,nonhead",
+              "item_id": "x3-1",
+              "surface": "食べている",
+              "initial_slot": 3,
+              "lexicon_id": -1,
+              "count_in_top5_samples": 5
+            },
+            {
+              "family": "sy:17",
+              "exact_label": "2,17,T,,,left,head",
+              "item_id": "x6-1",
+              "surface": "",
+              "initial_slot": 6,
+              "lexicon_id": -1,
+              "count_in_top5_samples": 5
+            }
+          ],
+          "history_top": [
+            "[{'step': 1, 'rule_name': 'J-Merge', 'rule_number': 7, 'rule_kind': 'double', 'left': 4, 'right': 5, 'check': None, 'left_id': 'x4-1', 'right_id': 'x5-1'}, {'step': 2, 'rule_name': 'RH-Merge', 'rule_number': 11, 'rule_kind': 'double', 'left': 3, 'right': 2, 'check': None, 'left_id': 'x3-1', 'right_id': 'x2-1'}, {'step': 3, 'rule_name': 'property-Merge', 'rule_number': 9, 'rule_kind': 'double', 'left': 2, 'right': 5, 'check': None, 'left_id': 'x2-1', 'right_id': 'x7-1'}, {'step': 4, 'rule_name': 'rel-Merge', 'rule_number': 10, 'rule_kind': 'double', 'left': 4, 'right': 1, 'check': None, 'left_id': 'x7-1', 'right_id': 'x1-1'}]",
+            "[{'step': 1, 'rule_name': 'J-Merge', 'rule_number': 7, 'rule_kind': 'double', 'left': 4, 'right': 5, 'check': None, 'left_id': 'x4-1', 'right_id': 'x5-1'}, {'step': 2, 'rule_name': 'RH-Merge', 'rule_number': 11, 'rule_kind': 'double', 'left': 3, 'right': 2, 'check': None, 'left_id': 'x3-1', 'right_id': 'x2-1'}, {'step': 3, 'rule_name': 'property-Merge', 'rule_number': 9, 'rule_kind': 'double', 'left': 2, 'right': 5, 'check': None, 'left_id': 'x2-1', 'right_id': 'x7-1'}, {'step': 4, 'rule_name': 'RH-Merge', 'rule_number': 11, 'rule_kind': 'double', 'left': 2, 'right': 4, 'check': None, 'left_id': 'x4-1', 'right_id': 'x7-1'}, {'step': 5, 'rule_name': 'RH-Merge', 'rule_number': 11, 'rule_kind': 'double', 'left': 3, 'right': 2, 'check': None, 'left_id': 'x7-1', 'right_id': 'x6-1'}]",
+            "[{'step': 1, 'rule_name': 'J-Merge', 'rule_number': 7, 'rule_kind': 'double', 'left': 4, 'right': 5, 'check': None, 'left_id': 'x4-1', 'right_id': 'x5-1'}, {'step': 2, 'rule_name': 'RH-Merge', 'rule_number': 11, 'rule_kind': 'double', 'left': 3, 'right': 2, 'check': None, 'left_id': 'x3-1', 'right_id': 'x2-1'}, {'step': 3, 'rule_name': 'property-Merge', 'rule_number': 9, 'rule_kind': 'double', 'left': 2, 'right': 5, 'check': None, 'left_id': 'x2-1', 'right_id': 'x7-1'}, {'step': 4, 'rule_name': 'RH-Merge', 'rule_number': 11, 'rule_kind': 'double', 'left': 2, 'right': 4, 'check': None, 'left_id': 'x4-1', 'right_id': 'x7-1'}, {'step': 5, 'rule_name': 'rel-Merge', 'rule_number': 10, 'rule_kind': 'double', 'left': 3, 'right': 1, 'check': None, 'left_id': 'x7-1', 'right_id': 'x1-1'}]",
+            "[{'step': 1, 'rule_name': 'J-Merge', 'rule_number': 7, 'rule_kind': 'double', 'left': 4, 'right': 5, 'check': None, 'left_id': 'x4-1', 'right_id': 'x5-1'}, {'step': 2, 'rule_name': 'RH-Merge', 'rule_number': 11, 'rule_kind': 'double', 'left': 3, 'right': 2, 'check': None, 'left_id': 'x3-1', 'right_id': 'x2-1'}, {'step': 3, 'rule_name': 'property-Merge', 'rule_number': 9, 'rule_kind': 'double', 'left': 2, 'right': 5, 'check': None, 'left_id': 'x2-1', 'right_id': 'x7-1'}, {'step': 4, 'rule_name': 'RH-Merge', 'rule_number': 11, 'rule_kind': 'double', 'left': 1, 'right': 2, 'check': None, 'left_id': 'x1-1', 'right_id': 'x4-1'}, {'step': 5, 'rule_name': 'RH-Merge', 'rule_number': 11, 'rule_kind': 'double', 'left': 3, 'right': 2, 'check': None, 'left_id': 'x7-1', 'right_id': 'x6-1'}]",
+            "[{'step': 1, 'rule_name': 'J-Merge', 'rule_number': 7, 'rule_kind': 'double', 'left': 4, 'right': 5, 'check': None, 'left_id': 'x4-1', 'right_id': 'x5-1'}, {'step': 2, 'rule_name': 'RH-Merge', 'rule_number': 11, 'rule_kind': 'double', 'left': 3, 'right': 2, 'check': None, 'left_id': 'x3-1', 'right_id': 'x2-1'}, {'step': 3, 'rule_name': 'property-Merge', 'rule_number': 9, 'rule_kind': 'double', 'left': 2, 'right': 5, 'check': None, 'left_id': 'x2-1', 'right_id': 'x7-1'}, {'step': 4, 'rule_name': 'RH-Merge', 'rule_number': 11, 'rule_kind': 'double', 'left': 1, 'right': 4, 'check': None, 'left_id': 'x1-1', 'right_id': 'x7-1'}, {'step': 5, 'rule_name': 'RH-Merge', 'rule_number': 11, 'rule_kind': 'double', 'left': 3, 'right': 2, 'check': None, 'left_id': 'x7-1', 'right_id': 'x6-1'}]"
+          ],
+          "evidence_present": true
+        }
+      },
+      "T3": {
+        "baseline": {
+          "sentence": "ふわふわしたわたあめを食べているひつじがいる",
+          "sentence_key": "T3",
+          "proposal_id": "baseline",
+          "explicit_lexicon_ids": [
+            264,
+            265,
+            23,
+            266,
+            267,
+            19,
+            271,
+            204
+          ],
+          "status": "unknown",
+          "reason": "timeout",
+          "actions_attempted": 10266,
+          "max_depth_reached": 10,
+          "best_leaf_unresolved_min": 2,
+          "best_leaf_residual_family_totals": {
+            "sy:17": 10
+          },
+          "best_leaf_exact_source_top5": [
+            {
+              "family": "sy:17",
+              "exact_label": "0,17,N,,,left,nonhead",
+              "item_id": "x1-1",
+              "surface": "ふわふわした",
+              "initial_slot": 1,
+              "lexicon_id": -1,
+              "count_in_top5_samples": 5
+            },
+            {
+              "family": "sy:17",
+              "exact_label": "2,17,N,,,left,nonhead",
+              "item_id": "x4-1",
+              "surface": "",
+              "initial_slot": 4,
+              "lexicon_id": -1,
+              "count_in_top5_samples": 5
+            }
+          ],
+          "history_top": [],
+          "evidence_present": false
+        },
+        "after_wo181": {
+          "sentence": "ふわふわしたわたあめを食べているひつじがいる",
+          "sentence_key": "T3",
+          "proposal_id": "after_wo181",
+          "explicit_lexicon_ids": [
+            264,
+            265,
+            181,
+            266,
+            267,
+            19,
+            271,
+            204
+          ],
+          "status": "unknown",
+          "reason": "timeout",
+          "actions_attempted": 10204,
+          "max_depth_reached": 10,
+          "best_leaf_unresolved_min": 1,
+          "best_leaf_residual_family_totals": {
+            "se:33": 15,
+            "sy:17": 15
+          },
+          "best_leaf_exact_source_top5": [
+            {
+              "family": "se:33",
+              "exact_label": "Agent:2,33,ga",
+              "item_id": "x4-1",
+              "surface": "食べている",
+              "initial_slot": 4,
+              "lexicon_id": -1,
+              "count_in_top5_samples": 5
+            },
+            {
+              "family": "se:33",
+              "exact_label": "Theme:2,33,wo",
+              "item_id": "x4-1",
+              "surface": "食べている",
+              "initial_slot": 4,
+              "lexicon_id": -1,
+              "count_in_top5_samples": 5
+            },
+            {
+              "family": "se:33",
+              "exact_label": "Theme:2,33,ga",
+              "item_id": "x7-1",
+              "surface": "",
+              "initial_slot": 7,
+              "lexicon_id": -1,
+              "count_in_top5_samples": 5
+            },
+            {
+              "family": "sy:17",
+              "exact_label": "0,17,N,,,left,nonhead",
+              "item_id": "x1-1",
+              "surface": "ふわふわした",
+              "initial_slot": 1,
+              "lexicon_id": -1,
+              "count_in_top5_samples": 5
+            },
+            {
+              "family": "sy:17",
+              "exact_label": "2,17,N,,,left,nonhead",
+              "item_id": "x4-1",
+              "surface": "食べている",
+              "initial_slot": 4,
+              "lexicon_id": -1,
+              "count_in_top5_samples": 5
+            }
+          ],
+          "history_top": [],
+          "evidence_present": false
+        },
+        "after_wo189": {
+          "sentence": "ふわふわしたわたあめを食べているひつじがいる",
+          "sentence_key": "T3",
+          "proposal_id": "after_wo189",
+          "explicit_lexicon_ids": [
+            264,
+            265,
+            189,
+            266,
+            267,
+            19,
+            271,
+            204
+          ],
+          "status": "unknown",
+          "reason": "timeout",
+          "actions_attempted": 10050,
+          "max_depth_reached": 10,
+          "best_leaf_unresolved_min": 1,
+          "best_leaf_residual_family_totals": {
+            "se:33": 15,
+            "sy:17": 15
+          },
+          "best_leaf_exact_source_top5": [
+            {
+              "family": "se:33",
+              "exact_label": "Agent:2,33,ga",
+              "item_id": "x4-1",
+              "surface": "食べている",
+              "initial_slot": 4,
+              "lexicon_id": -1,
+              "count_in_top5_samples": 5
+            },
+            {
+              "family": "se:33",
+              "exact_label": "Theme:2,33,wo",
+              "item_id": "x4-1",
+              "surface": "食べている",
+              "initial_slot": 4,
+              "lexicon_id": -1,
+              "count_in_top5_samples": 5
+            },
+            {
+              "family": "se:33",
+              "exact_label": "Theme:2,33,ga",
+              "item_id": "x7-1",
+              "surface": "",
+              "initial_slot": 7,
+              "lexicon_id": -1,
+              "count_in_top5_samples": 5
+            },
+            {
+              "family": "sy:17",
+              "exact_label": "0,17,N,,,left,nonhead",
+              "item_id": "x1-1",
+              "surface": "ふわふわした",
+              "initial_slot": 1,
+              "lexicon_id": -1,
+              "count_in_top5_samples": 5
+            },
+            {
+              "family": "sy:17",
+              "exact_label": "2,17,N,,,left,nonhead",
+              "item_id": "x4-1",
+              "surface": "食べている",
+              "initial_slot": 4,
+              "lexicon_id": -1,
+              "count_in_top5_samples": 5
+            }
+          ],
+          "history_top": [],
+          "evidence_present": false
+        },
+        "secondary_wo181_ga183": {
+          "sentence": "ふわふわしたわたあめを食べているひつじがいる",
+          "sentence_key": "T3",
+          "proposal_id": "secondary_wo181_ga183",
+          "explicit_lexicon_ids": [
+            264,
+            265,
+            181,
+            266,
+            267,
+            183,
+            271,
+            204
+          ],
+          "status": "unknown",
+          "reason": "timeout",
+          "actions_attempted": 10391,
+          "max_depth_reached": 10,
+          "best_leaf_unresolved_min": 1,
+          "best_leaf_residual_family_totals": {
+            "se:33": 15,
+            "sy:17": 15
+          },
+          "best_leaf_exact_source_top5": [
+            {
+              "family": "se:33",
+              "exact_label": "Agent:2,33,ga",
+              "item_id": "x4-1",
+              "surface": "食べている",
+              "initial_slot": 4,
+              "lexicon_id": -1,
+              "count_in_top5_samples": 5
+            },
+            {
+              "family": "se:33",
+              "exact_label": "Theme:2,33,wo",
+              "item_id": "x4-1",
+              "surface": "食べている",
+              "initial_slot": 4,
+              "lexicon_id": -1,
+              "count_in_top5_samples": 5
+            },
+            {
+              "family": "se:33",
+              "exact_label": "Theme:2,33,ga",
+              "item_id": "x7-1",
+              "surface": "",
+              "initial_slot": 7,
+              "lexicon_id": -1,
+              "count_in_top5_samples": 5
+            },
+            {
+              "family": "sy:17",
+              "exact_label": "0,17,N,,,left,nonhead",
+              "item_id": "x1-1",
+              "surface": "ふわふわした",
+              "initial_slot": 1,
+              "lexicon_id": -1,
+              "count_in_top5_samples": 5
+            },
+            {
+              "family": "sy:17",
+              "exact_label": "2,17,N,,,left,nonhead",
+              "item_id": "x4-1",
+              "surface": "食べている",
+              "initial_slot": 4,
+              "lexicon_id": -1,
+              "count_in_top5_samples": 5
+            }
+          ],
+          "history_top": [],
+          "evidence_present": false
+        }
+      },
+      "T1": {
+        "baseline": {
+          "sentence": "わたあめを食べているひつじと話しているうさぎがいる",
+          "sentence_key": "T1",
+          "proposal_id": "baseline",
+          "explicit_lexicon_ids": [
+            265,
+            23,
+            266,
+            267,
+            9301,
+            269,
+            270,
+            19,
+            271,
+            204
+          ],
+          "status": "unknown",
+          "reason": "timeout",
+          "actions_attempted": 10029,
+          "max_depth_reached": 12,
+          "best_leaf_unresolved_min": 4,
+          "best_leaf_residual_family_totals": {
+            "se:33": 10,
+            "sy:17": 5
+          },
+          "best_leaf_exact_source_top5": [
+            {
+              "family": "se:33",
+              "exact_label": "Agent:2,33,ga",
+              "item_id": "x6-1",
+              "surface": "話している",
+              "initial_slot": 6,
+              "lexicon_id": -1,
+              "count_in_top5_samples": 5
+            },
+            {
+              "family": "se:33",
+              "exact_label": "相手:2,33,to",
+              "item_id": "x6-1",
+              "surface": "話している",
+              "initial_slot": 6,
+              "lexicon_id": -1,
+              "count_in_top5_samples": 5
+            },
+            {
+              "family": "sy:17",
+              "exact_label": "2,17,N,,,left,nonhead",
+              "item_id": "x3-1",
+              "surface": "",
+              "initial_slot": 3,
+              "lexicon_id": -1,
+              "count_in_top5_samples": 5
+            }
+          ],
+          "history_top": [],
+          "evidence_present": false
+        },
+        "after_wo181": {
+          "sentence": "わたあめを食べているひつじと話しているうさぎがいる",
+          "sentence_key": "T1",
+          "proposal_id": "after_wo181",
+          "explicit_lexicon_ids": [
+            265,
+            181,
+            266,
+            267,
+            9301,
+            269,
+            270,
+            19,
+            271,
+            204
+          ],
+          "status": "unknown",
+          "reason": "timeout",
+          "actions_attempted": 7809,
+          "max_depth_reached": 9,
+          "best_leaf_unresolved_min": 4,
+          "best_leaf_residual_family_totals": {
+            "se:33": 25,
+            "sy:17": 10
+          },
+          "best_leaf_exact_source_top5": [
+            {
+              "family": "se:33",
+              "exact_label": "Agent:2,33,ga",
+              "item_id": "x3-1",
+              "surface": "食べている",
+              "initial_slot": 3,
+              "lexicon_id": -1,
+              "count_in_top5_samples": 5
+            },
+            {
+              "family": "se:33",
+              "exact_label": "Theme:2,33,wo",
+              "item_id": "x3-1",
+              "surface": "食べている",
+              "initial_slot": 3,
+              "lexicon_id": -1,
+              "count_in_top5_samples": 5
+            },
+            {
+              "family": "se:33",
+              "exact_label": "Agent:2,33,ga",
+              "item_id": "x6-1",
+              "surface": "話している",
+              "initial_slot": 6,
+              "lexicon_id": -1,
+              "count_in_top5_samples": 5
+            },
+            {
+              "family": "se:33",
+              "exact_label": "相手:2,33,to",
+              "item_id": "x6-1",
+              "surface": "話している",
+              "initial_slot": 6,
+              "lexicon_id": -1,
+              "count_in_top5_samples": 5
+            },
+            {
+              "family": "se:33",
+              "exact_label": "Theme:2,33,ga",
+              "item_id": "x9-1",
+              "surface": "",
+              "initial_slot": 9,
+              "lexicon_id": -1,
+              "count_in_top5_samples": 5
+            }
+          ],
+          "history_top": [],
+          "evidence_present": false
+        },
+        "after_wo189": {
+          "sentence": "わたあめを食べているひつじと話しているうさぎがいる",
+          "sentence_key": "T1",
+          "proposal_id": "after_wo189",
+          "explicit_lexicon_ids": [
+            265,
+            189,
+            266,
+            267,
+            9301,
+            269,
+            270,
+            19,
+            271,
+            204
+          ],
+          "status": "unknown",
+          "reason": "timeout",
+          "actions_attempted": 7689,
+          "max_depth_reached": 9,
+          "best_leaf_unresolved_min": 4,
+          "best_leaf_residual_family_totals": {
+            "se:33": 25,
+            "sy:17": 10
+          },
+          "best_leaf_exact_source_top5": [
+            {
+              "family": "se:33",
+              "exact_label": "Agent:2,33,ga",
+              "item_id": "x3-1",
+              "surface": "食べている",
+              "initial_slot": 3,
+              "lexicon_id": -1,
+              "count_in_top5_samples": 5
+            },
+            {
+              "family": "se:33",
+              "exact_label": "Theme:2,33,wo",
+              "item_id": "x3-1",
+              "surface": "食べている",
+              "initial_slot": 3,
+              "lexicon_id": -1,
+              "count_in_top5_samples": 5
+            },
+            {
+              "family": "se:33",
+              "exact_label": "Agent:2,33,ga",
+              "item_id": "x6-1",
+              "surface": "話している",
+              "initial_slot": 6,
+              "lexicon_id": -1,
+              "count_in_top5_samples": 5
+            },
+            {
+              "family": "se:33",
+              "exact_label": "相手:2,33,to",
+              "item_id": "x6-1",
+              "surface": "話している",
+              "initial_slot": 6,
+              "lexicon_id": -1,
+              "count_in_top5_samples": 5
+            },
+            {
+              "family": "se:33",
+              "exact_label": "Theme:2,33,ga",
+              "item_id": "x9-1",
+              "surface": "",
+              "initial_slot": 9,
+              "lexicon_id": -1,
+              "count_in_top5_samples": 5
+            }
+          ],
+          "history_top": [],
+          "evidence_present": false
+        },
+        "secondary_wo181_ga183": {
+          "sentence": "わたあめを食べているひつじと話しているうさぎがいる",
+          "sentence_key": "T1",
+          "proposal_id": "secondary_wo181_ga183",
+          "explicit_lexicon_ids": [
+            265,
+            181,
+            266,
+            267,
+            9301,
+            269,
+            270,
+            183,
+            271,
+            204
+          ],
+          "status": "unknown",
+          "reason": "timeout",
+          "actions_attempted": 8271,
+          "max_depth_reached": 9,
+          "best_leaf_unresolved_min": 3,
+          "best_leaf_residual_family_totals": {
+            "se:33": 25,
+            "sy:17": 10
+          },
+          "best_leaf_exact_source_top5": [
+            {
+              "family": "se:33",
+              "exact_label": "Agent:2,33,ga",
+              "item_id": "x3-1",
+              "surface": "食べている",
+              "initial_slot": 3,
+              "lexicon_id": -1,
+              "count_in_top5_samples": 5
+            },
+            {
+              "family": "se:33",
+              "exact_label": "Theme:2,33,wo",
+              "item_id": "x3-1",
+              "surface": "食べている",
+              "initial_slot": 3,
+              "lexicon_id": -1,
+              "count_in_top5_samples": 5
+            },
+            {
+              "family": "se:33",
+              "exact_label": "Agent:2,33,ga",
+              "item_id": "x6-1",
+              "surface": "話している",
+              "initial_slot": 6,
+              "lexicon_id": -1,
+              "count_in_top5_samples": 5
+            },
+            {
+              "family": "se:33",
+              "exact_label": "相手:2,33,to",
+              "item_id": "x6-1",
+              "surface": "話している",
+              "initial_slot": 6,
+              "lexicon_id": -1,
+              "count_in_top5_samples": 5
+            },
+            {
+              "family": "se:33",
+              "exact_label": "Theme:2,33,ga",
+              "item_id": "x9-1",
+              "surface": "",
+              "initial_slot": 9,
+              "lexicon_id": -1,
+              "count_in_top5_samples": 5
+            }
+          ],
+          "history_top": [],
+          "evidence_present": false
+        }
+      },
+      "S4": {
+        "baseline": {
+          "sentence": "ふわふわしたわたあめを食べているひつじと話しているうさぎがいる",
+          "sentence_key": "S4",
+          "proposal_id": "baseline",
+          "explicit_lexicon_ids": [
+            264,
+            265,
+            23,
+            266,
+            267,
+            9301,
+            269,
+            270,
+            19,
+            271,
+            204
+          ],
+          "status": "unknown",
+          "reason": "timeout",
+          "actions_attempted": 7485,
+          "max_depth_reached": 10,
+          "best_leaf_unresolved_min": 6,
+          "best_leaf_residual_family_totals": {
+            "se:33": 25,
+            "sy:17": 10
+          },
+          "best_leaf_exact_source_top5": [
+            {
+              "family": "se:33",
+              "exact_label": "Theme:2,33,ga",
+              "item_id": "x10-1",
+              "surface": "",
+              "initial_slot": 10,
+              "lexicon_id": -1,
+              "count_in_top5_samples": 5
+            },
+            {
+              "family": "se:33",
+              "exact_label": "Agent:2,33,ga",
+              "item_id": "x4-1",
+              "surface": "食べている",
+              "initial_slot": 4,
+              "lexicon_id": -1,
+              "count_in_top5_samples": 5
+            },
+            {
+              "family": "se:33",
+              "exact_label": "Theme:2,33,wo",
+              "item_id": "x4-1",
+              "surface": "食べている",
+              "initial_slot": 4,
+              "lexicon_id": -1,
+              "count_in_top5_samples": 5
+            },
+            {
+              "family": "se:33",
+              "exact_label": "Agent:2,33,ga",
+              "item_id": "x7-1",
+              "surface": "話している",
+              "initial_slot": 7,
+              "lexicon_id": -1,
+              "count_in_top5_samples": 5
+            },
+            {
+              "family": "se:33",
+              "exact_label": "相手:2,33,to",
+              "item_id": "x7-1",
+              "surface": "話している",
+              "initial_slot": 7,
+              "lexicon_id": -1,
+              "count_in_top5_samples": 5
+            }
+          ],
+          "history_top": [],
+          "evidence_present": false
+        },
+        "after_wo181": {
+          "sentence": "ふわふわしたわたあめを食べているひつじと話しているうさぎがいる",
+          "sentence_key": "S4",
+          "proposal_id": "after_wo181",
+          "explicit_lexicon_ids": [
+            264,
+            265,
+            181,
+            266,
+            267,
+            9301,
+            269,
+            270,
+            19,
+            271,
+            204
+          ],
+          "status": "reachable",
+          "reason": "timeout",
+          "actions_attempted": 8108,
+          "max_depth_reached": 10,
+          "best_leaf_unresolved_min": 0,
+          "best_leaf_residual_family_totals": {
+            "se:33": 25,
+            "sy:1": 5,
+            "sy:17": 10
+          },
+          "best_leaf_exact_source_top5": [
+            {
+              "family": "se:33",
+              "exact_label": "Theme:2,33,ga",
+              "item_id": "x10-1",
+              "surface": "",
+              "initial_slot": 10,
+              "lexicon_id": -1,
+              "count_in_top5_samples": 5
+            },
+            {
+              "family": "se:33",
+              "exact_label": "Agent:2,33,ga",
+              "item_id": "x4-1",
+              "surface": "食べている",
+              "initial_slot": 4,
+              "lexicon_id": -1,
+              "count_in_top5_samples": 5
+            },
+            {
+              "family": "se:33",
+              "exact_label": "Theme:2,33,wo",
+              "item_id": "x4-1",
+              "surface": "食べている",
+              "initial_slot": 4,
+              "lexicon_id": -1,
+              "count_in_top5_samples": 5
+            },
+            {
+              "family": "se:33",
+              "exact_label": "Agent:2,33,ga",
+              "item_id": "x7-1",
+              "surface": "話している",
+              "initial_slot": 7,
+              "lexicon_id": -1,
+              "count_in_top5_samples": 5
+            },
+            {
+              "family": "se:33",
+              "exact_label": "相手:2,33,to",
+              "item_id": "x7-1",
+              "surface": "話している",
+              "initial_slot": 7,
+              "lexicon_id": -1,
+              "count_in_top5_samples": 5
+            }
+          ],
+          "history_top": [
+            "[{'step': 1, 'rule_name': 'J-Merge', 'rule_number': 7, 'rule_kind': 'double', 'left': 8, 'right': 9, 'check': None, 'left_id': 'x8-1', 'right_id': 'x9-1'}, {'step': 2, 'rule_name': 'RH-Merge', 'rule_number': 11, 'rule_kind': 'double', 'left': 10, 'right': 9, 'check': None, 'left_id': 'x11-1', 'right_id': 'x10-1'}, {'step': 3, 'rule_name': 'property-Merge', 'rule_number': 9, 'rule_kind': 'double', 'left': 3, 'right': 1, 'check': None, 'left_id': 'x3-1', 'right_id': 'x1-1'}, {'step': 4, 'rule_name': 'property-Merge', 'rule_number': 9, 'rule_kind': 'double', 'left': 1, 'right': 5, 'check': None, 'left_id': 'x1-1', 'right_id': 'x6-1'}, {'step': 5, 'rule_name': 'RH-Merge', 'rule_number': 11, 'rule_kind': 'double', 'left': 1, 'right': 4, 'check': None, 'left_id': 'x2-1', 'right_id': 'x6-1'}, {'step': 6, 'rule_name': 'RH-Merge', 'rule_number': 11, 'rule_kind': 'double', 'left': 1, 'right': 2, 'check': None, 'left_id': 'x4-1', 'right_id': 'x5-1'}, {'step': 7, 'rule_name': 'RH-Merge', 'rule_number': 11, 'rule_kind': 'double', 'left': 2, 'right': 5, 'check': None, 'left_id': 'x6-1', 'right_id': 'x10-1'}, {'step': 8, 'rule_name': 'RH-Merge', 'rule_number': 11, 'rule_kind': 'double', 'left': 2, 'right': 1, 'check': None, 'left_id': 'x7-1', 'right_id': 'x5-1'}]",
+            "[{'step': 1, 'rule_name': 'J-Merge', 'rule_number': 7, 'rule_kind': 'double', 'left': 8, 'right': 9, 'check': None, 'left_id': 'x8-1', 'right_id': 'x9-1'}, {'step': 2, 'rule_name': 'RH-Merge', 'rule_number': 11, 'rule_kind': 'double', 'left': 10, 'right': 9, 'check': None, 'left_id': 'x11-1', 'right_id': 'x10-1'}, {'step': 3, 'rule_name': 'property-Merge', 'rule_number': 9, 'rule_kind': 'double', 'left': 3, 'right': 1, 'check': None, 'left_id': 'x3-1', 'right_id': 'x1-1'}, {'step': 4, 'rule_name': 'property-Merge', 'rule_number': 9, 'rule_kind': 'double', 'left': 1, 'right': 5, 'check': None, 'left_id': 'x1-1', 'right_id': 'x6-1'}, {'step': 5, 'rule_name': 'RH-Merge', 'rule_number': 11, 'rule_kind': 'double', 'left': 1, 'right': 4, 'check': None, 'left_id': 'x2-1', 'right_id': 'x6-1'}, {'step': 6, 'rule_name': 'RH-Merge', 'rule_number': 11, 'rule_kind': 'double', 'left': 1, 'right': 2, 'check': None, 'left_id': 'x4-1', 'right_id': 'x5-1'}, {'step': 7, 'rule_name': 'RH-Merge', 'rule_number': 11, 'rule_kind': 'double', 'left': 2, 'right': 1, 'check': None, 'left_id': 'x6-1', 'right_id': 'x5-1'}, {'step': 8, 'rule_name': 'RH-Merge', 'rule_number': 11, 'rule_kind': 'double', 'left': 2, 'right': 1, 'check': None, 'left_id': 'x7-1', 'right_id': 'x5-1'}]",
+            "[{'step': 1, 'rule_name': 'J-Merge', 'rule_number': 7, 'rule_kind': 'double', 'left': 8, 'right': 9, 'check': None, 'left_id': 'x8-1', 'right_id': 'x9-1'}, {'step': 2, 'rule_name': 'RH-Merge', 'rule_number': 11, 'rule_kind': 'double', 'left': 10, 'right': 9, 'check': None, 'left_id': 'x11-1', 'right_id': 'x10-1'}, {'step': 3, 'rule_name': 'property-Merge', 'rule_number': 9, 'rule_kind': 'double', 'left': 3, 'right': 1, 'check': None, 'left_id': 'x3-1', 'right_id': 'x1-1'}, {'step': 4, 'rule_name': 'property-Merge', 'rule_number': 9, 'rule_kind': 'double', 'left': 1, 'right': 5, 'check': None, 'left_id': 'x1-1', 'right_id': 'x6-1'}, {'step': 5, 'rule_name': 'RH-Merge', 'rule_number': 11, 'rule_kind': 'double', 'left': 1, 'right': 4, 'check': None, 'left_id': 'x2-1', 'right_id': 'x6-1'}, {'step': 6, 'rule_name': 'RH-Merge', 'rule_number': 11, 'rule_kind': 'double', 'left': 1, 'right': 2, 'check': None, 'left_id': 'x4-1', 'right_id': 'x5-1'}, {'step': 7, 'rule_name': 'RH-Merge', 'rule_number': 11, 'rule_kind': 'double', 'left': 2, 'right': 1, 'check': None, 'left_id': 'x6-1', 'right_id': 'x5-1'}, {'step': 8, 'rule_name': 'RH-Merge', 'rule_number': 11, 'rule_kind': 'double', 'left': 2, 'right': 4, 'check': None, 'left_id': 'x7-1', 'right_id': 'x10-1'}]",
+            "[{'step': 1, 'rule_name': 'J-Merge', 'rule_number': 7, 'rule_kind': 'double', 'left': 8, 'right': 9, 'check': None, 'left_id': 'x8-1', 'right_id': 'x9-1'}, {'step': 2, 'rule_name': 'RH-Merge', 'rule_number': 11, 'rule_kind': 'double', 'left': 10, 'right': 9, 'check': None, 'left_id': 'x11-1', 'right_id': 'x10-1'}, {'step': 3, 'rule_name': 'property-Merge', 'rule_number': 9, 'rule_kind': 'double', 'left': 3, 'right': 1, 'check': None, 'left_id': 'x3-1', 'right_id': 'x1-1'}, {'step': 4, 'rule_name': 'property-Merge', 'rule_number': 9, 'rule_kind': 'double', 'left': 1, 'right': 5, 'check': None, 'left_id': 'x1-1', 'right_id': 'x6-1'}, {'step': 5, 'rule_name': 'RH-Merge', 'rule_number': 11, 'rule_kind': 'double', 'left': 1, 'right': 4, 'check': None, 'left_id': 'x2-1', 'right_id': 'x6-1'}, {'step': 6, 'rule_name': 'RH-Merge', 'rule_number': 11, 'rule_kind': 'double', 'left': 1, 'right': 2, 'check': None, 'left_id': 'x4-1', 'right_id': 'x5-1'}, {'step': 7, 'rule_name': 'RH-Merge', 'rule_number': 11, 'rule_kind': 'double', 'left': 2, 'right': 1, 'check': None, 'left_id': 'x6-1', 'right_id': 'x5-1'}, {'step': 8, 'rule_name': 'RH-Merge', 'rule_number': 11, 'rule_kind': 'double', 'left': 3, 'right': 1, 'check': None, 'left_id': 'x8-1', 'right_id': 'x5-1'}, {'step': 9, 'rule_name': 'RH-Merge', 'rule_number': 11, 'rule_kind': 'double', 'left': 2, 'right': 3, 'check': None, 'left_id': 'x7-1', 'right_id': 'x10-1'}]",
+            "[{'step': 1, 'rule_name': 'J-Merge', 'rule_number': 7, 'rule_kind': 'double', 'left': 8, 'right': 9, 'check': None, 'left_id': 'x8-1', 'right_id': 'x9-1'}, {'step': 2, 'rule_name': 'RH-Merge', 'rule_number': 11, 'rule_kind': 'double', 'left': 10, 'right': 9, 'check': None, 'left_id': 'x11-1', 'right_id': 'x10-1'}, {'step': 3, 'rule_name': 'property-Merge', 'rule_number': 9, 'rule_kind': 'double', 'left': 3, 'right': 1, 'check': None, 'left_id': 'x3-1', 'right_id': 'x1-1'}, {'step': 4, 'rule_name': 'property-Merge', 'rule_number': 9, 'rule_kind': 'double', 'left': 1, 'right': 5, 'check': None, 'left_id': 'x1-1', 'right_id': 'x6-1'}, {'step': 5, 'rule_name': 'RH-Merge', 'rule_number': 11, 'rule_kind': 'double', 'left': 1, 'right': 4, 'check': None, 'left_id': 'x2-1', 'right_id': 'x6-1'}, {'step': 6, 'rule_name': 'RH-Merge', 'rule_number': 11, 'rule_kind': 'double', 'left': 1, 'right': 2, 'check': None, 'left_id': 'x4-1', 'right_id': 'x5-1'}, {'step': 7, 'rule_name': 'RH-Merge', 'rule_number': 11, 'rule_kind': 'double', 'left': 2, 'right': 1, 'check': None, 'left_id': 'x6-1', 'right_id': 'x5-1'}, {'step': 8, 'rule_name': 'RH-Merge', 'rule_number': 11, 'rule_kind': 'double', 'left': 3, 'right': 1, 'check': None, 'left_id': 'x8-1', 'right_id': 'x5-1'}, {'step': 9, 'rule_name': 'RH-Merge', 'rule_number': 11, 'rule_kind': 'double', 'left': 2, 'right': 1, 'check': None, 'left_id': 'x7-1', 'right_id': 'x5-1'}]"
+          ],
+          "evidence_present": true
+        },
+        "after_wo189": {
+          "sentence": "ふわふわしたわたあめを食べているひつじと話しているうさぎがいる",
+          "sentence_key": "S4",
+          "proposal_id": "after_wo189",
+          "explicit_lexicon_ids": [
+            264,
+            265,
+            189,
+            266,
+            267,
+            9301,
+            269,
+            270,
+            19,
+            271,
+            204
+          ],
+          "status": "reachable",
+          "reason": "timeout",
+          "actions_attempted": 8153,
+          "max_depth_reached": 10,
+          "best_leaf_unresolved_min": 0,
+          "best_leaf_residual_family_totals": {
+            "se:33": 25,
+            "sy:1": 5,
+            "sy:17": 10
+          },
+          "best_leaf_exact_source_top5": [
+            {
+              "family": "se:33",
+              "exact_label": "Theme:2,33,ga",
+              "item_id": "x10-1",
+              "surface": "",
+              "initial_slot": 10,
+              "lexicon_id": -1,
+              "count_in_top5_samples": 5
+            },
+            {
+              "family": "se:33",
+              "exact_label": "Agent:2,33,ga",
+              "item_id": "x4-1",
+              "surface": "食べている",
+              "initial_slot": 4,
+              "lexicon_id": -1,
+              "count_in_top5_samples": 5
+            },
+            {
+              "family": "se:33",
+              "exact_label": "Theme:2,33,wo",
+              "item_id": "x4-1",
+              "surface": "食べている",
+              "initial_slot": 4,
+              "lexicon_id": -1,
+              "count_in_top5_samples": 5
+            },
+            {
+              "family": "se:33",
+              "exact_label": "Agent:2,33,ga",
+              "item_id": "x7-1",
+              "surface": "話している",
+              "initial_slot": 7,
+              "lexicon_id": -1,
+              "count_in_top5_samples": 5
+            },
+            {
+              "family": "se:33",
+              "exact_label": "相手:2,33,to",
+              "item_id": "x7-1",
+              "surface": "話している",
+              "initial_slot": 7,
+              "lexicon_id": -1,
+              "count_in_top5_samples": 5
+            }
+          ],
+          "history_top": [
+            "[{'step': 1, 'rule_name': 'J-Merge', 'rule_number': 7, 'rule_kind': 'double', 'left': 8, 'right': 9, 'check': None, 'left_id': 'x8-1', 'right_id': 'x9-1'}, {'step': 2, 'rule_name': 'RH-Merge', 'rule_number': 11, 'rule_kind': 'double', 'left': 10, 'right': 9, 'check': None, 'left_id': 'x11-1', 'right_id': 'x10-1'}, {'step': 3, 'rule_name': 'property-Merge', 'rule_number': 9, 'rule_kind': 'double', 'left': 3, 'right': 1, 'check': None, 'left_id': 'x3-1', 'right_id': 'x1-1'}, {'step': 4, 'rule_name': 'property-Merge', 'rule_number': 9, 'rule_kind': 'double', 'left': 1, 'right': 5, 'check': None, 'left_id': 'x1-1', 'right_id': 'x6-1'}, {'step': 5, 'rule_name': 'RH-Merge', 'rule_number': 11, 'rule_kind': 'double', 'left': 1, 'right': 4, 'check': None, 'left_id': 'x2-1', 'right_id': 'x6-1'}, {'step': 6, 'rule_name': 'RH-Merge', 'rule_number': 11, 'rule_kind': 'double', 'left': 1, 'right': 2, 'check': None, 'left_id': 'x4-1', 'right_id': 'x5-1'}, {'step': 7, 'rule_name': 'RH-Merge', 'rule_number': 11, 'rule_kind': 'double', 'left': 2, 'right': 5, 'check': None, 'left_id': 'x6-1', 'right_id': 'x10-1'}, {'step': 8, 'rule_name': 'RH-Merge', 'rule_number': 11, 'rule_kind': 'double', 'left': 2, 'right': 1, 'check': None, 'left_id': 'x7-1', 'right_id': 'x5-1'}]",
+            "[{'step': 1, 'rule_name': 'J-Merge', 'rule_number': 7, 'rule_kind': 'double', 'left': 8, 'right': 9, 'check': None, 'left_id': 'x8-1', 'right_id': 'x9-1'}, {'step': 2, 'rule_name': 'RH-Merge', 'rule_number': 11, 'rule_kind': 'double', 'left': 10, 'right': 9, 'check': None, 'left_id': 'x11-1', 'right_id': 'x10-1'}, {'step': 3, 'rule_name': 'property-Merge', 'rule_number': 9, 'rule_kind': 'double', 'left': 3, 'right': 1, 'check': None, 'left_id': 'x3-1', 'right_id': 'x1-1'}, {'step': 4, 'rule_name': 'property-Merge', 'rule_number': 9, 'rule_kind': 'double', 'left': 1, 'right': 5, 'check': None, 'left_id': 'x1-1', 'right_id': 'x6-1'}, {'step': 5, 'rule_name': 'RH-Merge', 'rule_number': 11, 'rule_kind': 'double', 'left': 1, 'right': 4, 'check': None, 'left_id': 'x2-1', 'right_id': 'x6-1'}, {'step': 6, 'rule_name': 'RH-Merge', 'rule_number': 11, 'rule_kind': 'double', 'left': 1, 'right': 2, 'check': None, 'left_id': 'x4-1', 'right_id': 'x5-1'}, {'step': 7, 'rule_name': 'RH-Merge', 'rule_number': 11, 'rule_kind': 'double', 'left': 2, 'right': 1, 'check': None, 'left_id': 'x6-1', 'right_id': 'x5-1'}, {'step': 8, 'rule_name': 'RH-Merge', 'rule_number': 11, 'rule_kind': 'double', 'left': 2, 'right': 1, 'check': None, 'left_id': 'x7-1', 'right_id': 'x5-1'}]",
+            "[{'step': 1, 'rule_name': 'J-Merge', 'rule_number': 7, 'rule_kind': 'double', 'left': 8, 'right': 9, 'check': None, 'left_id': 'x8-1', 'right_id': 'x9-1'}, {'step': 2, 'rule_name': 'RH-Merge', 'rule_number': 11, 'rule_kind': 'double', 'left': 10, 'right': 9, 'check': None, 'left_id': 'x11-1', 'right_id': 'x10-1'}, {'step': 3, 'rule_name': 'property-Merge', 'rule_number': 9, 'rule_kind': 'double', 'left': 3, 'right': 1, 'check': None, 'left_id': 'x3-1', 'right_id': 'x1-1'}, {'step': 4, 'rule_name': 'property-Merge', 'rule_number': 9, 'rule_kind': 'double', 'left': 1, 'right': 5, 'check': None, 'left_id': 'x1-1', 'right_id': 'x6-1'}, {'step': 5, 'rule_name': 'RH-Merge', 'rule_number': 11, 'rule_kind': 'double', 'left': 1, 'right': 4, 'check': None, 'left_id': 'x2-1', 'right_id': 'x6-1'}, {'step': 6, 'rule_name': 'RH-Merge', 'rule_number': 11, 'rule_kind': 'double', 'left': 1, 'right': 2, 'check': None, 'left_id': 'x4-1', 'right_id': 'x5-1'}, {'step': 7, 'rule_name': 'RH-Merge', 'rule_number': 11, 'rule_kind': 'double', 'left': 2, 'right': 1, 'check': None, 'left_id': 'x6-1', 'right_id': 'x5-1'}, {'step': 8, 'rule_name': 'RH-Merge', 'rule_number': 11, 'rule_kind': 'double', 'left': 2, 'right': 4, 'check': None, 'left_id': 'x7-1', 'right_id': 'x10-1'}]",
+            "[{'step': 1, 'rule_name': 'J-Merge', 'rule_number': 7, 'rule_kind': 'double', 'left': 8, 'right': 9, 'check': None, 'left_id': 'x8-1', 'right_id': 'x9-1'}, {'step': 2, 'rule_name': 'RH-Merge', 'rule_number': 11, 'rule_kind': 'double', 'left': 10, 'right': 9, 'check': None, 'left_id': 'x11-1', 'right_id': 'x10-1'}, {'step': 3, 'rule_name': 'property-Merge', 'rule_number': 9, 'rule_kind': 'double', 'left': 3, 'right': 1, 'check': None, 'left_id': 'x3-1', 'right_id': 'x1-1'}, {'step': 4, 'rule_name': 'property-Merge', 'rule_number': 9, 'rule_kind': 'double', 'left': 1, 'right': 5, 'check': None, 'left_id': 'x1-1', 'right_id': 'x6-1'}, {'step': 5, 'rule_name': 'RH-Merge', 'rule_number': 11, 'rule_kind': 'double', 'left': 1, 'right': 4, 'check': None, 'left_id': 'x2-1', 'right_id': 'x6-1'}, {'step': 6, 'rule_name': 'RH-Merge', 'rule_number': 11, 'rule_kind': 'double', 'left': 1, 'right': 2, 'check': None, 'left_id': 'x4-1', 'right_id': 'x5-1'}, {'step': 7, 'rule_name': 'RH-Merge', 'rule_number': 11, 'rule_kind': 'double', 'left': 2, 'right': 1, 'check': None, 'left_id': 'x6-1', 'right_id': 'x5-1'}, {'step': 8, 'rule_name': 'RH-Merge', 'rule_number': 11, 'rule_kind': 'double', 'left': 3, 'right': 1, 'check': None, 'left_id': 'x8-1', 'right_id': 'x5-1'}, {'step': 9, 'rule_name': 'RH-Merge', 'rule_number': 11, 'rule_kind': 'double', 'left': 2, 'right': 3, 'check': None, 'left_id': 'x7-1', 'right_id': 'x10-1'}]",
+            "[{'step': 1, 'rule_name': 'J-Merge', 'rule_number': 7, 'rule_kind': 'double', 'left': 8, 'right': 9, 'check': None, 'left_id': 'x8-1', 'right_id': 'x9-1'}, {'step': 2, 'rule_name': 'RH-Merge', 'rule_number': 11, 'rule_kind': 'double', 'left': 10, 'right': 9, 'check': None, 'left_id': 'x11-1', 'right_id': 'x10-1'}, {'step': 3, 'rule_name': 'property-Merge', 'rule_number': 9, 'rule_kind': 'double', 'left': 3, 'right': 1, 'check': None, 'left_id': 'x3-1', 'right_id': 'x1-1'}, {'step': 4, 'rule_name': 'property-Merge', 'rule_number': 9, 'rule_kind': 'double', 'left': 1, 'right': 5, 'check': None, 'left_id': 'x1-1', 'right_id': 'x6-1'}, {'step': 5, 'rule_name': 'RH-Merge', 'rule_number': 11, 'rule_kind': 'double', 'left': 1, 'right': 4, 'check': None, 'left_id': 'x2-1', 'right_id': 'x6-1'}, {'step': 6, 'rule_name': 'RH-Merge', 'rule_number': 11, 'rule_kind': 'double', 'left': 1, 'right': 2, 'check': None, 'left_id': 'x4-1', 'right_id': 'x5-1'}, {'step': 7, 'rule_name': 'RH-Merge', 'rule_number': 11, 'rule_kind': 'double', 'left': 2, 'right': 1, 'check': None, 'left_id': 'x6-1', 'right_id': 'x5-1'}, {'step': 8, 'rule_name': 'RH-Merge', 'rule_number': 11, 'rule_kind': 'double', 'left': 3, 'right': 1, 'check': None, 'left_id': 'x8-1', 'right_id': 'x5-1'}, {'step': 9, 'rule_name': 'RH-Merge', 'rule_number': 11, 'rule_kind': 'double', 'left': 2, 'right': 1, 'check': None, 'left_id': 'x7-1', 'right_id': 'x5-1'}]"
+          ],
+          "evidence_present": true
+        },
+        "secondary_wo181_ga183": {
+          "sentence": "ふわふわしたわたあめを食べているひつじと話しているうさぎがいる",
+          "sentence_key": "S4",
+          "proposal_id": "secondary_wo181_ga183",
+          "explicit_lexicon_ids": [
+            264,
+            265,
+            181,
+            266,
+            267,
+            9301,
+            269,
+            270,
+            183,
+            271,
+            204
+          ],
+          "status": "reachable",
+          "reason": "timeout",
+          "actions_attempted": 9813,
+          "max_depth_reached": 10,
+          "best_leaf_unresolved_min": 0,
+          "best_leaf_residual_family_totals": {
+            "se:33": 25,
+            "sy:1": 5,
+            "sy:17": 15
+          },
+          "best_leaf_exact_source_top5": [
+            {
+              "family": "se:33",
+              "exact_label": "Theme:2,33,ga",
+              "item_id": "x10-1",
+              "surface": "",
+              "initial_slot": 10,
+              "lexicon_id": -1,
+              "count_in_top5_samples": 5
+            },
+            {
+              "family": "se:33",
+              "exact_label": "Agent:2,33,ga",
+              "item_id": "x4-1",
+              "surface": "食べている",
+              "initial_slot": 4,
+              "lexicon_id": -1,
+              "count_in_top5_samples": 5
+            },
+            {
+              "family": "se:33",
+              "exact_label": "Theme:2,33,wo",
+              "item_id": "x4-1",
+              "surface": "食べている",
+              "initial_slot": 4,
+              "lexicon_id": -1,
+              "count_in_top5_samples": 5
+            },
+            {
+              "family": "se:33",
+              "exact_label": "Agent:2,33,ga",
+              "item_id": "x7-1",
+              "surface": "話している",
+              "initial_slot": 7,
+              "lexicon_id": -1,
+              "count_in_top5_samples": 5
+            },
+            {
+              "family": "se:33",
+              "exact_label": "相手:2,33,to",
+              "item_id": "x7-1",
+              "surface": "話している",
+              "initial_slot": 7,
+              "lexicon_id": -1,
+              "count_in_top5_samples": 5
+            }
+          ],
+          "history_top": [
+            "[{'step': 1, 'rule_name': 'J-Merge', 'rule_number': 7, 'rule_kind': 'double', 'left': 8, 'right': 9, 'check': None, 'left_id': 'x8-1', 'right_id': 'x9-1'}, {'step': 2, 'rule_name': 'RH-Merge', 'rule_number': 11, 'rule_kind': 'double', 'left': 10, 'right': 9, 'check': None, 'left_id': 'x11-1', 'right_id': 'x10-1'}, {'step': 3, 'rule_name': 'property-Merge', 'rule_number': 9, 'rule_kind': 'double', 'left': 3, 'right': 1, 'check': None, 'left_id': 'x3-1', 'right_id': 'x1-1'}, {'step': 4, 'rule_name': 'property-Merge', 'rule_number': 9, 'rule_kind': 'double', 'left': 1, 'right': 5, 'check': None, 'left_id': 'x1-1', 'right_id': 'x6-1'}, {'step': 5, 'rule_name': 'RH-Merge', 'rule_number': 11, 'rule_kind': 'double', 'left': 1, 'right': 4, 'check': None, 'left_id': 'x2-1', 'right_id': 'x6-1'}, {'step': 6, 'rule_name': 'RH-Merge', 'rule_number': 11, 'rule_kind': 'double', 'left': 1, 'right': 2, 'check': None, 'left_id': 'x4-1', 'right_id': 'x5-1'}, {'step': 7, 'rule_name': 'RH-Merge', 'rule_number': 11, 'rule_kind': 'double', 'left': 2, 'right': 4, 'check': None, 'left_id': 'x6-1', 'right_id': 'x8-1'}]",
+            "[{'step': 1, 'rule_name': 'J-Merge', 'rule_number': 7, 'rule_kind': 'double', 'left': 8, 'right': 9, 'check': None, 'left_id': 'x8-1', 'right_id': 'x9-1'}, {'step': 2, 'rule_name': 'RH-Merge', 'rule_number': 11, 'rule_kind': 'double', 'left': 10, 'right': 9, 'check': None, 'left_id': 'x11-1', 'right_id': 'x10-1'}, {'step': 3, 'rule_name': 'property-Merge', 'rule_number': 9, 'rule_kind': 'double', 'left': 3, 'right': 1, 'check': None, 'left_id': 'x3-1', 'right_id': 'x1-1'}, {'step': 4, 'rule_name': 'property-Merge', 'rule_number': 9, 'rule_kind': 'double', 'left': 1, 'right': 5, 'check': None, 'left_id': 'x1-1', 'right_id': 'x6-1'}, {'step': 5, 'rule_name': 'RH-Merge', 'rule_number': 11, 'rule_kind': 'double', 'left': 1, 'right': 4, 'check': None, 'left_id': 'x2-1', 'right_id': 'x6-1'}, {'step': 6, 'rule_name': 'RH-Merge', 'rule_number': 11, 'rule_kind': 'double', 'left': 1, 'right': 2, 'check': None, 'left_id': 'x4-1', 'right_id': 'x5-1'}, {'step': 7, 'rule_name': 'RH-Merge', 'rule_number': 11, 'rule_kind': 'double', 'left': 3, 'right': 1, 'check': None, 'left_id': 'x7-1', 'right_id': 'x5-1'}]",
+            "[{'step': 1, 'rule_name': 'J-Merge', 'rule_number': 7, 'rule_kind': 'double', 'left': 8, 'right': 9, 'check': None, 'left_id': 'x8-1', 'right_id': 'x9-1'}, {'step': 2, 'rule_name': 'RH-Merge', 'rule_number': 11, 'rule_kind': 'double', 'left': 10, 'right': 9, 'check': None, 'left_id': 'x11-1', 'right_id': 'x10-1'}, {'step': 3, 'rule_name': 'property-Merge', 'rule_number': 9, 'rule_kind': 'double', 'left': 3, 'right': 1, 'check': None, 'left_id': 'x3-1', 'right_id': 'x1-1'}, {'step': 4, 'rule_name': 'property-Merge', 'rule_number': 9, 'rule_kind': 'double', 'left': 1, 'right': 5, 'check': None, 'left_id': 'x1-1', 'right_id': 'x6-1'}, {'step': 5, 'rule_name': 'RH-Merge', 'rule_number': 11, 'rule_kind': 'double', 'left': 1, 'right': 4, 'check': None, 'left_id': 'x2-1', 'right_id': 'x6-1'}, {'step': 6, 'rule_name': 'RH-Merge', 'rule_number': 11, 'rule_kind': 'double', 'left': 1, 'right': 2, 'check': None, 'left_id': 'x4-1', 'right_id': 'x5-1'}, {'step': 7, 'rule_name': 'RH-Merge', 'rule_number': 11, 'rule_kind': 'double', 'left': 2, 'right': 1, 'check': None, 'left_id': 'x6-1', 'right_id': 'x5-1'}]",
+            "[{'step': 1, 'rule_name': 'J-Merge', 'rule_number': 7, 'rule_kind': 'double', 'left': 8, 'right': 9, 'check': None, 'left_id': 'x8-1', 'right_id': 'x9-1'}, {'step': 2, 'rule_name': 'RH-Merge', 'rule_number': 11, 'rule_kind': 'double', 'left': 10, 'right': 9, 'check': None, 'left_id': 'x11-1', 'right_id': 'x10-1'}, {'step': 3, 'rule_name': 'property-Merge', 'rule_number': 9, 'rule_kind': 'double', 'left': 3, 'right': 1, 'check': None, 'left_id': 'x3-1', 'right_id': 'x1-1'}, {'step': 4, 'rule_name': 'property-Merge', 'rule_number': 9, 'rule_kind': 'double', 'left': 1, 'right': 5, 'check': None, 'left_id': 'x1-1', 'right_id': 'x6-1'}, {'step': 5, 'rule_name': 'RH-Merge', 'rule_number': 11, 'rule_kind': 'double', 'left': 1, 'right': 4, 'check': None, 'left_id': 'x2-1', 'right_id': 'x6-1'}, {'step': 6, 'rule_name': 'RH-Merge', 'rule_number': 11, 'rule_kind': 'double', 'left': 1, 'right': 2, 'check': None, 'left_id': 'x4-1', 'right_id': 'x5-1'}, {'step': 7, 'rule_name': 'RH-Merge', 'rule_number': 11, 'rule_kind': 'double', 'left': 1, 'right': 2, 'check': None, 'left_id': 'x5-1', 'right_id': 'x6-1'}, {'step': 8, 'rule_name': 'RH-Merge', 'rule_number': 11, 'rule_kind': 'double', 'left': 1, 'right': 3, 'check': None, 'left_id': 'x6-1', 'right_id': 'x8-1'}]",
+            "[{'step': 1, 'rule_name': 'J-Merge', 'rule_number': 7, 'rule_kind': 'double', 'left': 8, 'right': 9, 'check': None, 'left_id': 'x8-1', 'right_id': 'x9-1'}, {'step': 2, 'rule_name': 'RH-Merge', 'rule_number': 11, 'rule_kind': 'double', 'left': 10, 'right': 9, 'check': None, 'left_id': 'x11-1', 'right_id': 'x10-1'}, {'step': 3, 'rule_name': 'property-Merge', 'rule_number': 9, 'rule_kind': 'double', 'left': 3, 'right': 1, 'check': None, 'left_id': 'x3-1', 'right_id': 'x1-1'}, {'step': 4, 'rule_name': 'property-Merge', 'rule_number': 9, 'rule_kind': 'double', 'left': 1, 'right': 5, 'check': None, 'left_id': 'x1-1', 'right_id': 'x6-1'}, {'step': 5, 'rule_name': 'RH-Merge', 'rule_number': 11, 'rule_kind': 'double', 'left': 1, 'right': 4, 'check': None, 'left_id': 'x2-1', 'right_id': 'x6-1'}, {'step': 6, 'rule_name': 'RH-Merge', 'rule_number': 11, 'rule_kind': 'double', 'left': 1, 'right': 2, 'check': None, 'left_id': 'x4-1', 'right_id': 'x5-1'}, {'step': 7, 'rule_name': 'RH-Merge', 'rule_number': 11, 'rule_kind': 'double', 'left': 1, 'right': 2, 'check': None, 'left_id': 'x5-1', 'right_id': 'x6-1'}, {'step': 8, 'rule_name': 'RH-Merge', 'rule_number': 11, 'rule_kind': 'double', 'left': 2, 'right': 4, 'check': None, 'left_id': 'x7-1', 'right_id': 'x10-1'}]"
+          ],
+          "evidence_present": true
+        }
+      }
+    }
+  },
+  "auto": {
+    "runs": {
+      "S2": {
+        "sentence_key": "S2",
+        "sentence": "わたあめを食べているひつじがいる",
+        "generation_failed": false,
+        "lexicon_ids": [
+          265,
+          181,
+          266,
+          267,
+          19,
+          271,
+          204
+        ],
+        "token_resolutions": [
+          {
+            "token": "わたあめ",
+            "lexicon_id": 265,
+            "candidate_lexicon_ids": [
+              265
+            ],
+            "candidate_compatibility": [
+              {
+                "lexicon_id": 265,
+                "compatible": true,
+                "reason_codes": [],
+                "missing_rule_names": [],
+                "referenced_rule_names": []
+              }
+            ]
+          },
+          {
+            "token": "を",
+            "lexicon_id": 181,
+            "candidate_lexicon_ids": [
+              181,
+              189,
+              23,
+              197
+            ],
+            "candidate_compatibility": [
+              {
+                "lexicon_id": 181,
+                "compatible": true,
+                "reason_codes": [],
+                "missing_rule_names": [],
+                "referenced_rule_names": []
+              },
+              {
+                "lexicon_id": 189,
+                "compatible": true,
+                "reason_codes": [],
+                "missing_rule_names": [],
+                "referenced_rule_names": []
+              },
+              {
+                "lexicon_id": 23,
+                "compatible": true,
+                "reason_codes": [],
+                "missing_rule_names": [],
+                "referenced_rule_names": [
+                  "J-Merge"
+                ]
+              },
+              {
+                "lexicon_id": 197,
+                "compatible": true,
+                "reason_codes": [],
+                "missing_rule_names": [],
+                "referenced_rule_names": [
+                  "J-Merge"
+                ]
+              }
+            ]
+          },
+          {
+            "token": "食べている",
+            "lexicon_id": 266,
+            "candidate_lexicon_ids": [
+              266
+            ],
+            "candidate_compatibility": [
+              {
+                "lexicon_id": 266,
+                "compatible": true,
+                "reason_codes": [],
+                "missing_rule_names": [],
+                "referenced_rule_names": []
+              }
+            ]
+          },
+          {
+            "token": "ひつじ",
+            "lexicon_id": 267,
+            "candidate_lexicon_ids": [
+              267
+            ],
+            "candidate_compatibility": [
+              {
+                "lexicon_id": 267,
+                "compatible": true,
+                "reason_codes": [],
+                "missing_rule_names": [],
+                "referenced_rule_names": []
+              }
+            ]
+          },
+          {
+            "token": "が",
+            "lexicon_id": 19,
+            "candidate_lexicon_ids": [
+              19,
+              183,
+              196
+            ],
+            "candidate_compatibility": [
+              {
+                "lexicon_id": 19,
+                "compatible": true,
+                "reason_codes": [],
+                "missing_rule_names": [],
+                "referenced_rule_names": [
+                  "J-Merge"
+                ]
+              },
+              {
+                "lexicon_id": 183,
+                "compatible": true,
+                "reason_codes": [],
+                "missing_rule_names": [],
+                "referenced_rule_names": [
+                  "J-Merge"
+                ]
+              },
+              {
+                "lexicon_id": 196,
+                "compatible": true,
+                "reason_codes": [],
+                "missing_rule_names": [],
+                "referenced_rule_names": [
+                  "J-Merge"
+                ]
+              }
+            ]
+          },
+          {
+            "token": "いる",
+            "lexicon_id": 271,
+            "candidate_lexicon_ids": [
+              271
+            ],
+            "candidate_compatibility": [
+              {
+                "lexicon_id": 271,
+                "compatible": true,
+                "reason_codes": [],
+                "missing_rule_names": [],
+                "referenced_rule_names": []
+              }
+            ]
+          },
+          {
+            "token": "る",
+            "lexicon_id": 204,
+            "candidate_lexicon_ids": [
+              204,
+              125
+            ],
+            "candidate_compatibility": [
+              {
+                "lexicon_id": 204,
+                "compatible": true,
+                "reason_codes": [],
+                "missing_rule_names": [],
+                "referenced_rule_names": []
+              },
+              {
+                "lexicon_id": 125,
+                "compatible": true,
+                "reason_codes": [],
+                "missing_rule_names": [],
+                "referenced_rule_names": []
+              }
+            ]
+          }
+        ],
+        "reachability_status": "reachable",
+        "reachability_reason": "timeout",
+        "best_leaf_unresolved_min": 1,
+        "history_top": [
+          "[{'step': 1, 'rule_name': 'J-Merge', 'rule_number': 7, 'rule_kind': 'double', 'left': 4, 'right': 5, 'check': None, 'left_id': 'x4-1', 'right_id': 'x5-1'}, {'step': 2, 'rule_name': 'RH-Merge', 'rule_number': 11, 'rule_kind': 'double', 'left': 3, 'right': 2, 'check': None, 'left_id': 'x3-1', 'right_id': 'x2-1'}, {'step': 3, 'rule_name': 'property-Merge', 'rule_number': 9, 'rule_kind': 'double', 'left': 2, 'right': 5, 'check': None, 'left_id': 'x2-1', 'right_id': 'x7-1'}, {'step': 4, 'rule_name': 'rel-Merge', 'rule_number': 10, 'rule_kind': 'double', 'left': 4, 'right': 1, 'check': None, 'left_id': 'x7-1', 'right_id': 'x1-1'}, {'step': 5, 'rule_name': 'RH-Merge', 'rule_number': 11, 'rule_kind': 'double', 'left': 2, 'right': 1, 'check': None, 'left_id': 'x4-1', 'right_id': 'x1-1'}]",
+          "[{'step': 1, 'rule_name': 'J-Merge', 'rule_number': 7, 'rule_kind': 'double', 'left': 4, 'right': 5, 'check': None, 'left_id': 'x4-1', 'right_id': 'x5-1'}, {'step': 2, 'rule_name': 'RH-Merge', 'rule_number': 11, 'rule_kind': 'double', 'left': 3, 'right': 2, 'check': None, 'left_id': 'x3-1', 'right_id': 'x2-1'}, {'step': 3, 'rule_name': 'property-Merge', 'rule_number': 9, 'rule_kind': 'double', 'left': 2, 'right': 5, 'check': None, 'left_id': 'x2-1', 'right_id': 'x7-1'}, {'step': 4, 'rule_name': 'RH-Merge', 'rule_number': 11, 'rule_kind': 'double', 'left': 2, 'right': 4, 'check': None, 'left_id': 'x4-1', 'right_id': 'x7-1'}, {'step': 5, 'rule_name': 'rel-Merge', 'rule_number': 10, 'rule_kind': 'double', 'left': 3, 'right': 1, 'check': None, 'left_id': 'x7-1', 'right_id': 'x1-1'}]",
+          "[{'step': 1, 'rule_name': 'J-Merge', 'rule_number': 7, 'rule_kind': 'double', 'left': 4, 'right': 5, 'check': None, 'left_id': 'x4-1', 'right_id': 'x5-1'}, {'step': 2, 'rule_name': 'RH-Merge', 'rule_number': 11, 'rule_kind': 'double', 'left': 3, 'right': 2, 'check': None, 'left_id': 'x3-1', 'right_id': 'x2-1'}, {'step': 3, 'rule_name': 'RH-Merge', 'rule_number': 11, 'rule_kind': 'double', 'left': 3, 'right': 2, 'check': None, 'left_id': 'x4-1', 'right_id': 'x2-1'}, {'step': 4, 'rule_name': 'property-Merge', 'rule_number': 9, 'rule_kind': 'double', 'left': 2, 'right': 4, 'check': None, 'left_id': 'x2-1', 'right_id': 'x7-1'}, {'step': 5, 'rule_name': 'rel-Merge', 'rule_number': 10, 'rule_kind': 'double', 'left': 3, 'right': 1, 'check': None, 'left_id': 'x7-1', 'right_id': 'x1-1'}]",
+          "[{'step': 1, 'rule_name': 'J-Merge', 'rule_number': 7, 'rule_kind': 'double', 'left': 4, 'right': 5, 'check': None, 'left_id': 'x4-1', 'right_id': 'x5-1'}, {'step': 2, 'rule_name': 'RH-Merge', 'rule_number': 11, 'rule_kind': 'double', 'left': 3, 'right': 2, 'check': None, 'left_id': 'x3-1', 'right_id': 'x2-1'}, {'step': 3, 'rule_name': 'property-Merge', 'rule_number': 9, 'rule_kind': 'double', 'left': 2, 'right': 5, 'check': None, 'left_id': 'x2-1', 'right_id': 'x7-1'}, {'step': 4, 'rule_name': 'RH-Merge', 'rule_number': 11, 'rule_kind': 'double', 'left': 2, 'right': 1, 'check': None, 'left_id': 'x4-1', 'right_id': 'x1-1'}, {'step': 5, 'rule_name': 'rel-Merge', 'rule_number': 10, 'rule_kind': 'double', 'left': 3, 'right': 1, 'check': None, 'left_id': 'x7-1', 'right_id': 'x1-1'}]"
+        ],
+        "evidence_present": true
+      },
+      "T3": {
+        "sentence_key": "T3",
+        "sentence": "ふわふわしたわたあめを食べているひつじがいる",
+        "generation_failed": false,
+        "lexicon_ids": [
+          264,
+          265,
+          181,
+          266,
+          267,
+          19,
+          271,
+          204
+        ],
+        "token_resolutions": [
+          {
+            "token": "ふわふわした",
+            "lexicon_id": 264,
+            "candidate_lexicon_ids": [
+              264
+            ],
+            "candidate_compatibility": [
+              {
+                "lexicon_id": 264,
+                "compatible": true,
+                "reason_codes": [],
+                "missing_rule_names": [],
+                "referenced_rule_names": []
+              }
+            ]
+          },
+          {
+            "token": "わたあめ",
+            "lexicon_id": 265,
+            "candidate_lexicon_ids": [
+              265
+            ],
+            "candidate_compatibility": [
+              {
+                "lexicon_id": 265,
+                "compatible": true,
+                "reason_codes": [],
+                "missing_rule_names": [],
+                "referenced_rule_names": []
+              }
+            ]
+          },
+          {
+            "token": "を",
+            "lexicon_id": 181,
+            "candidate_lexicon_ids": [
+              181,
+              189,
+              23,
+              197
+            ],
+            "candidate_compatibility": [
+              {
+                "lexicon_id": 181,
+                "compatible": true,
+                "reason_codes": [],
+                "missing_rule_names": [],
+                "referenced_rule_names": []
+              },
+              {
+                "lexicon_id": 189,
+                "compatible": true,
+                "reason_codes": [],
+                "missing_rule_names": [],
+                "referenced_rule_names": []
+              },
+              {
+                "lexicon_id": 23,
+                "compatible": true,
+                "reason_codes": [],
+                "missing_rule_names": [],
+                "referenced_rule_names": [
+                  "J-Merge"
+                ]
+              },
+              {
+                "lexicon_id": 197,
+                "compatible": true,
+                "reason_codes": [],
+                "missing_rule_names": [],
+                "referenced_rule_names": [
+                  "J-Merge"
+                ]
+              }
+            ]
+          },
+          {
+            "token": "食べている",
+            "lexicon_id": 266,
+            "candidate_lexicon_ids": [
+              266
+            ],
+            "candidate_compatibility": [
+              {
+                "lexicon_id": 266,
+                "compatible": true,
+                "reason_codes": [],
+                "missing_rule_names": [],
+                "referenced_rule_names": []
+              }
+            ]
+          },
+          {
+            "token": "ひつじ",
+            "lexicon_id": 267,
+            "candidate_lexicon_ids": [
+              267
+            ],
+            "candidate_compatibility": [
+              {
+                "lexicon_id": 267,
+                "compatible": true,
+                "reason_codes": [],
+                "missing_rule_names": [],
+                "referenced_rule_names": []
+              }
+            ]
+          },
+          {
+            "token": "が",
+            "lexicon_id": 19,
+            "candidate_lexicon_ids": [
+              19,
+              183,
+              196
+            ],
+            "candidate_compatibility": [
+              {
+                "lexicon_id": 19,
+                "compatible": true,
+                "reason_codes": [],
+                "missing_rule_names": [],
+                "referenced_rule_names": [
+                  "J-Merge"
+                ]
+              },
+              {
+                "lexicon_id": 183,
+                "compatible": true,
+                "reason_codes": [],
+                "missing_rule_names": [],
+                "referenced_rule_names": [
+                  "J-Merge"
+                ]
+              },
+              {
+                "lexicon_id": 196,
+                "compatible": true,
+                "reason_codes": [],
+                "missing_rule_names": [],
+                "referenced_rule_names": [
+                  "J-Merge"
+                ]
+              }
+            ]
+          },
+          {
+            "token": "いる",
+            "lexicon_id": 271,
+            "candidate_lexicon_ids": [
+              271
+            ],
+            "candidate_compatibility": [
+              {
+                "lexicon_id": 271,
+                "compatible": true,
+                "reason_codes": [],
+                "missing_rule_names": [],
+                "referenced_rule_names": []
+              }
+            ]
+          },
+          {
+            "token": "る",
+            "lexicon_id": 204,
+            "candidate_lexicon_ids": [
+              204,
+              125
+            ],
+            "candidate_compatibility": [
+              {
+                "lexicon_id": 204,
+                "compatible": true,
+                "reason_codes": [],
+                "missing_rule_names": [],
+                "referenced_rule_names": []
+              },
+              {
+                "lexicon_id": 125,
+                "compatible": true,
+                "reason_codes": [],
+                "missing_rule_names": [],
+                "referenced_rule_names": []
+              }
+            ]
+          }
+        ],
+        "reachability_status": "unknown",
+        "reachability_reason": "timeout",
+        "best_leaf_unresolved_min": 1,
+        "history_top": [],
+        "evidence_present": false
+      },
+      "T1": {
+        "sentence_key": "T1",
+        "sentence": "わたあめを食べているひつじと話しているうさぎがいる",
+        "generation_failed": false,
+        "lexicon_ids": [
+          265,
+          181,
+          266,
+          267,
+          9301,
+          269,
+          270,
+          19,
+          271,
+          204
+        ],
+        "token_resolutions": [
+          {
+            "token": "わたあめ",
+            "lexicon_id": 265,
+            "candidate_lexicon_ids": [
+              265
+            ],
+            "candidate_compatibility": [
+              {
+                "lexicon_id": 265,
+                "compatible": true,
+                "reason_codes": [],
+                "missing_rule_names": [],
+                "referenced_rule_names": []
+              }
+            ]
+          },
+          {
+            "token": "を",
+            "lexicon_id": 181,
+            "candidate_lexicon_ids": [
+              181,
+              189,
+              23,
+              197
+            ],
+            "candidate_compatibility": [
+              {
+                "lexicon_id": 181,
+                "compatible": true,
+                "reason_codes": [],
+                "missing_rule_names": [],
+                "referenced_rule_names": []
+              },
+              {
+                "lexicon_id": 189,
+                "compatible": true,
+                "reason_codes": [],
+                "missing_rule_names": [],
+                "referenced_rule_names": []
+              },
+              {
+                "lexicon_id": 23,
+                "compatible": true,
+                "reason_codes": [],
+                "missing_rule_names": [],
+                "referenced_rule_names": [
+                  "J-Merge"
+                ]
+              },
+              {
+                "lexicon_id": 197,
+                "compatible": true,
+                "reason_codes": [],
+                "missing_rule_names": [],
+                "referenced_rule_names": [
+                  "J-Merge"
+                ]
+              }
+            ]
+          },
+          {
+            "token": "食べている",
+            "lexicon_id": 266,
+            "candidate_lexicon_ids": [
+              266
+            ],
+            "candidate_compatibility": [
+              {
+                "lexicon_id": 266,
+                "compatible": true,
+                "reason_codes": [],
+                "missing_rule_names": [],
+                "referenced_rule_names": []
+              }
+            ]
+          },
+          {
+            "token": "ひつじ",
+            "lexicon_id": 267,
+            "candidate_lexicon_ids": [
+              267
+            ],
+            "candidate_compatibility": [
+              {
+                "lexicon_id": 267,
+                "compatible": true,
+                "reason_codes": [],
+                "missing_rule_names": [],
+                "referenced_rule_names": []
+              }
+            ]
+          },
+          {
+            "token": "と",
+            "lexicon_id": 9301,
+            "candidate_lexicon_ids": [
+              9301,
+              171
+            ],
+            "candidate_compatibility": [
+              {
+                "lexicon_id": 9301,
+                "compatible": true,
+                "reason_codes": [],
+                "missing_rule_names": [],
+                "referenced_rule_names": []
+              },
+              {
+                "lexicon_id": 171,
+                "compatible": true,
+                "reason_codes": [],
+                "missing_rule_names": [],
+                "referenced_rule_names": []
+              }
+            ]
+          },
+          {
+            "token": "話している",
+            "lexicon_id": 269,
+            "candidate_lexicon_ids": [
+              269
+            ],
+            "candidate_compatibility": [
+              {
+                "lexicon_id": 269,
+                "compatible": true,
+                "reason_codes": [],
+                "missing_rule_names": [],
+                "referenced_rule_names": []
+              }
+            ]
+          },
+          {
+            "token": "うさぎ",
+            "lexicon_id": 270,
+            "candidate_lexicon_ids": [
+              270
+            ],
+            "candidate_compatibility": [
+              {
+                "lexicon_id": 270,
+                "compatible": true,
+                "reason_codes": [],
+                "missing_rule_names": [],
+                "referenced_rule_names": []
+              }
+            ]
+          },
+          {
+            "token": "が",
+            "lexicon_id": 19,
+            "candidate_lexicon_ids": [
+              19,
+              183,
+              196
+            ],
+            "candidate_compatibility": [
+              {
+                "lexicon_id": 19,
+                "compatible": true,
+                "reason_codes": [],
+                "missing_rule_names": [],
+                "referenced_rule_names": [
+                  "J-Merge"
+                ]
+              },
+              {
+                "lexicon_id": 183,
+                "compatible": true,
+                "reason_codes": [],
+                "missing_rule_names": [],
+                "referenced_rule_names": [
+                  "J-Merge"
+                ]
+              },
+              {
+                "lexicon_id": 196,
+                "compatible": true,
+                "reason_codes": [],
+                "missing_rule_names": [],
+                "referenced_rule_names": [
+                  "J-Merge"
+                ]
+              }
+            ]
+          },
+          {
+            "token": "いる",
+            "lexicon_id": 271,
+            "candidate_lexicon_ids": [
+              271
+            ],
+            "candidate_compatibility": [
+              {
+                "lexicon_id": 271,
+                "compatible": true,
+                "reason_codes": [],
+                "missing_rule_names": [],
+                "referenced_rule_names": []
+              }
+            ]
+          },
+          {
+            "token": "る",
+            "lexicon_id": 204,
+            "candidate_lexicon_ids": [
+              204,
+              125
+            ],
+            "candidate_compatibility": [
+              {
+                "lexicon_id": 204,
+                "compatible": true,
+                "reason_codes": [],
+                "missing_rule_names": [],
+                "referenced_rule_names": []
+              },
+              {
+                "lexicon_id": 125,
+                "compatible": true,
+                "reason_codes": [],
+                "missing_rule_names": [],
+                "referenced_rule_names": []
+              }
+            ]
+          }
+        ],
+        "reachability_status": "unknown",
+        "reachability_reason": "timeout",
+        "best_leaf_unresolved_min": 4,
+        "history_top": [],
+        "evidence_present": false
+      },
+      "S4": {
+        "sentence_key": "S4",
+        "sentence": "ふわふわしたわたあめを食べているひつじと話しているうさぎがいる",
+        "generation_failed": false,
+        "lexicon_ids": [
+          264,
+          265,
+          181,
+          266,
+          267,
+          9301,
+          269,
+          270,
+          19,
+          271,
+          204
+        ],
+        "token_resolutions": [
+          {
+            "token": "ふわふわした",
+            "lexicon_id": 264,
+            "candidate_lexicon_ids": [
+              264
+            ],
+            "candidate_compatibility": [
+              {
+                "lexicon_id": 264,
+                "compatible": true,
+                "reason_codes": [],
+                "missing_rule_names": [],
+                "referenced_rule_names": []
+              }
+            ]
+          },
+          {
+            "token": "わたあめ",
+            "lexicon_id": 265,
+            "candidate_lexicon_ids": [
+              265
+            ],
+            "candidate_compatibility": [
+              {
+                "lexicon_id": 265,
+                "compatible": true,
+                "reason_codes": [],
+                "missing_rule_names": [],
+                "referenced_rule_names": []
+              }
+            ]
+          },
+          {
+            "token": "を",
+            "lexicon_id": 181,
+            "candidate_lexicon_ids": [
+              181,
+              189,
+              23,
+              197
+            ],
+            "candidate_compatibility": [
+              {
+                "lexicon_id": 181,
+                "compatible": true,
+                "reason_codes": [],
+                "missing_rule_names": [],
+                "referenced_rule_names": []
+              },
+              {
+                "lexicon_id": 189,
+                "compatible": true,
+                "reason_codes": [],
+                "missing_rule_names": [],
+                "referenced_rule_names": []
+              },
+              {
+                "lexicon_id": 23,
+                "compatible": true,
+                "reason_codes": [],
+                "missing_rule_names": [],
+                "referenced_rule_names": [
+                  "J-Merge"
+                ]
+              },
+              {
+                "lexicon_id": 197,
+                "compatible": true,
+                "reason_codes": [],
+                "missing_rule_names": [],
+                "referenced_rule_names": [
+                  "J-Merge"
+                ]
+              }
+            ]
+          },
+          {
+            "token": "食べている",
+            "lexicon_id": 266,
+            "candidate_lexicon_ids": [
+              266
+            ],
+            "candidate_compatibility": [
+              {
+                "lexicon_id": 266,
+                "compatible": true,
+                "reason_codes": [],
+                "missing_rule_names": [],
+                "referenced_rule_names": []
+              }
+            ]
+          },
+          {
+            "token": "ひつじ",
+            "lexicon_id": 267,
+            "candidate_lexicon_ids": [
+              267
+            ],
+            "candidate_compatibility": [
+              {
+                "lexicon_id": 267,
+                "compatible": true,
+                "reason_codes": [],
+                "missing_rule_names": [],
+                "referenced_rule_names": []
+              }
+            ]
+          },
+          {
+            "token": "と",
+            "lexicon_id": 9301,
+            "candidate_lexicon_ids": [
+              9301,
+              171
+            ],
+            "candidate_compatibility": [
+              {
+                "lexicon_id": 9301,
+                "compatible": true,
+                "reason_codes": [],
+                "missing_rule_names": [],
+                "referenced_rule_names": []
+              },
+              {
+                "lexicon_id": 171,
+                "compatible": true,
+                "reason_codes": [],
+                "missing_rule_names": [],
+                "referenced_rule_names": []
+              }
+            ]
+          },
+          {
+            "token": "話している",
+            "lexicon_id": 269,
+            "candidate_lexicon_ids": [
+              269
+            ],
+            "candidate_compatibility": [
+              {
+                "lexicon_id": 269,
+                "compatible": true,
+                "reason_codes": [],
+                "missing_rule_names": [],
+                "referenced_rule_names": []
+              }
+            ]
+          },
+          {
+            "token": "うさぎ",
+            "lexicon_id": 270,
+            "candidate_lexicon_ids": [
+              270
+            ],
+            "candidate_compatibility": [
+              {
+                "lexicon_id": 270,
+                "compatible": true,
+                "reason_codes": [],
+                "missing_rule_names": [],
+                "referenced_rule_names": []
+              }
+            ]
+          },
+          {
+            "token": "が",
+            "lexicon_id": 19,
+            "candidate_lexicon_ids": [
+              19,
+              183,
+              196
+            ],
+            "candidate_compatibility": [
+              {
+                "lexicon_id": 19,
+                "compatible": true,
+                "reason_codes": [],
+                "missing_rule_names": [],
+                "referenced_rule_names": [
+                  "J-Merge"
+                ]
+              },
+              {
+                "lexicon_id": 183,
+                "compatible": true,
+                "reason_codes": [],
+                "missing_rule_names": [],
+                "referenced_rule_names": [
+                  "J-Merge"
+                ]
+              },
+              {
+                "lexicon_id": 196,
+                "compatible": true,
+                "reason_codes": [],
+                "missing_rule_names": [],
+                "referenced_rule_names": [
+                  "J-Merge"
+                ]
+              }
+            ]
+          },
+          {
+            "token": "いる",
+            "lexicon_id": 271,
+            "candidate_lexicon_ids": [
+              271
+            ],
+            "candidate_compatibility": [
+              {
+                "lexicon_id": 271,
+                "compatible": true,
+                "reason_codes": [],
+                "missing_rule_names": [],
+                "referenced_rule_names": []
+              }
+            ]
+          },
+          {
+            "token": "る",
+            "lexicon_id": 204,
+            "candidate_lexicon_ids": [
+              204,
+              125
+            ],
+            "candidate_compatibility": [
+              {
+                "lexicon_id": 204,
+                "compatible": true,
+                "reason_codes": [],
+                "missing_rule_names": [],
+                "referenced_rule_names": []
+              },
+              {
+                "lexicon_id": 125,
+                "compatible": true,
+                "reason_codes": [],
+                "missing_rule_names": [],
+                "referenced_rule_names": []
+              }
+            ]
+          }
+        ],
+        "reachability_status": "reachable",
+        "reachability_reason": "timeout",
+        "best_leaf_unresolved_min": 0,
+        "history_top": [
+          "[{'step': 1, 'rule_name': 'J-Merge', 'rule_number': 7, 'rule_kind': 'double', 'left': 8, 'right': 9, 'check': None, 'left_id': 'x8-1', 'right_id': 'x9-1'}, {'step': 2, 'rule_name': 'RH-Merge', 'rule_number': 11, 'rule_kind': 'double', 'left': 10, 'right': 9, 'check': None, 'left_id': 'x11-1', 'right_id': 'x10-1'}, {'step': 3, 'rule_name': 'property-Merge', 'rule_number': 9, 'rule_kind': 'double', 'left': 3, 'right': 1, 'check': None, 'left_id': 'x3-1', 'right_id': 'x1-1'}, {'step': 4, 'rule_name': 'property-Merge', 'rule_number': 9, 'rule_kind': 'double', 'left': 1, 'right': 5, 'check': None, 'left_id': 'x1-1', 'right_id': 'x6-1'}, {'step': 5, 'rule_name': 'RH-Merge', 'rule_number': 11, 'rule_kind': 'double', 'left': 1, 'right': 4, 'check': None, 'left_id': 'x2-1', 'right_id': 'x6-1'}, {'step': 6, 'rule_name': 'RH-Merge', 'rule_number': 11, 'rule_kind': 'double', 'left': 1, 'right': 2, 'check': None, 'left_id': 'x4-1', 'right_id': 'x5-1'}, {'step': 7, 'rule_name': 'RH-Merge', 'rule_number': 11, 'rule_kind': 'double', 'left': 2, 'right': 5, 'check': None, 'left_id': 'x6-1', 'right_id': 'x10-1'}, {'step': 8, 'rule_name': 'RH-Merge', 'rule_number': 11, 'rule_kind': 'double', 'left': 2, 'right': 1, 'check': None, 'left_id': 'x7-1', 'right_id': 'x5-1'}]",
+          "[{'step': 1, 'rule_name': 'J-Merge', 'rule_number': 7, 'rule_kind': 'double', 'left': 8, 'right': 9, 'check': None, 'left_id': 'x8-1', 'right_id': 'x9-1'}, {'step': 2, 'rule_name': 'RH-Merge', 'rule_number': 11, 'rule_kind': 'double', 'left': 10, 'right': 9, 'check': None, 'left_id': 'x11-1', 'right_id': 'x10-1'}, {'step': 3, 'rule_name': 'property-Merge', 'rule_number': 9, 'rule_kind': 'double', 'left': 3, 'right': 1, 'check': None, 'left_id': 'x3-1', 'right_id': 'x1-1'}, {'step': 4, 'rule_name': 'property-Merge', 'rule_number': 9, 'rule_kind': 'double', 'left': 1, 'right': 5, 'check': None, 'left_id': 'x1-1', 'right_id': 'x6-1'}, {'step': 5, 'rule_name': 'RH-Merge', 'rule_number': 11, 'rule_kind': 'double', 'left': 1, 'right': 4, 'check': None, 'left_id': 'x2-1', 'right_id': 'x6-1'}, {'step': 6, 'rule_name': 'RH-Merge', 'rule_number': 11, 'rule_kind': 'double', 'left': 1, 'right': 2, 'check': None, 'left_id': 'x4-1', 'right_id': 'x5-1'}, {'step': 7, 'rule_name': 'RH-Merge', 'rule_number': 11, 'rule_kind': 'double', 'left': 2, 'right': 1, 'check': None, 'left_id': 'x6-1', 'right_id': 'x5-1'}, {'step': 8, 'rule_name': 'RH-Merge', 'rule_number': 11, 'rule_kind': 'double', 'left': 2, 'right': 1, 'check': None, 'left_id': 'x7-1', 'right_id': 'x5-1'}]",
+          "[{'step': 1, 'rule_name': 'J-Merge', 'rule_number': 7, 'rule_kind': 'double', 'left': 8, 'right': 9, 'check': None, 'left_id': 'x8-1', 'right_id': 'x9-1'}, {'step': 2, 'rule_name': 'RH-Merge', 'rule_number': 11, 'rule_kind': 'double', 'left': 10, 'right': 9, 'check': None, 'left_id': 'x11-1', 'right_id': 'x10-1'}, {'step': 3, 'rule_name': 'property-Merge', 'rule_number': 9, 'rule_kind': 'double', 'left': 3, 'right': 1, 'check': None, 'left_id': 'x3-1', 'right_id': 'x1-1'}, {'step': 4, 'rule_name': 'property-Merge', 'rule_number': 9, 'rule_kind': 'double', 'left': 1, 'right': 5, 'check': None, 'left_id': 'x1-1', 'right_id': 'x6-1'}, {'step': 5, 'rule_name': 'RH-Merge', 'rule_number': 11, 'rule_kind': 'double', 'left': 1, 'right': 4, 'check': None, 'left_id': 'x2-1', 'right_id': 'x6-1'}, {'step': 6, 'rule_name': 'RH-Merge', 'rule_number': 11, 'rule_kind': 'double', 'left': 1, 'right': 2, 'check': None, 'left_id': 'x4-1', 'right_id': 'x5-1'}, {'step': 7, 'rule_name': 'RH-Merge', 'rule_number': 11, 'rule_kind': 'double', 'left': 2, 'right': 1, 'check': None, 'left_id': 'x6-1', 'right_id': 'x5-1'}, {'step': 8, 'rule_name': 'RH-Merge', 'rule_number': 11, 'rule_kind': 'double', 'left': 2, 'right': 4, 'check': None, 'left_id': 'x7-1', 'right_id': 'x10-1'}]",
+          "[{'step': 1, 'rule_name': 'J-Merge', 'rule_number': 7, 'rule_kind': 'double', 'left': 8, 'right': 9, 'check': None, 'left_id': 'x8-1', 'right_id': 'x9-1'}, {'step': 2, 'rule_name': 'RH-Merge', 'rule_number': 11, 'rule_kind': 'double', 'left': 10, 'right': 9, 'check': None, 'left_id': 'x11-1', 'right_id': 'x10-1'}, {'step': 3, 'rule_name': 'property-Merge', 'rule_number': 9, 'rule_kind': 'double', 'left': 3, 'right': 1, 'check': None, 'left_id': 'x3-1', 'right_id': 'x1-1'}, {'step': 4, 'rule_name': 'property-Merge', 'rule_number': 9, 'rule_kind': 'double', 'left': 1, 'right': 5, 'check': None, 'left_id': 'x1-1', 'right_id': 'x6-1'}, {'step': 5, 'rule_name': 'RH-Merge', 'rule_number': 11, 'rule_kind': 'double', 'left': 1, 'right': 4, 'check': None, 'left_id': 'x2-1', 'right_id': 'x6-1'}, {'step': 6, 'rule_name': 'RH-Merge', 'rule_number': 11, 'rule_kind': 'double', 'left': 1, 'right': 2, 'check': None, 'left_id': 'x4-1', 'right_id': 'x5-1'}, {'step': 7, 'rule_name': 'RH-Merge', 'rule_number': 11, 'rule_kind': 'double', 'left': 2, 'right': 1, 'check': None, 'left_id': 'x6-1', 'right_id': 'x5-1'}, {'step': 8, 'rule_name': 'RH-Merge', 'rule_number': 11, 'rule_kind': 'double', 'left': 3, 'right': 1, 'check': None, 'left_id': 'x8-1', 'right_id': 'x5-1'}, {'step': 9, 'rule_name': 'RH-Merge', 'rule_number': 11, 'rule_kind': 'double', 'left': 2, 'right': 3, 'check': None, 'left_id': 'x7-1', 'right_id': 'x10-1'}]",
+          "[{'step': 1, 'rule_name': 'J-Merge', 'rule_number': 7, 'rule_kind': 'double', 'left': 8, 'right': 9, 'check': None, 'left_id': 'x8-1', 'right_id': 'x9-1'}, {'step': 2, 'rule_name': 'RH-Merge', 'rule_number': 11, 'rule_kind': 'double', 'left': 10, 'right': 9, 'check': None, 'left_id': 'x11-1', 'right_id': 'x10-1'}, {'step': 3, 'rule_name': 'property-Merge', 'rule_number': 9, 'rule_kind': 'double', 'left': 3, 'right': 1, 'check': None, 'left_id': 'x3-1', 'right_id': 'x1-1'}, {'step': 4, 'rule_name': 'property-Merge', 'rule_number': 9, 'rule_kind': 'double', 'left': 1, 'right': 5, 'check': None, 'left_id': 'x1-1', 'right_id': 'x6-1'}, {'step': 5, 'rule_name': 'RH-Merge', 'rule_number': 11, 'rule_kind': 'double', 'left': 1, 'right': 4, 'check': None, 'left_id': 'x2-1', 'right_id': 'x6-1'}, {'step': 6, 'rule_name': 'RH-Merge', 'rule_number': 11, 'rule_kind': 'double', 'left': 1, 'right': 2, 'check': None, 'left_id': 'x4-1', 'right_id': 'x5-1'}, {'step': 7, 'rule_name': 'RH-Merge', 'rule_number': 11, 'rule_kind': 'double', 'left': 2, 'right': 1, 'check': None, 'left_id': 'x6-1', 'right_id': 'x5-1'}, {'step': 8, 'rule_name': 'RH-Merge', 'rule_number': 11, 'rule_kind': 'double', 'left': 3, 'right': 1, 'check': None, 'left_id': 'x8-1', 'right_id': 'x5-1'}, {'step': 9, 'rule_name': 'RH-Merge', 'rule_number': 11, 'rule_kind': 'double', 'left': 2, 'right': 1, 'check': None, 'left_id': 'x7-1', 'right_id': 'x5-1'}]"
+        ],
+        "evidence_present": true
+      }
+    }
+  }
+}
