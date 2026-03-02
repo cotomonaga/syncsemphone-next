@@ -92,15 +92,7 @@ function uniqueSorted(rows: string[]): string[] {
 }
 
 function markdownInline(text: string): string {
-  return text
-    .replace(/!\[([^\]]*)\]\(([^)\s]+)(?:\s+\"([^\"]*)\")?\)/g, (_m, alt, src, title) => {
-      const safeAlt = String(alt || "").replace(/"/g, "&quot;");
-      const safeSrc = String(src || "").replace(/"/g, "&quot;");
-      const safeTitle = String(title || "").replace(/"/g, "&quot;");
-      const titleAttr = safeTitle ? ` title="${safeTitle}"` : "";
-      return `<img class="lexicon-md-image" src="${safeSrc}" alt="${safeAlt}"${titleAttr} loading="lazy" />`;
-    })
-    .replace(/`([^`]+)`/g, "<code>$1</code>");
+  return text.replace(/`([^`]+)`/g, "<code>$1</code>");
 }
 
 function renderMarkdownPreview(markdown: string): Array<JSX.Element> {
