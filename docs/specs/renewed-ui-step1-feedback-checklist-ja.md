@@ -573,3 +573,9 @@
 - [x] `S2-REG-30` same-content / different-content の summary cache key 回帰テストを追加し、内容同値・内容差分の挙動を固定する。
 - [x] `S2-AUD-05` `6cdb979` 基準で long structural A/B（fast OFF/ON）と sanity を再計測し、旧ベースラインを置換する。
 - [x] `DOC-RCH-04` 再ベースライン結果を `reachability-ab-audit-20260301-postfix.md/.json` に保存する。
+
+## 95. candidate Grammar別 discharge 監査（4文 × φなし/あり）
+- [x] `S2-DIAG-05` 4文（`うさぎがいる` / `わたあめを食べているひつじがいる` / `ひつじと話しているうさぎがいる` / `ふわふわした...うさぎがいる`）を対象に、`imi01/imi02/imi03` × `φなし/φ+2` の reachability 実測を同一条件で実行する。
+- [x] `S2-DIAG-06` 各ケースで `initial_family_counts`・`best_leaf_residual_family_avg`・`residual source top` を集計し、`se:33/sy:11/sy:17` の discharge 観測表を作成する。
+- [x] `DOC-RCH-09` discharge 監査結果を JSON/Markdown で保存し、`φ追加はcount補完だが質改善に直結しない` こと（S2/S3/S4で `unknown` 継続）を明記する。
+  - 成果物: [reachability-discharge-matrix-20260302.md](/Users/tomonaga/Documents/syncsemphoneIMI/syncsemphone-next/docs/specs/reachability-discharge-matrix-20260302.md)

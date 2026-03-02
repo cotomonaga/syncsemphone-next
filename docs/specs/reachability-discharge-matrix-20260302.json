@@ -1,0 +1,2288 @@
+{
+  "generated_at": "2026-03-02",
+  "legacy_root": "/Users/tomonaga/Documents/syncsemphoneIMI",
+  "grammar_ids": [
+    "imi01",
+    "imi02",
+    "imi03"
+  ],
+  "split_mode": "A",
+  "budget_seconds": 120.0,
+  "max_nodes": 40000,
+  "max_depth": 28,
+  "top_k": 20,
+  "phi_plus_count": 2,
+  "results": [
+    {
+      "sentence_key": "S1",
+      "sentence": "うさぎがいる",
+      "grammar_id": "imi01",
+      "phi_mode": "none",
+      "lexicon_ids": [
+        270,
+        19,
+        271,
+        204
+      ],
+      "status": "reachable",
+      "completed": true,
+      "reason": "completed",
+      "actions_attempted": 160,
+      "max_depth_reached": 3,
+      "leaf_unresolved_min": 0,
+      "leaf_unresolved_max": 5,
+      "initial_family_counts": {
+        "se:33": 1,
+        "sy:11": 1,
+        "sy:17": 4
+      },
+      "best_leaf_residual_family_totals": {
+        "sy:17": 18
+      },
+      "best_leaf_residual_family_avg": {
+        "sy:17": 0.9
+      },
+      "best_leaf_residual_source_totals": {
+        "sy:17": [
+          {
+            "count": 14,
+            "item_id": "x2-1",
+            "category": "J",
+            "phono": "が",
+            "raw": "0,17,N,,,right,nonhead"
+          },
+          {
+            "count": 2,
+            "item_id": "x3-1",
+            "category": "V",
+            "phono": "",
+            "raw": "3,17,V,,,left,nonhead"
+          },
+          {
+            "count": 2,
+            "item_id": "x4-1",
+            "category": "T",
+            "phono": "-ru",
+            "raw": "0,17,V,,,right,nonhead"
+          }
+        ]
+      },
+      "discharge_table": [
+        {
+          "family": "se:33",
+          "initial_count": 1,
+          "residual_avg_per_best_leaf": 0.0,
+          "estimated_discharged_per_path": 1.0
+        },
+        {
+          "family": "sy:11",
+          "initial_count": 1,
+          "residual_avg_per_best_leaf": 0.0,
+          "estimated_discharged_per_path": 1.0
+        },
+        {
+          "family": "sy:17",
+          "initial_count": 4,
+          "residual_avg_per_best_leaf": 0.9,
+          "estimated_discharged_per_path": 3.1
+        }
+      ]
+    },
+    {
+      "sentence_key": "S1",
+      "sentence": "うさぎがいる",
+      "grammar_id": "imi01",
+      "phi_mode": "plus2",
+      "lexicon_ids": [
+        270,
+        19,
+        271,
+        204,
+        309,
+        309
+      ],
+      "status": "reachable",
+      "completed": false,
+      "reason": "node_limit",
+      "actions_attempted": 40000,
+      "max_depth_reached": 5,
+      "leaf_unresolved_min": 0,
+      "leaf_unresolved_max": 7,
+      "initial_family_counts": {
+        "se:33": 1,
+        "sy:11": 3,
+        "sy:17": 4
+      },
+      "best_leaf_residual_family_totals": {
+        "sy:11": 12
+      },
+      "best_leaf_residual_family_avg": {
+        "sy:11": 0.6
+      },
+      "best_leaf_residual_source_totals": {
+        "sy:11": [
+          {
+            "count": 12,
+            "item_id": "x1-1",
+            "category": "N",
+            "phono": "",
+            "raw": "2,11,ga"
+          }
+        ]
+      },
+      "discharge_table": [
+        {
+          "family": "se:33",
+          "initial_count": 1,
+          "residual_avg_per_best_leaf": 0.0,
+          "estimated_discharged_per_path": 1.0
+        },
+        {
+          "family": "sy:11",
+          "initial_count": 3,
+          "residual_avg_per_best_leaf": 0.6,
+          "estimated_discharged_per_path": 2.4
+        },
+        {
+          "family": "sy:17",
+          "initial_count": 4,
+          "residual_avg_per_best_leaf": 0.0,
+          "estimated_discharged_per_path": 4.0
+        }
+      ]
+    },
+    {
+      "sentence_key": "S1",
+      "sentence": "うさぎがいる",
+      "grammar_id": "imi02",
+      "phi_mode": "none",
+      "lexicon_ids": [
+        270,
+        19,
+        271,
+        204
+      ],
+      "status": "reachable",
+      "completed": true,
+      "reason": "completed",
+      "actions_attempted": 170,
+      "max_depth_reached": 3,
+      "leaf_unresolved_min": 0,
+      "leaf_unresolved_max": 5,
+      "initial_family_counts": {
+        "se:33": 1,
+        "sy:11": 1,
+        "sy:17": 4
+      },
+      "best_leaf_residual_family_totals": {
+        "sy:17": 18
+      },
+      "best_leaf_residual_family_avg": {
+        "sy:17": 0.9
+      },
+      "best_leaf_residual_source_totals": {
+        "sy:17": [
+          {
+            "count": 14,
+            "item_id": "x2-1",
+            "category": "J",
+            "phono": "が",
+            "raw": "0,17,N,,,right,nonhead"
+          },
+          {
+            "count": 2,
+            "item_id": "x3-1",
+            "category": "V",
+            "phono": "",
+            "raw": "3,17,V,,,left,nonhead"
+          },
+          {
+            "count": 2,
+            "item_id": "x4-1",
+            "category": "T",
+            "phono": "-ru",
+            "raw": "0,17,V,,,right,nonhead"
+          }
+        ]
+      },
+      "discharge_table": [
+        {
+          "family": "se:33",
+          "initial_count": 1,
+          "residual_avg_per_best_leaf": 0.0,
+          "estimated_discharged_per_path": 1.0
+        },
+        {
+          "family": "sy:11",
+          "initial_count": 1,
+          "residual_avg_per_best_leaf": 0.0,
+          "estimated_discharged_per_path": 1.0
+        },
+        {
+          "family": "sy:17",
+          "initial_count": 4,
+          "residual_avg_per_best_leaf": 0.9,
+          "estimated_discharged_per_path": 3.1
+        }
+      ]
+    },
+    {
+      "sentence_key": "S1",
+      "sentence": "うさぎがいる",
+      "grammar_id": "imi02",
+      "phi_mode": "plus2",
+      "lexicon_ids": [
+        270,
+        19,
+        271,
+        204,
+        309,
+        309
+      ],
+      "status": "reachable",
+      "completed": false,
+      "reason": "node_limit",
+      "actions_attempted": 40000,
+      "max_depth_reached": 5,
+      "leaf_unresolved_min": 0,
+      "leaf_unresolved_max": 7,
+      "initial_family_counts": {
+        "se:33": 1,
+        "sy:11": 3,
+        "sy:17": 4
+      },
+      "best_leaf_residual_family_totals": {
+        "sy:11": 10
+      },
+      "best_leaf_residual_family_avg": {
+        "sy:11": 0.5
+      },
+      "best_leaf_residual_source_totals": {
+        "sy:11": [
+          {
+            "count": 10,
+            "item_id": "x1-1",
+            "category": "N",
+            "phono": "",
+            "raw": "2,11,ga"
+          }
+        ]
+      },
+      "discharge_table": [
+        {
+          "family": "se:33",
+          "initial_count": 1,
+          "residual_avg_per_best_leaf": 0.0,
+          "estimated_discharged_per_path": 1.0
+        },
+        {
+          "family": "sy:11",
+          "initial_count": 3,
+          "residual_avg_per_best_leaf": 0.5,
+          "estimated_discharged_per_path": 2.5
+        },
+        {
+          "family": "sy:17",
+          "initial_count": 4,
+          "residual_avg_per_best_leaf": 0.0,
+          "estimated_discharged_per_path": 4.0
+        }
+      ]
+    },
+    {
+      "sentence_key": "S1",
+      "sentence": "うさぎがいる",
+      "grammar_id": "imi03",
+      "phi_mode": "none",
+      "lexicon_ids": [
+        270,
+        19,
+        271,
+        204
+      ],
+      "status": "reachable",
+      "completed": true,
+      "reason": "completed",
+      "actions_attempted": 170,
+      "max_depth_reached": 3,
+      "leaf_unresolved_min": 0,
+      "leaf_unresolved_max": 5,
+      "initial_family_counts": {
+        "se:33": 1,
+        "sy:11": 1,
+        "sy:17": 4
+      },
+      "best_leaf_residual_family_totals": {
+        "sy:17": 18
+      },
+      "best_leaf_residual_family_avg": {
+        "sy:17": 0.9
+      },
+      "best_leaf_residual_source_totals": {
+        "sy:17": [
+          {
+            "count": 14,
+            "item_id": "x2-1",
+            "category": "J",
+            "phono": "が",
+            "raw": "0,17,N,,,right,nonhead"
+          },
+          {
+            "count": 2,
+            "item_id": "x3-1",
+            "category": "V",
+            "phono": "",
+            "raw": "3,17,V,,,left,nonhead"
+          },
+          {
+            "count": 2,
+            "item_id": "x4-1",
+            "category": "T",
+            "phono": "-ru",
+            "raw": "0,17,V,,,right,nonhead"
+          }
+        ]
+      },
+      "discharge_table": [
+        {
+          "family": "se:33",
+          "initial_count": 1,
+          "residual_avg_per_best_leaf": 0.0,
+          "estimated_discharged_per_path": 1.0
+        },
+        {
+          "family": "sy:11",
+          "initial_count": 1,
+          "residual_avg_per_best_leaf": 0.0,
+          "estimated_discharged_per_path": 1.0
+        },
+        {
+          "family": "sy:17",
+          "initial_count": 4,
+          "residual_avg_per_best_leaf": 0.9,
+          "estimated_discharged_per_path": 3.1
+        }
+      ]
+    },
+    {
+      "sentence_key": "S1",
+      "sentence": "うさぎがいる",
+      "grammar_id": "imi03",
+      "phi_mode": "plus2",
+      "lexicon_ids": [
+        270,
+        19,
+        271,
+        204,
+        309,
+        309
+      ],
+      "status": "reachable",
+      "completed": false,
+      "reason": "node_limit",
+      "actions_attempted": 40000,
+      "max_depth_reached": 5,
+      "leaf_unresolved_min": 0,
+      "leaf_unresolved_max": 7,
+      "initial_family_counts": {
+        "se:33": 1,
+        "sy:11": 3,
+        "sy:17": 4
+      },
+      "best_leaf_residual_family_totals": {
+        "sy:11": 10
+      },
+      "best_leaf_residual_family_avg": {
+        "sy:11": 0.5
+      },
+      "best_leaf_residual_source_totals": {
+        "sy:11": [
+          {
+            "count": 10,
+            "item_id": "x1-1",
+            "category": "N",
+            "phono": "",
+            "raw": "2,11,ga"
+          }
+        ]
+      },
+      "discharge_table": [
+        {
+          "family": "se:33",
+          "initial_count": 1,
+          "residual_avg_per_best_leaf": 0.0,
+          "estimated_discharged_per_path": 1.0
+        },
+        {
+          "family": "sy:11",
+          "initial_count": 3,
+          "residual_avg_per_best_leaf": 0.5,
+          "estimated_discharged_per_path": 2.5
+        },
+        {
+          "family": "sy:17",
+          "initial_count": 4,
+          "residual_avg_per_best_leaf": 0.0,
+          "estimated_discharged_per_path": 4.0
+        }
+      ]
+    },
+    {
+      "sentence_key": "S2",
+      "sentence": "わたあめを食べているひつじがいる",
+      "grammar_id": "imi01",
+      "phi_mode": "none",
+      "lexicon_ids": [
+        265,
+        23,
+        266,
+        267,
+        19,
+        271,
+        204
+      ],
+      "status": "unknown",
+      "completed": false,
+      "reason": "node_limit",
+      "actions_attempted": 40000,
+      "max_depth_reached": 6,
+      "leaf_unresolved_min": 3,
+      "leaf_unresolved_max": 10,
+      "initial_family_counts": {
+        "se:33": 3,
+        "sy:11": 2,
+        "sy:17": 7
+      },
+      "best_leaf_residual_family_totals": {
+        "se:33": 40,
+        "sy:11": 20
+      },
+      "best_leaf_residual_family_avg": {
+        "se:33": 2.0,
+        "sy:11": 1.0
+      },
+      "best_leaf_residual_source_totals": {
+        "se:33": [
+          {
+            "count": 20,
+            "item_id": "x3-1",
+            "category": "V",
+            "phono": "食べている",
+            "raw": "Agent:2,33,ga"
+          },
+          {
+            "count": 20,
+            "item_id": "x3-1",
+            "category": "V",
+            "phono": "食べている",
+            "raw": "Theme:2,33,wo"
+          }
+        ],
+        "sy:11": [
+          {
+            "count": 15,
+            "item_id": "x1-1",
+            "category": "N",
+            "phono": "",
+            "raw": "2,11,wo"
+          },
+          {
+            "count": 5,
+            "item_id": "x4-1",
+            "category": "N",
+            "phono": "",
+            "raw": "2,11,wo"
+          }
+        ]
+      },
+      "discharge_table": [
+        {
+          "family": "se:33",
+          "initial_count": 3,
+          "residual_avg_per_best_leaf": 2.0,
+          "estimated_discharged_per_path": 1.0
+        },
+        {
+          "family": "sy:11",
+          "initial_count": 2,
+          "residual_avg_per_best_leaf": 1.0,
+          "estimated_discharged_per_path": 1.0
+        },
+        {
+          "family": "sy:17",
+          "initial_count": 7,
+          "residual_avg_per_best_leaf": 0.0,
+          "estimated_discharged_per_path": 7.0
+        }
+      ]
+    },
+    {
+      "sentence_key": "S2",
+      "sentence": "わたあめを食べているひつじがいる",
+      "grammar_id": "imi01",
+      "phi_mode": "plus2",
+      "lexicon_ids": [
+        265,
+        23,
+        266,
+        267,
+        19,
+        271,
+        204,
+        309,
+        309
+      ],
+      "status": "unknown",
+      "completed": false,
+      "reason": "node_limit",
+      "actions_attempted": 40000,
+      "max_depth_reached": 8,
+      "leaf_unresolved_min": 4,
+      "leaf_unresolved_max": 10,
+      "initial_family_counts": {
+        "se:33": 3,
+        "sy:11": 4,
+        "sy:17": 7
+      },
+      "best_leaf_residual_family_totals": {
+        "se:33": 40,
+        "sy:11": 40
+      },
+      "best_leaf_residual_family_avg": {
+        "se:33": 2.0,
+        "sy:11": 2.0
+      },
+      "best_leaf_residual_source_totals": {
+        "se:33": [
+          {
+            "count": 20,
+            "item_id": "x3-1",
+            "category": "V",
+            "phono": "食べている",
+            "raw": "Agent:2,33,ga"
+          },
+          {
+            "count": 20,
+            "item_id": "x3-1",
+            "category": "V",
+            "phono": "食べている",
+            "raw": "Theme:2,33,wo"
+          }
+        ],
+        "sy:11": [
+          {
+            "count": 20,
+            "item_id": "x1-1",
+            "category": "N",
+            "phono": "",
+            "raw": "2,11,wo"
+          },
+          {
+            "count": 20,
+            "item_id": "x4-1",
+            "category": "N",
+            "phono": "",
+            "raw": "2,11,ga"
+          }
+        ]
+      },
+      "discharge_table": [
+        {
+          "family": "se:33",
+          "initial_count": 3,
+          "residual_avg_per_best_leaf": 2.0,
+          "estimated_discharged_per_path": 1.0
+        },
+        {
+          "family": "sy:11",
+          "initial_count": 4,
+          "residual_avg_per_best_leaf": 2.0,
+          "estimated_discharged_per_path": 2.0
+        },
+        {
+          "family": "sy:17",
+          "initial_count": 7,
+          "residual_avg_per_best_leaf": 0.0,
+          "estimated_discharged_per_path": 7.0
+        }
+      ]
+    },
+    {
+      "sentence_key": "S2",
+      "sentence": "わたあめを食べているひつじがいる",
+      "grammar_id": "imi02",
+      "phi_mode": "none",
+      "lexicon_ids": [
+        265,
+        23,
+        266,
+        267,
+        19,
+        271,
+        204
+      ],
+      "status": "unknown",
+      "completed": false,
+      "reason": "node_limit",
+      "actions_attempted": 40000,
+      "max_depth_reached": 6,
+      "leaf_unresolved_min": 3,
+      "leaf_unresolved_max": 10,
+      "initial_family_counts": {
+        "se:33": 3,
+        "sy:11": 2,
+        "sy:17": 7
+      },
+      "best_leaf_residual_family_totals": {
+        "se:33": 40,
+        "sy:11": 20
+      },
+      "best_leaf_residual_family_avg": {
+        "se:33": 2.0,
+        "sy:11": 1.0
+      },
+      "best_leaf_residual_source_totals": {
+        "se:33": [
+          {
+            "count": 20,
+            "item_id": "x3-1",
+            "category": "V",
+            "phono": "食べている",
+            "raw": "Agent:2,33,ga"
+          },
+          {
+            "count": 20,
+            "item_id": "x3-1",
+            "category": "V",
+            "phono": "食べている",
+            "raw": "Theme:2,33,wo"
+          }
+        ],
+        "sy:11": [
+          {
+            "count": 15,
+            "item_id": "x1-1",
+            "category": "N",
+            "phono": "",
+            "raw": "2,11,wo"
+          },
+          {
+            "count": 5,
+            "item_id": "x4-1",
+            "category": "N",
+            "phono": "",
+            "raw": "2,11,wo"
+          }
+        ]
+      },
+      "discharge_table": [
+        {
+          "family": "se:33",
+          "initial_count": 3,
+          "residual_avg_per_best_leaf": 2.0,
+          "estimated_discharged_per_path": 1.0
+        },
+        {
+          "family": "sy:11",
+          "initial_count": 2,
+          "residual_avg_per_best_leaf": 1.0,
+          "estimated_discharged_per_path": 1.0
+        },
+        {
+          "family": "sy:17",
+          "initial_count": 7,
+          "residual_avg_per_best_leaf": 0.0,
+          "estimated_discharged_per_path": 7.0
+        }
+      ]
+    },
+    {
+      "sentence_key": "S2",
+      "sentence": "わたあめを食べているひつじがいる",
+      "grammar_id": "imi02",
+      "phi_mode": "plus2",
+      "lexicon_ids": [
+        265,
+        23,
+        266,
+        267,
+        19,
+        271,
+        204,
+        309,
+        309
+      ],
+      "status": "unknown",
+      "completed": false,
+      "reason": "node_limit",
+      "actions_attempted": 40000,
+      "max_depth_reached": 8,
+      "leaf_unresolved_min": 4,
+      "leaf_unresolved_max": 10,
+      "initial_family_counts": {
+        "se:33": 3,
+        "sy:11": 4,
+        "sy:17": 7
+      },
+      "best_leaf_residual_family_totals": {
+        "se:33": 40,
+        "sy:11": 40
+      },
+      "best_leaf_residual_family_avg": {
+        "se:33": 2.0,
+        "sy:11": 2.0
+      },
+      "best_leaf_residual_source_totals": {
+        "se:33": [
+          {
+            "count": 20,
+            "item_id": "x3-1",
+            "category": "V",
+            "phono": "食べている",
+            "raw": "Agent:2,33,ga"
+          },
+          {
+            "count": 20,
+            "item_id": "x3-1",
+            "category": "V",
+            "phono": "食べている",
+            "raw": "Theme:2,33,wo"
+          }
+        ],
+        "sy:11": [
+          {
+            "count": 20,
+            "item_id": "x1-1",
+            "category": "N",
+            "phono": "",
+            "raw": "2,11,wo"
+          },
+          {
+            "count": 20,
+            "item_id": "x4-1",
+            "category": "N",
+            "phono": "",
+            "raw": "2,11,ga"
+          }
+        ]
+      },
+      "discharge_table": [
+        {
+          "family": "se:33",
+          "initial_count": 3,
+          "residual_avg_per_best_leaf": 2.0,
+          "estimated_discharged_per_path": 1.0
+        },
+        {
+          "family": "sy:11",
+          "initial_count": 4,
+          "residual_avg_per_best_leaf": 2.0,
+          "estimated_discharged_per_path": 2.0
+        },
+        {
+          "family": "sy:17",
+          "initial_count": 7,
+          "residual_avg_per_best_leaf": 0.0,
+          "estimated_discharged_per_path": 7.0
+        }
+      ]
+    },
+    {
+      "sentence_key": "S2",
+      "sentence": "わたあめを食べているひつじがいる",
+      "grammar_id": "imi03",
+      "phi_mode": "none",
+      "lexicon_ids": [
+        265,
+        23,
+        266,
+        267,
+        19,
+        271,
+        204
+      ],
+      "status": "unknown",
+      "completed": false,
+      "reason": "node_limit",
+      "actions_attempted": 40000,
+      "max_depth_reached": 6,
+      "leaf_unresolved_min": 3,
+      "leaf_unresolved_max": 10,
+      "initial_family_counts": {
+        "se:33": 3,
+        "sy:11": 2,
+        "sy:17": 7
+      },
+      "best_leaf_residual_family_totals": {
+        "se:33": 40,
+        "sy:11": 20
+      },
+      "best_leaf_residual_family_avg": {
+        "se:33": 2.0,
+        "sy:11": 1.0
+      },
+      "best_leaf_residual_source_totals": {
+        "se:33": [
+          {
+            "count": 20,
+            "item_id": "x3-1",
+            "category": "V",
+            "phono": "食べている",
+            "raw": "Agent:2,33,ga"
+          },
+          {
+            "count": 20,
+            "item_id": "x3-1",
+            "category": "V",
+            "phono": "食べている",
+            "raw": "Theme:2,33,wo"
+          }
+        ],
+        "sy:11": [
+          {
+            "count": 15,
+            "item_id": "x1-1",
+            "category": "N",
+            "phono": "",
+            "raw": "2,11,wo"
+          },
+          {
+            "count": 5,
+            "item_id": "x4-1",
+            "category": "N",
+            "phono": "",
+            "raw": "2,11,wo"
+          }
+        ]
+      },
+      "discharge_table": [
+        {
+          "family": "se:33",
+          "initial_count": 3,
+          "residual_avg_per_best_leaf": 2.0,
+          "estimated_discharged_per_path": 1.0
+        },
+        {
+          "family": "sy:11",
+          "initial_count": 2,
+          "residual_avg_per_best_leaf": 1.0,
+          "estimated_discharged_per_path": 1.0
+        },
+        {
+          "family": "sy:17",
+          "initial_count": 7,
+          "residual_avg_per_best_leaf": 0.0,
+          "estimated_discharged_per_path": 7.0
+        }
+      ]
+    },
+    {
+      "sentence_key": "S2",
+      "sentence": "わたあめを食べているひつじがいる",
+      "grammar_id": "imi03",
+      "phi_mode": "plus2",
+      "lexicon_ids": [
+        265,
+        23,
+        266,
+        267,
+        19,
+        271,
+        204,
+        309,
+        309
+      ],
+      "status": "unknown",
+      "completed": false,
+      "reason": "node_limit",
+      "actions_attempted": 40000,
+      "max_depth_reached": 8,
+      "leaf_unresolved_min": 4,
+      "leaf_unresolved_max": 10,
+      "initial_family_counts": {
+        "se:33": 3,
+        "sy:11": 4,
+        "sy:17": 7
+      },
+      "best_leaf_residual_family_totals": {
+        "se:33": 40,
+        "sy:11": 40
+      },
+      "best_leaf_residual_family_avg": {
+        "se:33": 2.0,
+        "sy:11": 2.0
+      },
+      "best_leaf_residual_source_totals": {
+        "se:33": [
+          {
+            "count": 20,
+            "item_id": "x3-1",
+            "category": "V",
+            "phono": "食べている",
+            "raw": "Agent:2,33,ga"
+          },
+          {
+            "count": 20,
+            "item_id": "x3-1",
+            "category": "V",
+            "phono": "食べている",
+            "raw": "Theme:2,33,wo"
+          }
+        ],
+        "sy:11": [
+          {
+            "count": 20,
+            "item_id": "x1-1",
+            "category": "N",
+            "phono": "",
+            "raw": "2,11,wo"
+          },
+          {
+            "count": 20,
+            "item_id": "x4-1",
+            "category": "N",
+            "phono": "",
+            "raw": "2,11,ga"
+          }
+        ]
+      },
+      "discharge_table": [
+        {
+          "family": "se:33",
+          "initial_count": 3,
+          "residual_avg_per_best_leaf": 2.0,
+          "estimated_discharged_per_path": 1.0
+        },
+        {
+          "family": "sy:11",
+          "initial_count": 4,
+          "residual_avg_per_best_leaf": 2.0,
+          "estimated_discharged_per_path": 2.0
+        },
+        {
+          "family": "sy:17",
+          "initial_count": 7,
+          "residual_avg_per_best_leaf": 0.0,
+          "estimated_discharged_per_path": 7.0
+        }
+      ]
+    },
+    {
+      "sentence_key": "S3",
+      "sentence": "ひつじと話しているうさぎがいる",
+      "grammar_id": "imi01",
+      "phi_mode": "none",
+      "lexicon_ids": [
+        267,
+        268,
+        269,
+        270,
+        19,
+        271,
+        204
+      ],
+      "status": "unknown",
+      "completed": false,
+      "reason": "node_limit",
+      "actions_attempted": 40000,
+      "max_depth_reached": 6,
+      "leaf_unresolved_min": 3,
+      "leaf_unresolved_max": 10,
+      "initial_family_counts": {
+        "se:33": 3,
+        "sy:11": 2,
+        "sy:17": 7
+      },
+      "best_leaf_residual_family_totals": {
+        "se:33": 40,
+        "sy:11": 20
+      },
+      "best_leaf_residual_family_avg": {
+        "se:33": 2.0,
+        "sy:11": 1.0
+      },
+      "best_leaf_residual_source_totals": {
+        "se:33": [
+          {
+            "count": 20,
+            "item_id": "x3-1",
+            "category": "V",
+            "phono": "話している",
+            "raw": "Agent:2,33,ga"
+          },
+          {
+            "count": 20,
+            "item_id": "x3-1",
+            "category": "V",
+            "phono": "話している",
+            "raw": "相手:2,33,to"
+          }
+        ],
+        "sy:11": [
+          {
+            "count": 15,
+            "item_id": "x1-1",
+            "category": "N",
+            "phono": "",
+            "raw": "2,11,to"
+          },
+          {
+            "count": 5,
+            "item_id": "x4-1",
+            "category": "N",
+            "phono": "",
+            "raw": "2,11,to"
+          }
+        ]
+      },
+      "discharge_table": [
+        {
+          "family": "se:33",
+          "initial_count": 3,
+          "residual_avg_per_best_leaf": 2.0,
+          "estimated_discharged_per_path": 1.0
+        },
+        {
+          "family": "sy:11",
+          "initial_count": 2,
+          "residual_avg_per_best_leaf": 1.0,
+          "estimated_discharged_per_path": 1.0
+        },
+        {
+          "family": "sy:17",
+          "initial_count": 7,
+          "residual_avg_per_best_leaf": 0.0,
+          "estimated_discharged_per_path": 7.0
+        }
+      ]
+    },
+    {
+      "sentence_key": "S3",
+      "sentence": "ひつじと話しているうさぎがいる",
+      "grammar_id": "imi01",
+      "phi_mode": "plus2",
+      "lexicon_ids": [
+        267,
+        268,
+        269,
+        270,
+        19,
+        271,
+        204,
+        309,
+        309
+      ],
+      "status": "unknown",
+      "completed": false,
+      "reason": "node_limit",
+      "actions_attempted": 40000,
+      "max_depth_reached": 8,
+      "leaf_unresolved_min": 4,
+      "leaf_unresolved_max": 10,
+      "initial_family_counts": {
+        "se:33": 3,
+        "sy:11": 4,
+        "sy:17": 7
+      },
+      "best_leaf_residual_family_totals": {
+        "se:33": 40,
+        "sy:11": 40
+      },
+      "best_leaf_residual_family_avg": {
+        "se:33": 2.0,
+        "sy:11": 2.0
+      },
+      "best_leaf_residual_source_totals": {
+        "se:33": [
+          {
+            "count": 20,
+            "item_id": "x3-1",
+            "category": "V",
+            "phono": "話している",
+            "raw": "Agent:2,33,ga"
+          },
+          {
+            "count": 20,
+            "item_id": "x3-1",
+            "category": "V",
+            "phono": "話している",
+            "raw": "相手:2,33,to"
+          }
+        ],
+        "sy:11": [
+          {
+            "count": 20,
+            "item_id": "x1-1",
+            "category": "N",
+            "phono": "",
+            "raw": "2,11,to"
+          },
+          {
+            "count": 20,
+            "item_id": "x4-1",
+            "category": "N",
+            "phono": "",
+            "raw": "2,11,ga"
+          }
+        ]
+      },
+      "discharge_table": [
+        {
+          "family": "se:33",
+          "initial_count": 3,
+          "residual_avg_per_best_leaf": 2.0,
+          "estimated_discharged_per_path": 1.0
+        },
+        {
+          "family": "sy:11",
+          "initial_count": 4,
+          "residual_avg_per_best_leaf": 2.0,
+          "estimated_discharged_per_path": 2.0
+        },
+        {
+          "family": "sy:17",
+          "initial_count": 7,
+          "residual_avg_per_best_leaf": 0.0,
+          "estimated_discharged_per_path": 7.0
+        }
+      ]
+    },
+    {
+      "sentence_key": "S3",
+      "sentence": "ひつじと話しているうさぎがいる",
+      "grammar_id": "imi02",
+      "phi_mode": "none",
+      "lexicon_ids": [
+        267,
+        268,
+        269,
+        270,
+        19,
+        271,
+        204
+      ],
+      "status": "unknown",
+      "completed": false,
+      "reason": "node_limit",
+      "actions_attempted": 40000,
+      "max_depth_reached": 6,
+      "leaf_unresolved_min": 3,
+      "leaf_unresolved_max": 10,
+      "initial_family_counts": {
+        "se:33": 3,
+        "sy:11": 2,
+        "sy:17": 7
+      },
+      "best_leaf_residual_family_totals": {
+        "se:33": 40,
+        "sy:11": 20
+      },
+      "best_leaf_residual_family_avg": {
+        "se:33": 2.0,
+        "sy:11": 1.0
+      },
+      "best_leaf_residual_source_totals": {
+        "se:33": [
+          {
+            "count": 20,
+            "item_id": "x3-1",
+            "category": "V",
+            "phono": "話している",
+            "raw": "Agent:2,33,ga"
+          },
+          {
+            "count": 20,
+            "item_id": "x3-1",
+            "category": "V",
+            "phono": "話している",
+            "raw": "相手:2,33,to"
+          }
+        ],
+        "sy:11": [
+          {
+            "count": 15,
+            "item_id": "x1-1",
+            "category": "N",
+            "phono": "",
+            "raw": "2,11,to"
+          },
+          {
+            "count": 5,
+            "item_id": "x4-1",
+            "category": "N",
+            "phono": "",
+            "raw": "2,11,to"
+          }
+        ]
+      },
+      "discharge_table": [
+        {
+          "family": "se:33",
+          "initial_count": 3,
+          "residual_avg_per_best_leaf": 2.0,
+          "estimated_discharged_per_path": 1.0
+        },
+        {
+          "family": "sy:11",
+          "initial_count": 2,
+          "residual_avg_per_best_leaf": 1.0,
+          "estimated_discharged_per_path": 1.0
+        },
+        {
+          "family": "sy:17",
+          "initial_count": 7,
+          "residual_avg_per_best_leaf": 0.0,
+          "estimated_discharged_per_path": 7.0
+        }
+      ]
+    },
+    {
+      "sentence_key": "S3",
+      "sentence": "ひつじと話しているうさぎがいる",
+      "grammar_id": "imi02",
+      "phi_mode": "plus2",
+      "lexicon_ids": [
+        267,
+        268,
+        269,
+        270,
+        19,
+        271,
+        204,
+        309,
+        309
+      ],
+      "status": "unknown",
+      "completed": false,
+      "reason": "node_limit",
+      "actions_attempted": 40000,
+      "max_depth_reached": 8,
+      "leaf_unresolved_min": 4,
+      "leaf_unresolved_max": 10,
+      "initial_family_counts": {
+        "se:33": 3,
+        "sy:11": 4,
+        "sy:17": 7
+      },
+      "best_leaf_residual_family_totals": {
+        "se:33": 40,
+        "sy:11": 40
+      },
+      "best_leaf_residual_family_avg": {
+        "se:33": 2.0,
+        "sy:11": 2.0
+      },
+      "best_leaf_residual_source_totals": {
+        "se:33": [
+          {
+            "count": 20,
+            "item_id": "x3-1",
+            "category": "V",
+            "phono": "話している",
+            "raw": "Agent:2,33,ga"
+          },
+          {
+            "count": 20,
+            "item_id": "x3-1",
+            "category": "V",
+            "phono": "話している",
+            "raw": "相手:2,33,to"
+          }
+        ],
+        "sy:11": [
+          {
+            "count": 20,
+            "item_id": "x1-1",
+            "category": "N",
+            "phono": "",
+            "raw": "2,11,to"
+          },
+          {
+            "count": 20,
+            "item_id": "x4-1",
+            "category": "N",
+            "phono": "",
+            "raw": "2,11,ga"
+          }
+        ]
+      },
+      "discharge_table": [
+        {
+          "family": "se:33",
+          "initial_count": 3,
+          "residual_avg_per_best_leaf": 2.0,
+          "estimated_discharged_per_path": 1.0
+        },
+        {
+          "family": "sy:11",
+          "initial_count": 4,
+          "residual_avg_per_best_leaf": 2.0,
+          "estimated_discharged_per_path": 2.0
+        },
+        {
+          "family": "sy:17",
+          "initial_count": 7,
+          "residual_avg_per_best_leaf": 0.0,
+          "estimated_discharged_per_path": 7.0
+        }
+      ]
+    },
+    {
+      "sentence_key": "S3",
+      "sentence": "ひつじと話しているうさぎがいる",
+      "grammar_id": "imi03",
+      "phi_mode": "none",
+      "lexicon_ids": [
+        267,
+        268,
+        269,
+        270,
+        19,
+        271,
+        204
+      ],
+      "status": "unknown",
+      "completed": false,
+      "reason": "node_limit",
+      "actions_attempted": 40000,
+      "max_depth_reached": 6,
+      "leaf_unresolved_min": 3,
+      "leaf_unresolved_max": 10,
+      "initial_family_counts": {
+        "se:33": 3,
+        "sy:11": 2,
+        "sy:17": 7
+      },
+      "best_leaf_residual_family_totals": {
+        "se:33": 40,
+        "sy:11": 20
+      },
+      "best_leaf_residual_family_avg": {
+        "se:33": 2.0,
+        "sy:11": 1.0
+      },
+      "best_leaf_residual_source_totals": {
+        "se:33": [
+          {
+            "count": 20,
+            "item_id": "x3-1",
+            "category": "V",
+            "phono": "話している",
+            "raw": "Agent:2,33,ga"
+          },
+          {
+            "count": 20,
+            "item_id": "x3-1",
+            "category": "V",
+            "phono": "話している",
+            "raw": "相手:2,33,to"
+          }
+        ],
+        "sy:11": [
+          {
+            "count": 15,
+            "item_id": "x1-1",
+            "category": "N",
+            "phono": "",
+            "raw": "2,11,to"
+          },
+          {
+            "count": 5,
+            "item_id": "x4-1",
+            "category": "N",
+            "phono": "",
+            "raw": "2,11,to"
+          }
+        ]
+      },
+      "discharge_table": [
+        {
+          "family": "se:33",
+          "initial_count": 3,
+          "residual_avg_per_best_leaf": 2.0,
+          "estimated_discharged_per_path": 1.0
+        },
+        {
+          "family": "sy:11",
+          "initial_count": 2,
+          "residual_avg_per_best_leaf": 1.0,
+          "estimated_discharged_per_path": 1.0
+        },
+        {
+          "family": "sy:17",
+          "initial_count": 7,
+          "residual_avg_per_best_leaf": 0.0,
+          "estimated_discharged_per_path": 7.0
+        }
+      ]
+    },
+    {
+      "sentence_key": "S3",
+      "sentence": "ひつじと話しているうさぎがいる",
+      "grammar_id": "imi03",
+      "phi_mode": "plus2",
+      "lexicon_ids": [
+        267,
+        268,
+        269,
+        270,
+        19,
+        271,
+        204,
+        309,
+        309
+      ],
+      "status": "unknown",
+      "completed": false,
+      "reason": "node_limit",
+      "actions_attempted": 40000,
+      "max_depth_reached": 8,
+      "leaf_unresolved_min": 4,
+      "leaf_unresolved_max": 10,
+      "initial_family_counts": {
+        "se:33": 3,
+        "sy:11": 4,
+        "sy:17": 7
+      },
+      "best_leaf_residual_family_totals": {
+        "se:33": 40,
+        "sy:11": 40
+      },
+      "best_leaf_residual_family_avg": {
+        "se:33": 2.0,
+        "sy:11": 2.0
+      },
+      "best_leaf_residual_source_totals": {
+        "se:33": [
+          {
+            "count": 20,
+            "item_id": "x3-1",
+            "category": "V",
+            "phono": "話している",
+            "raw": "Agent:2,33,ga"
+          },
+          {
+            "count": 20,
+            "item_id": "x3-1",
+            "category": "V",
+            "phono": "話している",
+            "raw": "相手:2,33,to"
+          }
+        ],
+        "sy:11": [
+          {
+            "count": 20,
+            "item_id": "x1-1",
+            "category": "N",
+            "phono": "",
+            "raw": "2,11,to"
+          },
+          {
+            "count": 20,
+            "item_id": "x4-1",
+            "category": "N",
+            "phono": "",
+            "raw": "2,11,ga"
+          }
+        ]
+      },
+      "discharge_table": [
+        {
+          "family": "se:33",
+          "initial_count": 3,
+          "residual_avg_per_best_leaf": 2.0,
+          "estimated_discharged_per_path": 1.0
+        },
+        {
+          "family": "sy:11",
+          "initial_count": 4,
+          "residual_avg_per_best_leaf": 2.0,
+          "estimated_discharged_per_path": 2.0
+        },
+        {
+          "family": "sy:17",
+          "initial_count": 7,
+          "residual_avg_per_best_leaf": 0.0,
+          "estimated_discharged_per_path": 7.0
+        }
+      ]
+    },
+    {
+      "sentence_key": "S4",
+      "sentence": "ふわふわしたわたあめを食べているひつじと話しているうさぎがいる",
+      "grammar_id": "imi01",
+      "phi_mode": "none",
+      "lexicon_ids": [
+        264,
+        265,
+        23,
+        266,
+        267,
+        268,
+        269,
+        270,
+        19,
+        271,
+        204
+      ],
+      "status": "unknown",
+      "completed": false,
+      "reason": "node_limit",
+      "actions_attempted": 40000,
+      "max_depth_reached": 10,
+      "leaf_unresolved_min": 7,
+      "leaf_unresolved_max": 11,
+      "initial_family_counts": {
+        "se:33": 5,
+        "sy:11": 3,
+        "sy:17": 11
+      },
+      "best_leaf_residual_family_totals": {
+        "se:33": 80,
+        "sy:11": 40,
+        "sy:17": 20
+      },
+      "best_leaf_residual_family_avg": {
+        "se:33": 4.0,
+        "sy:11": 2.0,
+        "sy:17": 1.0
+      },
+      "best_leaf_residual_source_totals": {
+        "se:33": [
+          {
+            "count": 20,
+            "item_id": "x4-1",
+            "category": "V",
+            "phono": "食べている",
+            "raw": "Agent:2,33,ga"
+          },
+          {
+            "count": 20,
+            "item_id": "x4-1",
+            "category": "V",
+            "phono": "食べている",
+            "raw": "Theme:2,33,wo"
+          },
+          {
+            "count": 20,
+            "item_id": "x7-1",
+            "category": "V",
+            "phono": "話している",
+            "raw": "Agent:2,33,ga"
+          },
+          {
+            "count": 20,
+            "item_id": "x7-1",
+            "category": "V",
+            "phono": "話している",
+            "raw": "相手:2,33,to"
+          }
+        ],
+        "sy:11": [
+          {
+            "count": 20,
+            "item_id": "x2-1",
+            "category": "N",
+            "phono": "",
+            "raw": "2,11,wo"
+          },
+          {
+            "count": 20,
+            "item_id": "x5-1",
+            "category": "N",
+            "phono": "",
+            "raw": "2,11,to"
+          }
+        ],
+        "sy:17": [
+          {
+            "count": 20,
+            "item_id": "x9-1",
+            "category": "J",
+            "phono": "が",
+            "raw": "0,17,N,,,right,nonhead"
+          }
+        ]
+      },
+      "discharge_table": [
+        {
+          "family": "se:33",
+          "initial_count": 5,
+          "residual_avg_per_best_leaf": 4.0,
+          "estimated_discharged_per_path": 1.0
+        },
+        {
+          "family": "sy:11",
+          "initial_count": 3,
+          "residual_avg_per_best_leaf": 2.0,
+          "estimated_discharged_per_path": 1.0
+        },
+        {
+          "family": "sy:17",
+          "initial_count": 11,
+          "residual_avg_per_best_leaf": 1.0,
+          "estimated_discharged_per_path": 10.0
+        }
+      ]
+    },
+    {
+      "sentence_key": "S4",
+      "sentence": "ふわふわしたわたあめを食べているひつじと話しているうさぎがいる",
+      "grammar_id": "imi01",
+      "phi_mode": "plus2",
+      "lexicon_ids": [
+        264,
+        265,
+        23,
+        266,
+        267,
+        268,
+        269,
+        270,
+        19,
+        271,
+        204,
+        309,
+        309
+      ],
+      "status": "unknown",
+      "completed": false,
+      "reason": "node_limit",
+      "actions_attempted": 40000,
+      "max_depth_reached": 12,
+      "leaf_unresolved_min": 9,
+      "leaf_unresolved_max": 11,
+      "initial_family_counts": {
+        "se:33": 5,
+        "sy:11": 5,
+        "sy:17": 11
+      },
+      "best_leaf_residual_family_totals": {
+        "se:33": 80,
+        "sy:11": 80,
+        "sy:17": 20
+      },
+      "best_leaf_residual_family_avg": {
+        "se:33": 4.0,
+        "sy:11": 4.0,
+        "sy:17": 1.0
+      },
+      "best_leaf_residual_source_totals": {
+        "se:33": [
+          {
+            "count": 20,
+            "item_id": "x4-1",
+            "category": "V",
+            "phono": "食べている",
+            "raw": "Agent:2,33,ga"
+          },
+          {
+            "count": 20,
+            "item_id": "x4-1",
+            "category": "V",
+            "phono": "食べている",
+            "raw": "Theme:2,33,wo"
+          },
+          {
+            "count": 20,
+            "item_id": "x7-1",
+            "category": "V",
+            "phono": "話している",
+            "raw": "Agent:2,33,ga"
+          },
+          {
+            "count": 20,
+            "item_id": "x7-1",
+            "category": "V",
+            "phono": "話している",
+            "raw": "相手:2,33,to"
+          }
+        ],
+        "sy:11": [
+          {
+            "count": 24,
+            "item_id": "x10-1",
+            "category": "V",
+            "phono": "",
+            "raw": "2,11,ga"
+          },
+          {
+            "count": 20,
+            "item_id": "x12-1",
+            "category": "N",
+            "phono": "",
+            "raw": "2,11,wo"
+          },
+          {
+            "count": 20,
+            "item_id": "x5-1",
+            "category": "N",
+            "phono": "",
+            "raw": "2,11,to"
+          },
+          {
+            "count": 8,
+            "item_id": "x13-1",
+            "category": "N",
+            "phono": "",
+            "raw": "4,11,ga"
+          },
+          {
+            "count": 8,
+            "item_id": "x8-1",
+            "category": "N",
+            "phono": "",
+            "raw": "2,11,ga"
+          }
+        ],
+        "sy:17": [
+          {
+            "count": 20,
+            "item_id": "x9-1",
+            "category": "J",
+            "phono": "が",
+            "raw": "0,17,N,,,right,nonhead"
+          }
+        ]
+      },
+      "discharge_table": [
+        {
+          "family": "se:33",
+          "initial_count": 5,
+          "residual_avg_per_best_leaf": 4.0,
+          "estimated_discharged_per_path": 1.0
+        },
+        {
+          "family": "sy:11",
+          "initial_count": 5,
+          "residual_avg_per_best_leaf": 4.0,
+          "estimated_discharged_per_path": 1.0
+        },
+        {
+          "family": "sy:17",
+          "initial_count": 11,
+          "residual_avg_per_best_leaf": 1.0,
+          "estimated_discharged_per_path": 10.0
+        }
+      ]
+    },
+    {
+      "sentence_key": "S4",
+      "sentence": "ふわふわしたわたあめを食べているひつじと話しているうさぎがいる",
+      "grammar_id": "imi02",
+      "phi_mode": "none",
+      "lexicon_ids": [
+        264,
+        265,
+        23,
+        266,
+        267,
+        268,
+        269,
+        270,
+        19,
+        271,
+        204
+      ],
+      "status": "unknown",
+      "completed": false,
+      "reason": "node_limit",
+      "actions_attempted": 40000,
+      "max_depth_reached": 10,
+      "leaf_unresolved_min": 7,
+      "leaf_unresolved_max": 11,
+      "initial_family_counts": {
+        "se:33": 5,
+        "sy:11": 3,
+        "sy:17": 11
+      },
+      "best_leaf_residual_family_totals": {
+        "se:33": 80,
+        "sy:11": 40,
+        "sy:17": 20
+      },
+      "best_leaf_residual_family_avg": {
+        "se:33": 4.0,
+        "sy:11": 2.0,
+        "sy:17": 1.0
+      },
+      "best_leaf_residual_source_totals": {
+        "se:33": [
+          {
+            "count": 20,
+            "item_id": "x4-1",
+            "category": "V",
+            "phono": "食べている",
+            "raw": "Agent:2,33,ga"
+          },
+          {
+            "count": 20,
+            "item_id": "x4-1",
+            "category": "V",
+            "phono": "食べている",
+            "raw": "Theme:2,33,wo"
+          },
+          {
+            "count": 20,
+            "item_id": "x7-1",
+            "category": "V",
+            "phono": "話している",
+            "raw": "Agent:2,33,ga"
+          },
+          {
+            "count": 20,
+            "item_id": "x7-1",
+            "category": "V",
+            "phono": "話している",
+            "raw": "相手:2,33,to"
+          }
+        ],
+        "sy:11": [
+          {
+            "count": 20,
+            "item_id": "x2-1",
+            "category": "N",
+            "phono": "",
+            "raw": "2,11,wo"
+          },
+          {
+            "count": 20,
+            "item_id": "x5-1",
+            "category": "N",
+            "phono": "",
+            "raw": "2,11,to"
+          }
+        ],
+        "sy:17": [
+          {
+            "count": 20,
+            "item_id": "x9-1",
+            "category": "J",
+            "phono": "が",
+            "raw": "0,17,N,,,right,nonhead"
+          }
+        ]
+      },
+      "discharge_table": [
+        {
+          "family": "se:33",
+          "initial_count": 5,
+          "residual_avg_per_best_leaf": 4.0,
+          "estimated_discharged_per_path": 1.0
+        },
+        {
+          "family": "sy:11",
+          "initial_count": 3,
+          "residual_avg_per_best_leaf": 2.0,
+          "estimated_discharged_per_path": 1.0
+        },
+        {
+          "family": "sy:17",
+          "initial_count": 11,
+          "residual_avg_per_best_leaf": 1.0,
+          "estimated_discharged_per_path": 10.0
+        }
+      ]
+    },
+    {
+      "sentence_key": "S4",
+      "sentence": "ふわふわしたわたあめを食べているひつじと話しているうさぎがいる",
+      "grammar_id": "imi02",
+      "phi_mode": "plus2",
+      "lexicon_ids": [
+        264,
+        265,
+        23,
+        266,
+        267,
+        268,
+        269,
+        270,
+        19,
+        271,
+        204,
+        309,
+        309
+      ],
+      "status": "unknown",
+      "completed": false,
+      "reason": "node_limit",
+      "actions_attempted": 40000,
+      "max_depth_reached": 12,
+      "leaf_unresolved_min": 9,
+      "leaf_unresolved_max": 11,
+      "initial_family_counts": {
+        "se:33": 5,
+        "sy:11": 5,
+        "sy:17": 11
+      },
+      "best_leaf_residual_family_totals": {
+        "se:33": 80,
+        "sy:11": 80,
+        "sy:17": 20
+      },
+      "best_leaf_residual_family_avg": {
+        "se:33": 4.0,
+        "sy:11": 4.0,
+        "sy:17": 1.0
+      },
+      "best_leaf_residual_source_totals": {
+        "se:33": [
+          {
+            "count": 20,
+            "item_id": "x4-1",
+            "category": "V",
+            "phono": "食べている",
+            "raw": "Agent:2,33,ga"
+          },
+          {
+            "count": 20,
+            "item_id": "x4-1",
+            "category": "V",
+            "phono": "食べている",
+            "raw": "Theme:2,33,wo"
+          },
+          {
+            "count": 20,
+            "item_id": "x7-1",
+            "category": "V",
+            "phono": "話している",
+            "raw": "Agent:2,33,ga"
+          },
+          {
+            "count": 20,
+            "item_id": "x7-1",
+            "category": "V",
+            "phono": "話している",
+            "raw": "相手:2,33,to"
+          }
+        ],
+        "sy:11": [
+          {
+            "count": 24,
+            "item_id": "x10-1",
+            "category": "V",
+            "phono": "",
+            "raw": "2,11,ga"
+          },
+          {
+            "count": 20,
+            "item_id": "x12-1",
+            "category": "N",
+            "phono": "",
+            "raw": "2,11,wo"
+          },
+          {
+            "count": 20,
+            "item_id": "x5-1",
+            "category": "N",
+            "phono": "",
+            "raw": "2,11,to"
+          },
+          {
+            "count": 8,
+            "item_id": "x13-1",
+            "category": "N",
+            "phono": "",
+            "raw": "4,11,ga"
+          },
+          {
+            "count": 8,
+            "item_id": "x8-1",
+            "category": "N",
+            "phono": "",
+            "raw": "2,11,ga"
+          }
+        ],
+        "sy:17": [
+          {
+            "count": 20,
+            "item_id": "x9-1",
+            "category": "J",
+            "phono": "が",
+            "raw": "0,17,N,,,right,nonhead"
+          }
+        ]
+      },
+      "discharge_table": [
+        {
+          "family": "se:33",
+          "initial_count": 5,
+          "residual_avg_per_best_leaf": 4.0,
+          "estimated_discharged_per_path": 1.0
+        },
+        {
+          "family": "sy:11",
+          "initial_count": 5,
+          "residual_avg_per_best_leaf": 4.0,
+          "estimated_discharged_per_path": 1.0
+        },
+        {
+          "family": "sy:17",
+          "initial_count": 11,
+          "residual_avg_per_best_leaf": 1.0,
+          "estimated_discharged_per_path": 10.0
+        }
+      ]
+    },
+    {
+      "sentence_key": "S4",
+      "sentence": "ふわふわしたわたあめを食べているひつじと話しているうさぎがいる",
+      "grammar_id": "imi03",
+      "phi_mode": "none",
+      "lexicon_ids": [
+        264,
+        265,
+        23,
+        266,
+        267,
+        268,
+        269,
+        270,
+        19,
+        271,
+        204
+      ],
+      "status": "unknown",
+      "completed": false,
+      "reason": "node_limit",
+      "actions_attempted": 40000,
+      "max_depth_reached": 10,
+      "leaf_unresolved_min": 7,
+      "leaf_unresolved_max": 11,
+      "initial_family_counts": {
+        "se:33": 5,
+        "sy:11": 3,
+        "sy:17": 11
+      },
+      "best_leaf_residual_family_totals": {
+        "se:33": 80,
+        "sy:11": 40,
+        "sy:17": 20
+      },
+      "best_leaf_residual_family_avg": {
+        "se:33": 4.0,
+        "sy:11": 2.0,
+        "sy:17": 1.0
+      },
+      "best_leaf_residual_source_totals": {
+        "se:33": [
+          {
+            "count": 20,
+            "item_id": "x4-1",
+            "category": "V",
+            "phono": "食べている",
+            "raw": "Agent:2,33,ga"
+          },
+          {
+            "count": 20,
+            "item_id": "x4-1",
+            "category": "V",
+            "phono": "食べている",
+            "raw": "Theme:2,33,wo"
+          },
+          {
+            "count": 20,
+            "item_id": "x7-1",
+            "category": "V",
+            "phono": "話している",
+            "raw": "Agent:2,33,ga"
+          },
+          {
+            "count": 20,
+            "item_id": "x7-1",
+            "category": "V",
+            "phono": "話している",
+            "raw": "相手:2,33,to"
+          }
+        ],
+        "sy:11": [
+          {
+            "count": 20,
+            "item_id": "x2-1",
+            "category": "N",
+            "phono": "",
+            "raw": "2,11,wo"
+          },
+          {
+            "count": 20,
+            "item_id": "x5-1",
+            "category": "N",
+            "phono": "",
+            "raw": "2,11,to"
+          }
+        ],
+        "sy:17": [
+          {
+            "count": 20,
+            "item_id": "x9-1",
+            "category": "J",
+            "phono": "が",
+            "raw": "0,17,N,,,right,nonhead"
+          }
+        ]
+      },
+      "discharge_table": [
+        {
+          "family": "se:33",
+          "initial_count": 5,
+          "residual_avg_per_best_leaf": 4.0,
+          "estimated_discharged_per_path": 1.0
+        },
+        {
+          "family": "sy:11",
+          "initial_count": 3,
+          "residual_avg_per_best_leaf": 2.0,
+          "estimated_discharged_per_path": 1.0
+        },
+        {
+          "family": "sy:17",
+          "initial_count": 11,
+          "residual_avg_per_best_leaf": 1.0,
+          "estimated_discharged_per_path": 10.0
+        }
+      ]
+    },
+    {
+      "sentence_key": "S4",
+      "sentence": "ふわふわしたわたあめを食べているひつじと話しているうさぎがいる",
+      "grammar_id": "imi03",
+      "phi_mode": "plus2",
+      "lexicon_ids": [
+        264,
+        265,
+        23,
+        266,
+        267,
+        268,
+        269,
+        270,
+        19,
+        271,
+        204,
+        309,
+        309
+      ],
+      "status": "unknown",
+      "completed": false,
+      "reason": "node_limit",
+      "actions_attempted": 40000,
+      "max_depth_reached": 12,
+      "leaf_unresolved_min": 9,
+      "leaf_unresolved_max": 11,
+      "initial_family_counts": {
+        "se:33": 5,
+        "sy:11": 5,
+        "sy:17": 11
+      },
+      "best_leaf_residual_family_totals": {
+        "se:33": 80,
+        "sy:11": 80,
+        "sy:17": 20
+      },
+      "best_leaf_residual_family_avg": {
+        "se:33": 4.0,
+        "sy:11": 4.0,
+        "sy:17": 1.0
+      },
+      "best_leaf_residual_source_totals": {
+        "se:33": [
+          {
+            "count": 20,
+            "item_id": "x4-1",
+            "category": "V",
+            "phono": "食べている",
+            "raw": "Agent:2,33,ga"
+          },
+          {
+            "count": 20,
+            "item_id": "x4-1",
+            "category": "V",
+            "phono": "食べている",
+            "raw": "Theme:2,33,wo"
+          },
+          {
+            "count": 20,
+            "item_id": "x7-1",
+            "category": "V",
+            "phono": "話している",
+            "raw": "Agent:2,33,ga"
+          },
+          {
+            "count": 20,
+            "item_id": "x7-1",
+            "category": "V",
+            "phono": "話している",
+            "raw": "相手:2,33,to"
+          }
+        ],
+        "sy:11": [
+          {
+            "count": 24,
+            "item_id": "x10-1",
+            "category": "V",
+            "phono": "",
+            "raw": "2,11,ga"
+          },
+          {
+            "count": 20,
+            "item_id": "x12-1",
+            "category": "N",
+            "phono": "",
+            "raw": "2,11,wo"
+          },
+          {
+            "count": 20,
+            "item_id": "x5-1",
+            "category": "N",
+            "phono": "",
+            "raw": "2,11,to"
+          },
+          {
+            "count": 8,
+            "item_id": "x13-1",
+            "category": "N",
+            "phono": "",
+            "raw": "4,11,ga"
+          },
+          {
+            "count": 8,
+            "item_id": "x8-1",
+            "category": "N",
+            "phono": "",
+            "raw": "2,11,ga"
+          }
+        ],
+        "sy:17": [
+          {
+            "count": 20,
+            "item_id": "x9-1",
+            "category": "J",
+            "phono": "が",
+            "raw": "0,17,N,,,right,nonhead"
+          }
+        ]
+      },
+      "discharge_table": [
+        {
+          "family": "se:33",
+          "initial_count": 5,
+          "residual_avg_per_best_leaf": 4.0,
+          "estimated_discharged_per_path": 1.0
+        },
+        {
+          "family": "sy:11",
+          "initial_count": 5,
+          "residual_avg_per_best_leaf": 4.0,
+          "estimated_discharged_per_path": 1.0
+        },
+        {
+          "family": "sy:17",
+          "initial_count": 11,
+          "residual_avg_per_best_leaf": 1.0,
+          "estimated_discharged_per_path": 10.0
+        }
+      ]
+    }
+  ]
+}

@@ -434,6 +434,9 @@
 | S2-DIAG-04 | residual 診断JSONへ `initial_slots` と `residual_family_sources`（best leaf / best mid）を追加し、persistent residual の導入元語彙を追跡可能にする | `apps/api/app/api/v1/derivation.py`, `apps/api/scripts/reachability_residual_diagnose.py` | `pytest`, CLI実測 |
 | DOC-RCH-07 | residual 診断結果をMarkdownへ整理し、persistent residual と次の切り分けアクションを記録する | `docs/specs/reachability-residual-diagnose-20260301.md` | 文書レビュー |
 | DOC-RCH-08 | residual 診断レポートへ source 集計（item/phono/raw）と初期スロット対応を追記し、grammar/lexicon 側検証の入力を明確化する | `docs/specs/reachability-residual-diagnose-20260301.md` | 文書レビュー |
+| S2-DIAG-05 | 4文（`うさぎがいる` / `わたあめを食べているひつじがいる` / `ひつじと話しているうさぎがいる` / `ふわふわした...うさぎがいる`）を対象に、`imi01/imi02/imi03` × `φなし/φ+2` の reachability 実測マトリクスを追加する | `apps/api/scripts/reachability_discharge_matrix.py` | CLI実測 |
+| S2-DIAG-06 | 各ケースで `initial_family_counts` / `best_leaf_residual_family_avg` / `best_leaf_residual_source_totals` を集計し、`se:33/sy:11/sy:17` の discharge 観測表を出力する | `apps/api/scripts/reachability_discharge_matrix.py`, `docs/specs/reachability-discharge-matrix-20260302.json` | CLI実測 |
+| DOC-RCH-09 | discharge 監査レポートを作成し、`φ追加はcount補完だがS2/S3/S4の質改善に直結しない` ことを文書化する | `docs/specs/reachability-discharge-matrix-20260302.md` | 文書レビュー |
 
 ## API追加（S1-GRM-02）
 - `GET /v1/reference/grammars/{grammar_id}/rule-sources`
