@@ -590,3 +590,12 @@
 - [x] `J2-RPT-01` explicit numeration / Step1 auto の再実測レポート（baseline vs after IDs, status/reason, leaf_min, history_top, evidence）を出力する。
   - 成果物: [reachability-japanese2-lexical-selection-impl-20260302.md](/Users/tomonaga/Documents/syncsemphoneIMI/syncsemphone-next/docs/specs/reachability-japanese2-lexical-selection-impl-20260302.md)
   - 成果物: [reachability-japanese2-lexical-selection-impl-20260302.json](/Users/tomonaga/Documents/syncsemphoneIMI/syncsemphone-next/docs/specs/reachability-japanese2-lexical-selection-impl-20260302.json)
+
+## 97. japanese2 lexical-only 採用監査（181 vs 189 evidence本体比較 + overfit監査）
+- [x] `J2-AUD-01` `S2/S4 after_wo181/after_wo189` の actual evidence 本体（tree/process/history）を抽出し、canonical tree signature 単位で同異を比較する。
+- [x] `J2-AUD-02` 各 evidence の `unresolved` を再計算し、reachable判定と独立に数値を記録する（0固定と仮定しない）。
+- [x] `J2-AUD-03` `を` selector の overfit 監査として、`Theme:2,33,wo` 動詞棚卸し + Step.1 auto通過3文で `force_wo_23/181/189` を比較する。
+- [x] `J2-AUD-04` `が=183` は既定化せず、二段目fallback条件のみを事実と作業仮説に分離して明文化する。
+- [x] `J2-AUD-05` 監査レポート（Markdown/JSON）を出力する。
+  - 成果物: [reachability-japanese2-lexical-adoption-audit-20260303.md](/Users/tomonaga/Documents/syncsemphoneIMI/syncsemphone-next/docs/specs/reachability-japanese2-lexical-adoption-audit-20260303.md)
+  - 成果物: [reachability-japanese2-lexical-adoption-audit-20260303.json](/Users/tomonaga/Documents/syncsemphoneIMI/syncsemphone-next/docs/specs/reachability-japanese2-lexical-adoption-audit-20260303.json)

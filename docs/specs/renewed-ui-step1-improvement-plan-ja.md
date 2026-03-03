@@ -444,6 +444,10 @@
 | J2-REG-01 | API回帰で `japanese2` 長文生成の既定ID列（`264,265,181,266,267,9301,269,270,19,271,204`）を固定する | `apps/api/tests/test_derivation.py` | `pytest` |
 | J2-REG-02 | API回帰で `japanese2` 長文 `init/from-sentence` が成功し `generation_failed` しないことを固定する | `apps/api/tests/test_derivation.py` | `pytest` |
 | J2-RPT-01 | explicit/auto 比較レポート（S2/T3/T1/S4、baseline/after IDs、status/reason、leaf_min、history_top、evidence有無）を出力する | `apps/api/scripts/reachability_japanese2_lexical_selection_impl_20260302.py`, `docs/specs/reachability-japanese2-lexical-selection-impl-20260302.{md,json}` | CLI実測 |
+| J2-AUD-01 | `S2/S4 after_wo181/after_wo189` の actual evidence（tree/process/history）を抽出し、canonical signature 単位で同異を監査する | `apps/api/scripts/reachability_japanese2_lexical_adoption_audit_20260303.py`, `docs/specs/reachability-japanese2-lexical-adoption-audit-20260303.{md,json}` | CLI実測 |
+| J2-AUD-02 | evidenceごとに `unresolved` を再計算して記録し、reachability `status=reachable` との整合を監査する（断定せず事実を出力） | `apps/api/scripts/reachability_japanese2_lexical_adoption_audit_20260303.py` | CLI実測 |
+| J2-AUD-03 | `Theme:2,33,wo` 動詞棚卸し + Step.1 auto通過3文で `force_wo_23/181/189` を比較し、`を` selector の overfit を監査する | `apps/api/scripts/reachability_japanese2_lexical_adoption_audit_20260303.py` | CLI実測 |
+| J2-AUD-04 | `が=183` は既定化せず、二段目fallback条件のみを [確認済み事実]/[推測] で分離して明文化する | `docs/specs/reachability-japanese2-lexical-adoption-audit-20260303.md` | 文書レビュー |
 
 ## API追加（S1-GRM-02）
 - `GET /v1/reference/grammars/{grammar_id}/rule-sources`
