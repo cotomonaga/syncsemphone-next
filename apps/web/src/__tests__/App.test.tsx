@@ -1750,7 +1750,7 @@ describe("App", () => {
     });
   });
 
-  it("shows auto ga-phi supplement note and opens numeration editor from evidence link", async () => {
+  it("does not show auto ga-phi supplement note and omits auto_add_ga_phi from payload", async () => {
     const generatePayloads: Array<Record<string, unknown>> = [];
     vi.spyOn(globalThis, "fetch").mockImplementation(async (input, init) => {
       const url = String(input);
@@ -1783,7 +1783,7 @@ describe("App", () => {
         return jsonResponse({
           body: {
             memo: payload.sentence || "",
-            lexicon_ids: [264, 265, 23, 266, 267, 268, 269, 270, 19, 271, 204, 309, 309],
+            lexicon_ids: [264, 265, 23, 266, 267, 268, 269, 270, 19, 271, 204],
             token_resolutions: [
               { token: "ふわふわした", lexicon_id: 264, candidate_lexicon_ids: [264] },
               { token: "わたあめ", lexicon_id: 265, candidate_lexicon_ids: [265] },
@@ -1795,29 +1795,13 @@ describe("App", () => {
               { token: "うさぎ", lexicon_id: 270, candidate_lexicon_ids: [270] },
               { token: "が", lexicon_id: 19, candidate_lexicon_ids: [19] },
               { token: "いる", lexicon_id: 271, candidate_lexicon_ids: [271] },
-              { token: "る", lexicon_id: 204, candidate_lexicon_ids: [204] },
-              { token: "φ", lexicon_id: 309, candidate_lexicon_ids: [309] },
-              { token: "φ", lexicon_id: 309, candidate_lexicon_ids: [309] }
+              { token: "る", lexicon_id: 204, candidate_lexicon_ids: [204] }
             ],
-            auto_supplements: [
-              {
-                kind: "ga_feature33_gap_fill",
-                lexicon_id: 309,
-                entry: "φ",
-                count: 2,
-                reason: "2,33,ga 要求数が 4,11,ga 供給数を上回るため、不足分を φ(309) で補完しました。",
-                feature_code: "33",
-                label: "ga",
-                demand_count: 3,
-                provider_count: 1,
-                reference_numeration_path: "/repo/imi01/set-numeration/1608131500.num",
-                reference_numeration_memo: "ふわふわしたわたあめを食べているひつじと話しているうさぎがいる[2]"
-              }
-            ],
+            auto_supplements: [],
             numeration_text:
-              `${payload.sentence || ""}\t264\t265\t23\t266\t267\t268\t269\t270\t19\t271\t204\t309\t309\n` +
-              " \t\t\t\t\t\t\t\t\t\t\t\t\t\n" +
-              " \t1\t2\t3\t4\t5\t6\t7\t8\t9\t10\t11\t12\t13"
+              `${payload.sentence || ""}\t264\t265\t23\t266\t267\t268\t269\t270\t19\t271\t204\n` +
+              " \t\t\t\t\t\t\t\t\t\t\t\n" +
+              " \t1\t2\t3\t4\t5\t6\t7\t8\t9\t10\t11"
           }
         });
       }
@@ -1868,16 +1852,10 @@ describe("App", () => {
 
     const buildPanel = screen.getByRole("button", { name: "Lexiconから組み立てる" }).closest("section");
     expect(buildPanel).not.toBeNull();
-    expect(await within(buildPanel!).findByTestId("step1-auto-supplement-notes")).toHaveTextContent(
-      "ID 309（φ）を 2件 追加"
-    );
-
-    await user.click(within(buildPanel!).getByRole("button", { name: "根拠 .num を Numeration編集で表示" }));
-    expect(await screen.findByRole("heading", { name: "Numeration編集" })).toBeInTheDocument();
-    expect(await screen.findByText(/ファイルパス:/)).toHaveTextContent(
-      "/repo/imi01/set-numeration/1608131500.num"
-    );
-    expect(generatePayloads.some((payload) => payload.auto_add_ga_phi === true)).toBe(true);
+    await waitFor(() => {
+      expect(within(buildPanel!).queryByTestId("step1-auto-supplement-notes")).toBeNull();
+    });
+    expect(generatePayloads.every((payload) => !("auto_add_ga_phi" in payload))).toBe(true);
   });
 
   it("allows replacing a multi-candidate lexicon item in Step1 numeration reference", async () => {

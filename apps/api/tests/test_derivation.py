@@ -393,7 +393,7 @@ def test_derivation_init_from_sentence_resolves_compounded_tokens() -> None:
     ]
 
 
-def test_derivation_numeration_generate_auto_adds_ga_phi_for_imi01_long_sentence() -> None:
+def test_derivation_numeration_generate_has_no_auto_phi_path() -> None:
     client = TestClient(app)
     response = client.post(
         "/v1/derivation/numeration/generate",
@@ -401,25 +401,13 @@ def test_derivation_numeration_generate_auto_adds_ga_phi_for_imi01_long_sentence
             "grammar_id": "imi01",
             "sentence": "ふわふわしたわたあめを食べているひつじと話しているうさぎがいる",
             "split_mode": "A",
-            "auto_add_ga_phi": True,
             "legacy_root": str(_legacy_root()),
         },
     )
     assert response.status_code == 200
     body = response.json()
-    assert body["lexicon_ids"] == [264, 265, 23, 266, 267, 268, 269, 270, 19, 271, 204, 309, 309]
-    assert [row["token"] for row in body["token_resolutions"]][-2:] == ["φ", "φ"]
-    assert body["auto_supplements"]
-    note = body["auto_supplements"][0]
-    assert note["kind"] == "ga_feature33_gap_fill"
-    assert note["lexicon_id"] == 309
-    assert note["count"] == 2
-    assert note["feature_code"] == "33"
-    assert note["label"] == "ga"
-    assert note["demand_count"] == 3
-    assert note["provider_count"] == 1
-    assert note["reference_numeration_path"] is not None
-    assert note["reference_numeration_path"].endswith("imi01/set-numeration/1608131500.num")
+    assert body["lexicon_ids"] == [264, 265, 23, 266, 267, 268, 269, 270, 19, 271, 204]
+    assert body["auto_supplements"] == []
 
 
 def test_derivation_numeration_generate_keeps_default_without_auto_ga_phi() -> None:

@@ -653,28 +653,6 @@ def _build_numeration_text(*, memo: str, lexicon_ids: list[int]) -> str:
     return "\n".join(["\t".join(line1), "\t".join(line2), "\t".join(line3)])
 
 
-def _count_ga_feature33_requirements_and_providers(
-    *,
-    lexicon_ids: list[int],
-    lexicon: dict[int, LexiconEntry],
-) -> tuple[int, int]:
-    demand_count = 0
-    provider_count = 0
-    for lexicon_id in lexicon_ids:
-        entry = lexicon.get(lexicon_id)
-        if entry is None:
-            continue
-
-        for requirement in _extract_partner_requirements(entry):
-            if requirement.feature_code == "33" and requirement.label == "ga":
-                demand_count += 1
-
-        _, labeled = _extract_partner_capabilities(entry)
-        if "ga" in labeled:
-            provider_count += 1
-    return demand_count, provider_count
-
-
 def generate_numeration_from_sentence(
     *,
     grammar_id: str,
@@ -683,7 +661,6 @@ def generate_numeration_from_sentence(
     tokens: list[str] | None = None,
     split_mode: str = "C",
     tokenizer: MorphTokenizer | None = None,
-    auto_add_ga_phi: bool = False,
 ) -> GeneratedNumeration:
     memo = sentence.strip()
     if memo == "":
@@ -741,50 +718,6 @@ def generate_numeration_from_sentence(
     ]
     lexicon_ids = optimized_lexicon_ids[:]
     auto_supplements: list[AutoSupplement] = []
-
-    if auto_add_ga_phi and grammar_id == "imi01":
-        ga_phi_lexicon_id = 309
-        ga_phi_entry = lexicon.get(ga_phi_lexicon_id)
-        if ga_phi_entry is not None:
-            demand_count, provider_count = _count_ga_feature33_requirements_and_providers(
-                lexicon_ids=lexicon_ids,
-                lexicon=lexicon,
-            )
-            deficit = max(0, demand_count - provider_count)
-            remaining_slots = max(0, NUMERATION_SLOT_COUNT - len(lexicon_ids))
-            add_count = min(deficit, remaining_slots)
-            if add_count > 0:
-                compatibility = _infer_candidate_compatibility(
-                    grammar_id=grammar_id,
-                    entry=ga_phi_entry,
-                    grammar_rule_names=grammar_rule_names,
-                )
-                for _ in range(add_count):
-                    lexicon_ids.append(ga_phi_lexicon_id)
-                    resolutions.append(
-                        TokenResolution(
-                            token="φ",
-                            lexicon_id=ga_phi_lexicon_id,
-                            candidate_lexicon_ids=[ga_phi_lexicon_id],
-                            candidate_compatibility=[compatibility],
-                        )
-                    )
-                auto_supplements.append(
-                    AutoSupplement(
-                        kind="ga_feature33_gap_fill",
-                        lexicon_id=ga_phi_lexicon_id,
-                        entry=ga_phi_entry.entry,
-                        count=add_count,
-                        reason=(
-                            "2,33,ga 要求数が 4,11,ga 供給数を上回るため、"
-                            "不足分を φ(309) で補完しました。"
-                        ),
-                        feature_code="33",
-                        label="ga",
-                        demand_count=demand_count,
-                        provider_count=provider_count,
-                    )
-                )
 
     numeration_text = _build_numeration_text(memo=memo, lexicon_ids=lexicon_ids)
 

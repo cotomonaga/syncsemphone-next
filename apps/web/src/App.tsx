@@ -1732,8 +1732,7 @@ export default function App() {
           grammar_id: grammarId,
           sentence,
           tokens: tokensForRequest,
-          split_mode: splitMode,
-          auto_add_ga_phi: true
+          split_mode: splitMode
         });
         if (step1BuildPreviewRequestSeqRef.current !== requestId) {
           return;
@@ -2106,16 +2105,14 @@ export default function App() {
   }
 
   async function requestGenerateNumeration(
-    useManualTokens = tokenInputMode === "manual",
-    options?: { autoAddGaPhi?: boolean }
+    useManualTokens = tokenInputMode === "manual"
   ): Promise<GeneratedNumeration> {
     const tokensForRequest = useManualTokens ? resolveManualTokensForSubmit() : undefined;
     return apiPost<GeneratedNumeration>("/v1/derivation/numeration/generate", {
       grammar_id: grammarId,
       sentence,
       tokens: tokensForRequest,
-      split_mode: splitMode,
-      auto_add_ga_phi: options?.autoAddGaPhi ?? false
+      split_mode: splitMode
     });
   }
 
@@ -2163,9 +2160,7 @@ export default function App() {
           // Step1で差し替えた候補を保持したまま Numeration を形成する。
           formedNumerationText = await composeNumerationFromTokenEdits(tokenSlotEdits);
         } else {
-          const generatedNumeration = await requestGenerateNumeration(tokenInputMode === "manual", {
-            autoAddGaPhi: true
-          });
+          const generatedNumeration = await requestGenerateNumeration(tokenInputMode === "manual");
           setGenerated(generatedNumeration);
           syncTokenEdits(generatedNumeration);
           setStep1AutoSupplementNotes(generatedNumeration.auto_supplements || []);

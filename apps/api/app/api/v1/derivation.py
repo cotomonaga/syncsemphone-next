@@ -260,7 +260,6 @@ class SentenceNumerationGenerateRequest(BaseModel):
     sentence: str
     tokens: Optional[list[str]] = None
     split_mode: str = "C"
-    auto_add_ga_phi: bool = False
     legacy_root: Optional[str] = None
 
 
@@ -1267,7 +1266,6 @@ def _generate_numeration_with_unknown_token_fallback(
     legacy_root: Path,
     tokens: Optional[list[str]],
     split_mode: str,
-    auto_add_ga_phi: bool,
 ):
     # 手動トークン指定時は利用者入力を優先し、分割モードフォールバックは行わない。
     if tokens:
@@ -1277,7 +1275,6 @@ def _generate_numeration_with_unknown_token_fallback(
             legacy_root=legacy_root,
             tokens=tokens,
             split_mode=split_mode,
-            auto_add_ga_phi=auto_add_ga_phi,
         )
 
     tried: set[str] = set()
@@ -1294,7 +1291,6 @@ def _generate_numeration_with_unknown_token_fallback(
                 legacy_root=legacy_root,
                 tokens=tokens,
                 split_mode=mode,
-                auto_add_ga_phi=auto_add_ga_phi,
             )
         except ValueError as exc:
             last_error = exc
@@ -3808,32 +3804,50 @@ def _ensure_under(base_dir: Path, path: Path) -> bool:
 
 @router.get("/grammars", response_model=list[GrammarOptionResponse])
 def derivation_grammars() -> list[GrammarOptionResponse]:
-    entries = load_legacy_grammar_entries(_default_legacy_root())
-    if not entries:
-        fallback = [
-            ("imi01", "imi01", True),
-            ("imi02", "imi02", True),
-            ("imi03", "imi03", True),
-            ("japanese2", "japanese2", False),
-        ]
-        return [
-            GrammarOptionResponse(
-                grammar_id=grammar_id,
-                folder=folder,
-                uses_lexicon_all=uses_lexicon_all,
-                display_name=grammar_id,
-            )
-            for grammar_id, folder, uses_lexicon_all in fallback
-        ]
-    return [
+    required = [
         GrammarOptionResponse(
+            grammar_id="imi01",
+            folder="imi01",
+            uses_lexicon_all=True,
+            display_name="imi01",
+        ),
+        GrammarOptionResponse(
+            grammar_id="imi02",
+            folder="imi02",
+            uses_lexicon_all=True,
+            display_name="imi02",
+        ),
+        GrammarOptionResponse(
+            grammar_id="imi03",
+            folder="imi03",
+            uses_lexicon_all=True,
+            display_name="imi03",
+        ),
+        GrammarOptionResponse(
+            grammar_id="japanese2",
+            folder="japanese2",
+            uses_lexicon_all=False,
+            display_name="japanese2",
+        ),
+    ]
+    entries = load_legacy_grammar_entries(_default_legacy_root())
+    by_id: dict[str, GrammarOptionResponse] = {
+        row.grammar_id: row for row in required
+    }
+    for entry in entries:
+        by_id[entry.grammar_id] = GrammarOptionResponse(
             grammar_id=entry.grammar_id,
             folder=entry.folder,
             uses_lexicon_all=entry.uses_lexicon_all,
             display_name=entry.display_name,
         )
-        for entry in entries
-    ]
+    # 既定4種を先頭に固定し、それ以外の文法は grammar_id 昇順で後続に並べる。
+    required_ids = [row.grammar_id for row in required]
+    extras = sorted(
+        [row for gid, row in by_id.items() if gid not in required_ids],
+        key=lambda row: row.grammar_id,
+    )
+    return [by_id[gid] for gid in required_ids] + extras
 
 
 @router.get("/rules/{grammar_id}", response_model=list[RuleCandidate])
@@ -3971,7 +3985,6 @@ def generate_numeration(request: SentenceNumerationGenerateRequest) -> SentenceN
             legacy_root=legacy_root,
             tokens=request.tokens,
             split_mode=request.split_mode,
-            auto_add_ga_phi=request.auto_add_ga_phi,
         )
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
@@ -4018,7 +4031,6 @@ def init_derivation_from_sentence(
             legacy_root=legacy_root,
             tokens=request.tokens,
             split_mode=request.split_mode,
-            auto_add_ga_phi=request.auto_add_ga_phi,
         )
         state = build_initial_derivation_state(
             grammar_id=request.grammar_id,
