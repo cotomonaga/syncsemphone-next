@@ -1028,8 +1028,27 @@ button:disabled {
   border-radius: 10px;
   background: #fff;
   padding: 8px;
-  max-height: 180px;
+  max-height: 220px;
   overflow: auto;
+}
+
+.step2-tree-info-copy-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+
+.step2-tree-copy-btn {
+  font-size: 0.74rem;
+  padding: 6px 10px;
+  border-radius: 999px;
+  white-space: nowrap;
+}
+
+.step2-tree-copy-status {
+  font-size: 0.74rem;
+  color: #315c1f;
 }
 
 .step2-tree-info-empty {
@@ -1038,42 +1057,19 @@ button:disabled {
   color: var(--ink-soft);
 }
 
-.step2-tree-info-grid {
-  display: grid;
-  gap: 8px;
-}
-
-.step2-tree-info-item {
-  border: 1px solid #d6e3ef;
-  border-radius: 8px;
-  padding: 6px 8px;
-  background: #f9fcff;
-}
-
-.step2-tree-info-item-head {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 6px;
-}
-
-.step2-tree-info-chip {
-  display: inline-flex;
-  align-items: center;
-  font-size: 0.72rem;
-  color: #204660;
-  background: #e7f2ff;
-  border: 1px solid #d0e6ff;
-  border-radius: 999px;
-  padding: 2px 8px;
-}
-
-.step2-tree-info-item-label {
-  margin-top: 6px;
-  display: grid;
-  gap: 2px;
+.step2-tree-info-textarea {
+  width: 100%;
+  min-height: 120px;
+  resize: vertical;
   font-family: "Menlo", "Monaco", monospace;
-  font-size: 0.75rem;
-  color: #243f5a;
+  font-size: 0.76rem;
+  line-height: 1.4;
+  color: #1f2d3a;
+  border: 1px solid #cedae7;
+  border-radius: 8px;
+  background: #fbfdff;
+  padding: 8px;
+  box-sizing: border-box;
 }
 
 .step2-tree-graph-scroll {
@@ -1104,6 +1100,23 @@ button:disabled {
 .tree-graph-viewport svg {
   display: block;
   max-width: 100%;
+}
+
+.tree-graph-edge-line {
+  stroke: #111;
+}
+
+.tree-graph-edge-label {
+  fill: #111;
+  font-size: 11px;
+  font-weight: 700;
+  font-family: "Menlo", "Monaco", monospace;
+}
+
+.tree-graph-node-rect {
+  fill: #fff;
+  stroke: #111;
+  stroke-width: 1.6;
 }
 
 .step2-reachability-actions {

@@ -118,7 +118,7 @@ type RenderNode = {
 type RenderEdge = {
   from: string;
   to: string;
-  color: string;
+  sideLabel: string;
 };
 
 type TreeRenderModel = {
@@ -126,13 +126,6 @@ type TreeRenderModel = {
   edges: RenderEdge[];
   width: number;
   height: number;
-};
-
-type TreeInfoRow = {
-  node: string;
-  edge: string;
-  flag: string;
-  labelLines: string[];
 };
 
 const DEFAULT_GRAMMARS: GrammarOption[] = [
@@ -858,31 +851,8 @@ function toDisplayLines(value: unknown): string[] {
   return raw.split("\n");
 }
 
-function parseTreeInfoRows(csvText: string): TreeInfoRow[] {
-  const rows: TreeInfoRow[] = [];
-  const lines = csvText
-    .split(/\r?\n/)
-    .map((line) => line.trim())
-    .filter((line) => line !== "");
-  for (const line of lines) {
-    const cols = line.split(",", 4);
-    if (cols.length !== 4) {
-      continue;
-    }
-    const [node, edge, flag, label] = cols;
-    rows.push({
-      node,
-      edge,
-      flag,
-      labelLines: toDisplayLines(label)
-    });
-  }
-  return rows;
-}
-
 function buildTreeRenderModel(csvText: string): { model: TreeRenderModel; dotText: string } {
   const nodeLabels = new Map<string, string>();
-  const nodeFlags = new Map<string, string>();
   const children = new Map<string, string[]>();
   const parents = new Map<string, string>();
 
@@ -896,9 +866,8 @@ function buildTreeRenderModel(csvText: string): { model: TreeRenderModel; dotTex
     if (cols.length !== 4) {
       continue;
     }
-    const [node, edgeRaw, flag, label] = cols;
+    const [node, edgeRaw, _flag, label] = cols;
     nodeLabels.set(node, label);
-    nodeFlags.set(node, flag);
 
     const edgeList = edgeRaw
       .split(" ")
@@ -969,9 +938,9 @@ function buildTreeRenderModel(csvText: string): { model: TreeRenderModel; dotTex
 
   const renderEdges: RenderEdge[] = [];
   for (const [from, edgeList] of children.entries()) {
-    for (const to of edgeList) {
-      const color = nodeFlags.get(to) === "1" ? "#cc0000" : "#222";
-      renderEdges.push({ from, to, color });
+    for (const [index, to] of edgeList.entries()) {
+      const sideLabel = index === 0 ? "L" : index === 1 ? "R" : "";
+      renderEdges.push({ from, to, sideLabel });
     }
   }
 
@@ -981,11 +950,7 @@ function buildTreeRenderModel(csvText: string): { model: TreeRenderModel; dotTex
     dot += `${node} [label="${escaped}"];`;
   }
   for (const edge of renderEdges) {
-    dot += `${edge.from}--${edge.to}`;
-    if (edge.color === "#cc0000") {
-      dot += " [color=red]";
-    }
-    dot += ";";
+    dot += `${edge.from}--${edge.to};`;
   }
   dot += "}";
 
@@ -1011,20 +976,39 @@ function renderTreeGraphElements(model: TreeRenderModel): JSX.Element {
           return null;
         }
         return (
-          <line
-            key={`${edge.from}-${edge.to}`}
-            x1={from.x + 70}
-            y1={from.y + 50}
-            x2={to.x + 70}
-            y2={to.y}
-            stroke={edge.color}
-            strokeWidth={2}
-          />
+          <g key={`${edge.from}-${edge.to}`}>
+            <line
+              className="tree-graph-edge-line"
+              x1={from.x + 70}
+              y1={from.y + 50}
+              x2={to.x + 70}
+              y2={to.y}
+              strokeWidth={2}
+            />
+            {edge.sideLabel !== "" && (
+              <text
+                className="tree-graph-edge-label"
+                x={(from.x + 70 + (to.x + 70)) / 2}
+                y={(from.y + 50 + to.y) / 2 - 4}
+                textAnchor="middle"
+              >
+                {edge.sideLabel}
+              </text>
+            )}
+          </g>
         );
       })}
       {model.nodes.map((node) => (
         <g key={`node-${node.id}`}>
-          <rect x={node.x} y={node.y} width={140} height={56} fill="#fff" stroke="#444" />
+          <rect
+            className="tree-graph-node-rect"
+            x={node.x}
+            y={node.y}
+            width={140}
+            height={56}
+            rx={10}
+            ry={10}
+          />
           {node.labelLines.map((line, index) => (
             <text
               key={`label-${node.id}-${index}`}
@@ -1233,6 +1217,7 @@ export default function App() {
   const [treeDot, setTreeDot] = useState("");
   const [treeGraph, setTreeGraph] = useState<TreeRenderModel | null>(null);
   const [isStep2TreeInfoOpen, setIsStep2TreeInfoOpen] = useState(false);
+  const [step2TreeInfoCopyStatus, setStep2TreeInfoCopyStatus] = useState("");
 
   const [lfRows, setLfRows] = useState<LfResponse["list_representation"]>([]);
   const [srRows, setSrRows] = useState<SrResponse["truth_conditional_meaning"]>([]);
@@ -1358,10 +1343,6 @@ export default function App() {
   const activeTreeCsvText = useMemo(
     () => (activeTreeMode === "tree_cat" ? treeCatCsv : treeCsv),
     [activeTreeMode, treeCatCsv, treeCsv]
-  );
-  const step2TreeInfoRows = useMemo(
-    () => parseTreeInfoRows(activeTreeCsvText),
-    [activeTreeCsvText]
   );
   const numerationEditorGrid = useMemo(() => parseTabSeparatedGrid(numerationText), [numerationText]);
   const numerationEditorGridColumnCount = useMemo(
@@ -4528,7 +4509,10 @@ export default function App() {
                     <button
                       type="button"
                       className="step0-start-btn step2-tree-info-toggle"
-                      onClick={() => setIsStep2TreeInfoOpen((prev) => !prev)}
+                      onClick={() => {
+                        setIsStep2TreeInfoOpen((prev) => !prev);
+                        setStep2TreeInfoCopyStatus("");
+                      }}
                       data-testid="step2-tree-info-toggle"
                     >
                       {isStep2TreeInfoOpen ? "情報を閉じる" : "情報を表示"}
@@ -4536,25 +4520,56 @@ export default function App() {
                   </div>
                   {isStep2TreeInfoOpen && (
                     <div className="step2-tree-info-popover" data-testid="step2-tree-info">
-                      {step2TreeInfoRows.length === 0 ? (
+                      <div className="step2-tree-info-copy-row">
+                        <button
+                          type="button"
+                          className="step0-start-btn step2-tree-copy-btn"
+                          data-testid="step2-tree-info-copy-btn"
+                          onClick={async () => {
+                            const copyTarget = activeTreeCsvText.trim();
+                            if (copyTarget === "") {
+                              setStep2TreeInfoCopyStatus("コピー対象がありません");
+                              return;
+                            }
+                            try {
+                              if (
+                                typeof navigator !== "undefined" &&
+                                navigator.clipboard &&
+                                typeof navigator.clipboard.writeText === "function"
+                              ) {
+                                await navigator.clipboard.writeText(copyTarget);
+                              } else {
+                                const textarea = document.createElement("textarea");
+                                textarea.value = copyTarget;
+                                textarea.style.position = "fixed";
+                                textarea.style.opacity = "0";
+                                document.body.appendChild(textarea);
+                                textarea.focus();
+                                textarea.select();
+                                document.execCommand("copy");
+                                document.body.removeChild(textarea);
+                              }
+                              setStep2TreeInfoCopyStatus("クリップボードにコピーしました");
+                            } catch {
+                              setStep2TreeInfoCopyStatus("コピーに失敗しました");
+                            }
+                          }}
+                        >
+                          クリップボードにコピー
+                        </button>
+                        {step2TreeInfoCopyStatus !== "" && (
+                          <span className="step2-tree-copy-status">{step2TreeInfoCopyStatus}</span>
+                        )}
+                      </div>
+                      {activeTreeCsvText.trim() === "" ? (
                         <p className="step2-tree-info-empty">表示中の樹形図テキスト情報はありません。</p>
                       ) : (
-                        <div className="step2-tree-info-grid">
-                          {step2TreeInfoRows.map((row, index) => (
-                            <div className="step2-tree-info-item" key={`tree-info-${row.node}-${index}`}>
-                              <div className="step2-tree-info-item-head">
-                                <span className="step2-tree-info-chip">node: {row.node}</span>
-                                <span className="step2-tree-info-chip">edge: {row.edge || "-"}</span>
-                                <span className="step2-tree-info-chip">flag: {row.flag || "-"}</span>
-                              </div>
-                              <div className="step2-tree-info-item-label">
-                                {row.labelLines.map((line, lineIndex) => (
-                                  <span key={`tree-info-${row.node}-${lineIndex}`}>{line}</span>
-                                ))}
-                              </div>
-                            </div>
-                          ))}
-                        </div>
+                        <textarea
+                          className="step2-tree-info-textarea"
+                          data-testid="step2-tree-info-textarea"
+                          value={activeTreeCsvText}
+                          readOnly
+                        />
                       )}
                     </div>
                   )}
