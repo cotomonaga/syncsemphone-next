@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState, type PointerEvent } from "react";
+import { useEffect, useMemo, useRef, useState, type FormEvent, type PointerEvent } from "react";
 import { apiGet, apiPost, parseManualTokens } from "./api";
 import LexiconWorkbench from "./LexiconWorkbench";
 import type {
@@ -57,6 +57,11 @@ type PersistedUiState = {
   grammarId: string;
   setupGrammarId: string;
   step1EntryMode: Step1EntryMode;
+};
+
+type PersistedAuthState = {
+  username: string;
+  logged_in_at: string;
 };
 
 type TokenCandidateCompatibility = {
@@ -154,6 +159,32 @@ const DEFAULT_GRAMMARS: GrammarOption[] = [
 
 const UI_PERSISTENCE_KEY = "syncsemphone-next:ui-state:v1";
 const ENABLE_UI_PERSISTENCE = import.meta.env.MODE !== "test";
+const AUTH_SESSION_KEY = "syncsemphone-next:auth:v1";
+const ENABLE_LOGIN_AUTH = import.meta.env.MODE !== "test";
+const LOGIN_CREDENTIALS: Record<string, string> = {
+  ueyama: "55syncsem!",
+  tomonaga: "55syncsem!"
+};
+
+function restoreLoggedInUserFromStorage(): string | null {
+  if (!ENABLE_LOGIN_AUTH || typeof window === "undefined") {
+    return null;
+  }
+  try {
+    const raw = window.localStorage.getItem(AUTH_SESSION_KEY);
+    if (!raw) {
+      return null;
+    }
+    const parsed = JSON.parse(raw) as Partial<PersistedAuthState>;
+    const username = typeof parsed.username === "string" ? parsed.username : "";
+    if (Object.prototype.hasOwnProperty.call(LOGIN_CREDENTIALS, username)) {
+      return username;
+    }
+  } catch {
+    // 保存値が壊れている場合はログアウト状態で続行する。
+  }
+  return null;
+}
 
 const RENEW_MENUS: Array<{
   key: RenewMenu;
@@ -1169,6 +1200,10 @@ function TreeGraphViewport({ model, testId, className = "" }: TreeGraphViewportP
 }
 
 export default function App() {
+  const [loggedInUser, setLoggedInUser] = useState<string | null>(() => restoreLoggedInUserFromStorage());
+  const [loginUsername, setLoginUsername] = useState("");
+  const [loginPassword, setLoginPassword] = useState("");
+  const [loginError, setLoginError] = useState<string | null>(null);
   const [uiMode, setUiMode] = useState<UiMode>("renewed");
   const [legacyFrameReloadTick, setLegacyFrameReloadTick] = useState(0);
   const [renewMenu, setRenewMenu] = useState<RenewMenu>("hypothesis");
@@ -1545,6 +1580,47 @@ export default function App() {
 
     return warnings;
   }, [numerationLexiconRows, numerationLookupMap, step1EntryMode, tokenSlotEditBySlot]);
+
+  const handleLoginSubmit = (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    const username = loginUsername.trim();
+    const expectedPassword = LOGIN_CREDENTIALS[username];
+    if (!expectedPassword || expectedPassword !== loginPassword) {
+      setLoginError("ユーザ名またはパスワードが正しくありません。");
+      return;
+    }
+    setLoggedInUser(username);
+    setLoginPassword("");
+    setLoginError(null);
+    if (ENABLE_LOGIN_AUTH) {
+      try {
+        window.localStorage.setItem(
+          AUTH_SESSION_KEY,
+          JSON.stringify({
+            username,
+            logged_in_at: new Date().toISOString()
+          } satisfies PersistedAuthState)
+        );
+      } catch {
+        // localStorageへ保存できない環境でもログインは継続する。
+      }
+    }
+  };
+
+  const handleLogout = () => {
+    setLoggedInUser(null);
+    setLoginUsername("");
+    setLoginPassword("");
+    setLoginError(null);
+    if (ENABLE_LOGIN_AUTH) {
+      try {
+        window.localStorage.removeItem(AUTH_SESSION_KEY);
+      } catch {
+        // 保存領域へアクセスできない環境では無視する。
+      }
+    }
+  };
+
   useEffect(() => {
     if (!ENABLE_UI_PERSISTENCE) {
       return;
@@ -3855,10 +3931,64 @@ export default function App() {
     </div>
   );
 
+  if (ENABLE_LOGIN_AUTH && !loggedInUser) {
+    return (
+      <div className="page login-page">
+        <section className="card login-card">
+          <h2>ログイン</h2>
+          <p className="hint">ユーザ名とパスワードを入力してください。</p>
+          <form className="login-form" onSubmit={handleLoginSubmit}>
+            <label>
+              ユーザ名
+              <input
+                aria-label="login-username"
+                autoComplete="username"
+                value={loginUsername}
+                onChange={(event) => {
+                  setLoginUsername(event.target.value);
+                  if (loginError) {
+                    setLoginError(null);
+                  }
+                }}
+              />
+            </label>
+            <label>
+              パスワード
+              <input
+                aria-label="login-password"
+                type="password"
+                autoComplete="current-password"
+                value={loginPassword}
+                onChange={(event) => {
+                  setLoginPassword(event.target.value);
+                  if (loginError) {
+                    setLoginError(null);
+                  }
+                }}
+              />
+            </label>
+            {loginError && <p className="login-error">Error: {loginError}</p>}
+            <div className="login-actions">
+              <button type="submit">ログイン</button>
+            </div>
+          </form>
+        </section>
+      </div>
+    );
+  }
+
   return (
     <div className={uiMode === "legacy" ? "page legacy-mode" : "page renewed-mode"}>
       <header className="hero">
         <h1>SYNCSEMPHONE NEXT</h1>
+        {ENABLE_LOGIN_AUTH && loggedInUser && (
+          <div className="auth-session-controls">
+            <span className="auth-session-user">{loggedInUser} でログイン中</span>
+            <button type="button" className="auth-logout-btn" onClick={handleLogout}>
+              ログアウト
+            </button>
+          </div>
+        )}
         {uiMode === "legacy" && (
           <div className="legacy-titlebar">
             <div className="legacy-title-main">統語意味論デモプログラム</div>

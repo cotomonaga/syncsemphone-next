@@ -53,6 +53,36 @@ body {
   max-width: 820px;
 }
 
+.auth-session-controls {
+  position: absolute;
+  top: 6px;
+  left: 4px;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.auth-session-user {
+  font-size: 0.78rem;
+  color: #12404b;
+  background: #e7f3f7;
+  border: 1px solid #c5dfe6;
+  border-radius: 999px;
+  padding: 4px 10px;
+}
+
+.auth-logout-btn {
+  background: #c15a6a;
+  color: #fff;
+  padding: 4px 10px;
+  font-size: 0.75rem;
+  border-radius: 999px;
+}
+
+.auth-logout-btn:hover:not(:disabled) {
+  background: #a94a58;
+}
+
 .eyebrow {
   color: var(--accent);
   font-weight: 700;
@@ -1307,6 +1337,32 @@ td {
 .mode-btn.active {
   background: var(--accent);
   color: #fff;
+}
+
+.login-page {
+  min-height: 100vh;
+  display: grid;
+  place-items: center;
+}
+
+.login-card {
+  width: min(420px, calc(100vw - 40px));
+}
+
+.login-form {
+  display: grid;
+  gap: 10px;
+}
+
+.login-actions {
+  display: flex;
+  justify-content: flex-end;
+}
+
+.login-error {
+  margin: 0;
+  color: var(--alert);
+  font-size: 0.82rem;
 }
 
 .renew-shell {
