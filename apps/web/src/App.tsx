@@ -166,11 +166,9 @@ const RENEW_MENUS: Array<{
     key: "hypothesis",
     label: "仮説検証ステップ",
     steps: [
-      { key: "setup", label: "【Step.0】LexiconとGrammarの選択" },
-      { key: "sentence", label: "【Step.1】Numerationの形成" },
-      { key: "target", label: "【Step.2】Grammarの適用" },
-      { key: "observation", label: "【Step.3】観察" },
-      { key: "resume", label: "【Step.4】保存/再開" },
+      { key: "setup", label: "【Step.1】LexiconとGrammarの選択" },
+      { key: "sentence", label: "【Step.2】Numerationの形成" },
+      { key: "target", label: "【Step.3】Grammarの適用" },
       { key: "numeration", label: "補助：Numeration編集" }
     ]
   },
@@ -581,11 +579,11 @@ function formatCompatibilityReasonsForDisplay(
     compatibility.missingRuleNames.length > 0
   ) {
     reasons.push(
-      `必要ルールが Step0 の文法にありません（${compatibility.missingRuleNames.join(", ")}）。`
+      `必要ルールが Step1 の文法にありません（${compatibility.missingRuleNames.join(", ")}）。`
     );
   }
   if (reasons.length === 0) {
-    reasons.push("選択中の Step0 文法でこの語彙項目を使う条件を満たしません。");
+    reasons.push("選択中の Step1 文法でこの語彙項目を使う条件を満たしません。");
   }
   return reasons;
 }
@@ -850,7 +848,7 @@ const TOKEN_CHIP_COLORS = [
 
 const LEXICON_INSPECT_PAGE_SIZE = 20;
 const STEP0_START_DESCRIPTION =
-  "Step0では、観察に使う語彙と規則セットを選びます。確認ボタンで中身を見てから開始できます。";
+  "Step1では、観察に使う語彙と規則セットを選びます。確認ボタンで中身を見てから開始できます。";
 
 const LEGACY_PERL_BASE_URL = (
   import.meta.env.VITE_API_BASE_URL?.trim() || "http://127.0.0.1:8000"
@@ -3926,7 +3924,7 @@ export default function App() {
             data-active-panel={renewPanel}
           >
         <section className="card" data-panel="setup">
-          <h2>0. Lexicon / Grammar の選択</h2>
+          <h2>1. Lexicon / Grammar の選択</h2>
           <p className="hint step0-description">{STEP0_START_DESCRIPTION}</p>
           <div className="step0-field">
             <div className="grammar-label">Lexicon / Grammar（共通選択）</div>
@@ -3934,7 +3932,7 @@ export default function App() {
               <div className="step0-select-block">
                 <div className="step0-select-row">
                   <select
-                    aria-label="Step0 Grammar"
+                    aria-label="Step1 Grammar"
                     value={setupGrammarId}
                     onChange={(event) => setSetupGrammarId(event.target.value)}
                   >
@@ -4010,10 +4008,10 @@ export default function App() {
         </section>
 
         <section className="card" data-panel="sentence">
-          <h2>【Step.1】Numerationの形成</h2>
+          <h2>【Step.2】Numerationの形成</h2>
           {!workflowStarted && (
             <p className="hint">
-              先に Step0 で設定を確定してください。未確定でも操作できますが、観察条件の固定には Step0 開始操作を推奨します。
+              先に Step1 で設定を確定してください。未確定でも操作できますが、観察条件の固定には Step1 開始操作を推奨します。
             </p>
           )}
           <p className="hint">
@@ -4077,7 +4075,7 @@ export default function App() {
                 </select>
               </label>
               {setNumerationFiles.length === 0 && (
-                <p className="hint">例文候補が空です。Step0で「この設定で開始」を押すか、API接続を確認してください。</p>
+                <p className="hint">例文候補が空です。Step1で「この設定で開始」を押すか、API接続を確認してください。</p>
               )}
               {step1NumerationLexiconSourceText === "" ? (
                 <p className="hint">例文対応 .num を読み込んで語彙情報を参照中…</p>
@@ -4418,7 +4416,7 @@ export default function App() {
         </section>
 
         <section className="card" data-panel="target">
-          <h2>【Step.2】Grammarの適用</h2>
+          <h2>【Step.3】Grammarの適用</h2>
           <p className="hint">
             このステップの目的は、具体的な Numeration から解釈不可能性を消していくことです。
             手動で left/right と rule を選んで適用します（手動モードを維持）。
