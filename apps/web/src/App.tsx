@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState, type FormEvent, type PointerEvent } from "react";
-import { apiGet, apiPost, parseManualTokens } from "./api";
+import { apiGet, apiPost, parseManualTokens, setApiCsrfToken } from "./api";
 import LexiconWorkbench from "./LexiconWorkbench";
 import type {
   DerivationState,
@@ -57,11 +57,6 @@ type PersistedUiState = {
   grammarId: string;
   setupGrammarId: string;
   step1EntryMode: Step1EntryMode;
-};
-
-type PersistedAuthState = {
-  username: string;
-  logged_in_at: string;
 };
 
 type TokenCandidateCompatibility = {
@@ -159,32 +154,15 @@ const DEFAULT_GRAMMARS: GrammarOption[] = [
 
 const UI_PERSISTENCE_KEY = "syncsemphone-next:ui-state:v1";
 const ENABLE_UI_PERSISTENCE = import.meta.env.MODE !== "test";
-const AUTH_SESSION_KEY = "syncsemphone-next:auth:v1";
 const ENABLE_LOGIN_AUTH = import.meta.env.MODE !== "test";
-const LOGIN_CREDENTIALS: Record<string, string> = {
-  ueyama: "55syncsem!",
-  tomonaga: "55syncsem!"
+
+type AuthSessionResponse = {
+  authenticated: boolean;
+  username?: string | null;
+  csrf_token?: string | null;
 };
 
-function restoreLoggedInUserFromStorage(): string | null {
-  if (!ENABLE_LOGIN_AUTH || typeof window === "undefined") {
-    return null;
-  }
-  try {
-    const raw = window.localStorage.getItem(AUTH_SESSION_KEY);
-    if (!raw) {
-      return null;
-    }
-    const parsed = JSON.parse(raw) as Partial<PersistedAuthState>;
-    const username = typeof parsed.username === "string" ? parsed.username : "";
-    if (Object.prototype.hasOwnProperty.call(LOGIN_CREDENTIALS, username)) {
-      return username;
-    }
-  } catch {
-    // 保存値が壊れている場合はログアウト状態で続行する。
-  }
-  return null;
-}
+type AuthLoginResponse = AuthSessionResponse;
 
 const RENEW_MENUS: Array<{
   key: RenewMenu;
@@ -1200,10 +1178,13 @@ function TreeGraphViewport({ model, testId, className = "" }: TreeGraphViewportP
 }
 
 export default function App() {
-  const [loggedInUser, setLoggedInUser] = useState<string | null>(() => restoreLoggedInUserFromStorage());
+  const [loggedInUser, setLoggedInUser] = useState<string | null>(null);
+  const [authChecking, setAuthChecking] = useState(ENABLE_LOGIN_AUTH);
+  const [loginSubmitting, setLoginSubmitting] = useState(false);
   const [loginUsername, setLoginUsername] = useState("");
   const [loginPassword, setLoginPassword] = useState("");
   const [loginError, setLoginError] = useState<string | null>(null);
+  const isAuthenticatedForApi = !ENABLE_LOGIN_AUTH || loggedInUser !== null;
   const [uiMode, setUiMode] = useState<UiMode>("renewed");
   const [legacyFrameReloadTick, setLegacyFrameReloadTick] = useState(0);
   const [renewMenu, setRenewMenu] = useState<RenewMenu>("hypothesis");
@@ -1581,45 +1562,107 @@ export default function App() {
     return warnings;
   }, [numerationLexiconRows, numerationLookupMap, step1EntryMode, tokenSlotEditBySlot]);
 
-  const handleLoginSubmit = (event: FormEvent<HTMLFormElement>) => {
+  const handleLoginSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     const username = loginUsername.trim();
-    const expectedPassword = LOGIN_CREDENTIALS[username];
-    if (!expectedPassword || expectedPassword !== loginPassword) {
-      setLoginError("ユーザ名またはパスワードが正しくありません。");
+    if (username === "" || loginPassword.trim() === "") {
+      setLoginError("ユーザ名とパスワードを入力してください。");
       return;
     }
-    setLoggedInUser(username);
-    setLoginPassword("");
+    setLoginSubmitting(true);
     setLoginError(null);
-    if (ENABLE_LOGIN_AUTH) {
-      try {
-        window.localStorage.setItem(
-          AUTH_SESSION_KEY,
-          JSON.stringify({
-            username,
-            logged_in_at: new Date().toISOString()
-          } satisfies PersistedAuthState)
-        );
-      } catch {
-        // localStorageへ保存できない環境でもログインは継続する。
+    try {
+      if (!ENABLE_LOGIN_AUTH) {
+        setLoggedInUser("test-user");
+        setApiCsrfToken(null);
+        return;
       }
+      const response = await apiPost<AuthLoginResponse>("/v1/auth/login", {
+        username,
+        password: loginPassword
+      });
+      if (!response.authenticated || !response.username) {
+        throw new Error("認証に失敗しました。");
+      }
+      setLoggedInUser(response.username);
+      setApiCsrfToken(response.csrf_token ?? null);
+      setLoginPassword("");
+      setLoginError(null);
+    } catch (submitError) {
+      setLoginError(
+        submitError instanceof Error
+          ? submitError.message
+          : "ログイン処理に失敗しました。"
+      );
+    } finally {
+      setLoginSubmitting(false);
     }
   };
 
-  const handleLogout = () => {
-    setLoggedInUser(null);
-    setLoginUsername("");
-    setLoginPassword("");
-    setLoginError(null);
-    if (ENABLE_LOGIN_AUTH) {
-      try {
-        window.localStorage.removeItem(AUTH_SESSION_KEY);
-      } catch {
-        // 保存領域へアクセスできない環境では無視する。
+  const handleLogout = async () => {
+    try {
+      if (ENABLE_LOGIN_AUTH) {
+        await apiPost<{ ok: boolean }>("/v1/auth/logout", {});
       }
+    } catch {
+      // セッション削除に失敗してもクライアント側はログアウト状態にする。
+    } finally {
+      setLoggedInUser(null);
+      setLoginUsername("");
+      setLoginPassword("");
+      setLoginError(null);
+      setApiCsrfToken(null);
     }
   };
+
+  useEffect(() => {
+    let cancelled = false;
+    if (!ENABLE_LOGIN_AUTH) {
+      setLoggedInUser("test-user");
+      setAuthChecking(false);
+      setApiCsrfToken(null);
+      return () => {
+        cancelled = true;
+      };
+    }
+
+    setAuthChecking(true);
+    void (async () => {
+      try {
+        const session = await apiGet<AuthSessionResponse>("/v1/auth/session");
+        if (cancelled) {
+          return;
+        }
+        if (session.authenticated && session.username) {
+          setLoggedInUser(session.username);
+          setApiCsrfToken(session.csrf_token ?? null);
+          setLoginError(null);
+        } else {
+          setLoggedInUser(null);
+          setApiCsrfToken(null);
+        }
+      } catch (sessionError) {
+        if (cancelled) {
+          return;
+        }
+        setLoggedInUser(null);
+        setApiCsrfToken(null);
+        setLoginError(
+          sessionError instanceof Error
+            ? sessionError.message
+            : "認証状態の確認に失敗しました。"
+        );
+      } finally {
+        if (!cancelled) {
+          setAuthChecking(false);
+        }
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   useEffect(() => {
     if (!ENABLE_UI_PERSISTENCE) {
@@ -1690,6 +1733,9 @@ export default function App() {
   }, [grammarId, renewPanel, setupGrammarId, step1EntryMode, uiMode, uiPersistenceReady, workflowStarted]);
 
   useEffect(() => {
+    if (!isAuthenticatedForApi) {
+      return;
+    }
     const targetGrammarId = state?.grammar_id || grammarId;
     if (!targetGrammarId) {
       return;
@@ -1728,7 +1774,7 @@ export default function App() {
     return () => {
       cancelled = true;
     };
-  }, [grammarId, state?.grammar_id, step2RulesLoadedGrammarId]);
+  }, [grammarId, isAuthenticatedForApi, state?.grammar_id, step2RulesLoadedGrammarId]);
 
   const step2DisplayRows = useMemo(() => buildStep2DisplayRows(state), [state]);
   const step2RuleRows = useMemo(() => {
@@ -1926,6 +1972,13 @@ export default function App() {
   }
 
   const loadLookupRowsForNumerationText = async (sourceText: string) => {
+    if (!isAuthenticatedForApi) {
+      setNumerationLookupItems([]);
+      setNumerationLexiconRows([]);
+      setNumerationLexiconError("");
+      setIsNumerationLexiconLoading(false);
+      return;
+    }
     const parsedRows = parseNumerationLexiconRows(normalizeNumerationTextForParse(sourceText));
     const rowIds = parsedRows
       .map((row) => row.lexiconId)
@@ -2005,7 +2058,14 @@ export default function App() {
       clearTimeout(timer);
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [grammarId, step1EntryMode, step1NumerationRows, step1NumerationLexiconSourceText, tokenSlotEdits]);
+  }, [
+    grammarId,
+    isAuthenticatedForApi,
+    step1EntryMode,
+    step1NumerationRows,
+    step1NumerationLexiconSourceText,
+    tokenSlotEdits
+  ]);
 
   useEffect(() => {
     if (openStep1CandidateSlot === null) {
@@ -2038,6 +2098,11 @@ export default function App() {
   }
 
   async function refreshAutoTokenPreview() {
+    if (!isAuthenticatedForApi) {
+      setAutoPreviewTokens([]);
+      setAutoPreviewLoading(false);
+      return;
+    }
     if (tokenInputMode !== "auto" || sentence.trim() === "") {
       setAutoPreviewTokens([]);
       setAutoPreviewLoading(false);
@@ -2071,6 +2136,12 @@ export default function App() {
   }
 
   useEffect(() => {
+    if (!isAuthenticatedForApi) {
+      setStep1BuildPreviewNumerationText("");
+      setStep1BuildPreviewError("");
+      setIsStep1BuildPreviewLoading(false);
+      return;
+    }
     if (step1EntryMode !== "build_lexicon") {
       setStep1BuildPreviewNumerationText("");
       setStep1BuildPreviewError("");
@@ -2119,7 +2190,16 @@ export default function App() {
         }
       }
     })();
-  }, [grammarId, manualTokenInput, manualTokens, sentence, splitMode, step1EntryMode, tokenInputMode]);
+  }, [
+    grammarId,
+    isAuthenticatedForApi,
+    manualTokenInput,
+    manualTokens,
+    sentence,
+    splitMode,
+    step1EntryMode,
+    tokenInputMode
+  ]);
 
   function parseManualTokenInput(input: string): string[] {
     const trimmed = input.trim();
@@ -2431,6 +2511,10 @@ export default function App() {
   }, [grammarId]);
 
   useEffect(() => {
+    if (!isAuthenticatedForApi) {
+      setStep2ProcessText("");
+      return;
+    }
     if (!state) {
       setStep2ProcessText("");
       return;
@@ -2454,7 +2538,7 @@ export default function App() {
         setStep2ProcessText(buildFallbackProcessText(state));
       }
     })();
-  }, [state]);
+  }, [isAuthenticatedForApi, state]);
 
   function handleOpenStep1UploadPicker() {
     if (!step1UploadFileInputRef.current) {
@@ -3479,11 +3563,17 @@ export default function App() {
   }
 
   useEffect(() => {
+    if (!isAuthenticatedForApi) {
+      return;
+    }
     void handleLoadAllGrammars();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [isAuthenticatedForApi]);
 
   useEffect(() => {
+    if (!isAuthenticatedForApi) {
+      return;
+    }
     if (renewPanel !== "grammarInspect" || uiMode !== "renewed") {
       return;
     }
@@ -3492,9 +3582,12 @@ export default function App() {
     }
     void handleLoadReferenceDocs(setupGrammarId);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [renewPanel, setupGrammarId, uiMode, referenceDocsLoadedGrammarId]);
+  }, [isAuthenticatedForApi, renewPanel, setupGrammarId, uiMode, referenceDocsLoadedGrammarId]);
 
   useEffect(() => {
+    if (!isAuthenticatedForApi) {
+      return;
+    }
     if (renewPanel !== "grammarInspect" || uiMode !== "renewed") {
       return;
     }
@@ -3503,7 +3596,14 @@ export default function App() {
     }
     void handleOpenGrammarInspect(setupGrammarId);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [renewPanel, setupGrammarId, uiMode, inspectMergeRulesLoadedGrammarId, inspectMergeRules.length]);
+  }, [
+    inspectMergeRules.length,
+    inspectMergeRulesLoadedGrammarId,
+    isAuthenticatedForApi,
+    renewPanel,
+    setupGrammarId,
+    uiMode
+  ]);
 
   useEffect(() => {
     if (grammarOptions.length === 0) {
@@ -3521,9 +3621,12 @@ export default function App() {
   useEffect(() => {
     void refreshAutoTokenPreview();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [grammarId, sentence, splitMode, tokenInputMode, workflowStarted]);
+  }, [grammarId, isAuthenticatedForApi, sentence, splitMode, tokenInputMode, workflowStarted]);
 
   useEffect(() => {
+    if (!isAuthenticatedForApi) {
+      return;
+    }
     if (step1EntryMode !== "example_sentence") {
       return;
     }
@@ -3532,9 +3635,12 @@ export default function App() {
       return;
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [step1EntryMode, grammarId, setNumerationFiles.length]);
+  }, [grammarId, isAuthenticatedForApi, setNumerationFiles.length, step1EntryMode]);
 
   useEffect(() => {
+    if (!isAuthenticatedForApi) {
+      return;
+    }
     if (step1EntryMode !== "example_sentence") {
       return;
     }
@@ -3552,7 +3658,7 @@ export default function App() {
       return;
     }
     void handleLoadStep1ExampleNumerationByPath(step1ExampleNumerationPath);
-  }, [grammarId, setNumerationFiles, step1ExampleNumerationPath, step1EntryMode]);
+  }, [grammarId, isAuthenticatedForApi, setNumerationFiles, step1ExampleNumerationPath, step1EntryMode]);
 
   useEffect(() => {
     step2AutoCandidatesRequestKeyRef.current = "";
@@ -3600,6 +3706,11 @@ export default function App() {
   }, [selectedLeft, selectedRight, state, step2DisplayRows]);
 
   useEffect(() => {
+    if (!isAuthenticatedForApi) {
+      setIsStep2CandidatesLoading(false);
+      setCandidates([]);
+      return;
+    }
     if (!state || selectedLeft === null || selectedRight === null) {
       setIsStep2CandidatesLoading(false);
       setCandidates([]);
@@ -3667,7 +3778,7 @@ export default function App() {
       }
     })();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [selectedLeft, selectedRight, state]);
+  }, [isAuthenticatedForApi, selectedLeft, selectedRight, state]);
 
   const activeRenewMenu =
     RENEW_MENUS.find((entry) => entry.key === renewMenu) || RENEW_MENUS[0];
@@ -3931,12 +4042,22 @@ export default function App() {
     </div>
   );
 
+  if (ENABLE_LOGIN_AUTH && authChecking) {
+    return (
+      <div className="page login-page">
+        <section className="card login-card">
+          <h1 className="login-page-title">SYNCSEMPHONE NEXT</h1>
+          <p className="login-checking-message">認証状態を確認しています...</p>
+        </section>
+      </div>
+    );
+  }
+
   if (ENABLE_LOGIN_AUTH && !loggedInUser) {
     return (
       <div className="page login-page">
         <section className="card login-card">
-          <h2>ログイン</h2>
-          <p className="hint">ユーザ名とパスワードを入力してください。</p>
+          <h1 className="login-page-title">SYNCSEMPHONE NEXT</h1>
           <form className="login-form" onSubmit={handleLoginSubmit}>
             <label>
               ユーザ名
@@ -3969,7 +4090,9 @@ export default function App() {
             </label>
             {loginError && <p className="login-error">Error: {loginError}</p>}
             <div className="login-actions">
-              <button type="submit">ログイン</button>
+              <button type="submit" disabled={loginSubmitting}>
+                {loginSubmitting ? "ログイン中..." : "ログイン"}
+              </button>
             </div>
           </form>
         </section>

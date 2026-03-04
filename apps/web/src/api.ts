@@ -1,5 +1,10 @@
 const API_BASE_URL =
   import.meta.env.VITE_API_BASE_URL?.trim() || "http://127.0.0.1:8000";
+let csrfToken: string | null = null;
+
+export function setApiCsrfToken(token: string | null): void {
+  csrfToken = token && token.trim() !== "" ? token.trim() : null;
+}
 
 async function requestJson<TResponse>(
   method: "GET" | "POST" | "PUT" | "DELETE",
@@ -16,11 +21,17 @@ async function requestJson<TResponse>(
     : undefined;
   let response: Response;
   try {
+    const headers: Record<string, string> = {};
+    if (payload !== undefined) {
+      headers["Content-Type"] = "application/json";
+    }
+    if (method !== "GET" && csrfToken) {
+      headers["X-CSRF-Token"] = csrfToken;
+    }
     response = await fetch(`${API_BASE_URL}${path}`, {
       method,
-      headers: {
-        "Content-Type": "application/json"
-      },
+      headers,
+      credentials: "include",
       body: payload === undefined ? undefined : JSON.stringify(payload),
       signal: controller?.signal
     });
