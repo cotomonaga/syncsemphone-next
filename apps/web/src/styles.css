@@ -1122,8 +1122,20 @@ button:disabled {
 .step2-reachability-actions {
   display: flex;
   flex-direction: column;
-  gap: 6px;
-  align-items: flex-start;
+  gap: 8px;
+  justify-content: center;
+}
+
+.step2-reachability-main-actions {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  min-height: 34px;
+}
+
+.step2-reachability-main-actions button {
+  margin: 0;
 }
 
 .step2-reachability-group-options {

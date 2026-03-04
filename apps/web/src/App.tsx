@@ -99,6 +99,20 @@ type ReachabilityDisplayGroup = {
   options: ReachabilityEvidence[];
 };
 
+type ReachabilitySearchSnapshot = {
+  jobId: string;
+  result: ReachabilityResponse;
+  rows: ReachabilityEvidence[];
+  offset: number;
+  limit: number;
+  message: string;
+};
+
+type ReachabilitySearchTimeline = {
+  history: ReachabilitySearchSnapshot[];
+  index: number;
+};
+
 type AutoSupplementNote = NonNullable<GeneratedNumeration["auto_supplements"]>[number];
 
 type ArrangeRow = {
@@ -1201,6 +1215,10 @@ export default function App() {
   const [reachabilityProgress, setReachabilityProgress] = useState<{ percent: number; phase: string; message: string } | null>(null);
   const [reachabilityOffset, setReachabilityOffset] = useState(0);
   const [reachabilityLimit, setReachabilityLimit] = useState(10);
+  const [reachabilityTimeline, setReachabilityTimeline] = useState<ReachabilitySearchTimeline>({
+    history: [],
+    index: -1
+  });
   const [openReachabilityFirstStepKey, setOpenReachabilityFirstStepKey] = useState<string | null>(null);
   const [step2ProcessText, setStep2ProcessText] = useState("");
   const [step2UndoStack, setStep2UndoStack] = useState<DerivationState[]>([]);
@@ -1385,6 +1403,11 @@ export default function App() {
     groups.sort((a, b) => a.representative.rank - b.representative.rank);
     return groups;
   }, [reachabilityRows]);
+  const hasReachabilityHistory = reachabilityTimeline.history.length > 0;
+  const canGoPrevReachability = reachabilityTimeline.index > 0;
+  const canGoNextReachability =
+    reachabilityTimeline.index >= 0 && reachabilityTimeline.index < reachabilityTimeline.history.length - 1;
+  const isReachabilityContinueMode = hasReachabilityHistory;
   const numerationLookupMap = useMemo(() => {
     const byId = new Map<number, LexiconItemLookupItem>();
     for (const item of numerationLookupItems) {
@@ -2271,6 +2294,37 @@ export default function App() {
     }
   }
 
+  function resetReachabilitySearchState(nextMessage = "") {
+    setReachabilityResult(null);
+    setReachabilityRows([]);
+    setReachabilityJobId("");
+    setReachabilityProgress(null);
+    setReachabilityMessage(nextMessage);
+    setReachabilityOffset(0);
+    setReachabilityTimeline({ history: [], index: -1 });
+    setOpenReachabilityFirstStepKey(null);
+  }
+
+  function applyReachabilitySnapshot(snapshot: ReachabilitySearchSnapshot, index: number) {
+    setReachabilityJobId(snapshot.jobId);
+    setReachabilityResult(snapshot.result);
+    setReachabilityRows(snapshot.rows);
+    setReachabilityOffset(snapshot.offset);
+    setReachabilityLimit(snapshot.limit);
+    setReachabilityMessage(snapshot.message);
+    setReachabilityProgress(null);
+    setOpenReachabilityFirstStepKey(null);
+    setReachabilityTimeline((prev) => ({ ...prev, index }));
+  }
+
+  function appendReachabilitySnapshot(snapshot: ReachabilitySearchSnapshot) {
+    setReachabilityTimeline((prev) => {
+      const base = prev.history.slice(0, prev.index + 1);
+      const history = [...base, snapshot];
+      return { history, index: history.length - 1 };
+    });
+  }
+
   useEffect(() => {
     const rawSentence = sentence.trim();
     setManualTokens(rawSentence === "" ? [] : [rawSentence]);
@@ -2279,13 +2333,12 @@ export default function App() {
   }, [sentence]);
 
   useEffect(() => {
-    setReachabilityResult(null);
-    setReachabilityRows([]);
-    setReachabilityJobId("");
-    setReachabilityProgress(null);
-    setReachabilityMessage("");
-    setReachabilityOffset(0);
+    resetReachabilitySearchState("");
   }, [state]);
+
+  useEffect(() => {
+    resetReachabilitySearchState("");
+  }, [grammarId]);
 
   useEffect(() => {
     if (!state) {
@@ -2720,7 +2773,11 @@ export default function App() {
     }
   }
 
-  async function loadReachabilityEvidencePage(jobId: string, offset: number, limit: number) {
+  async function loadReachabilityEvidencePage(
+    jobId: string,
+    offset: number,
+    limit: number
+  ): Promise<ReachabilityEvidencePageResponse> {
     const page = await apiGet<ReachabilityEvidencePageResponse>(
       `/v1/derivation/reachability/jobs/${jobId}/evidences?offset=${Math.max(0, offset)}&limit=${Math.max(1, limit)}`
     );
@@ -2728,25 +2785,16 @@ export default function App() {
     setOpenReachabilityFirstStepKey(null);
     setReachabilityOffset(page.counts.offset);
     setReachabilityLimit(page.counts.limit);
-    setReachabilityResult((prev) => {
-      if (!prev) {
-        return null;
-      }
-      return {
-        ...prev,
-        counts: page.counts,
-        evidences: page.evidences
-      };
-    });
+    return page;
   }
 
-  function applyReachabilityTerminalStatus(terminal: ReachabilityJobStatusResponse) {
+  function applyReachabilityTerminalStatus(terminal: ReachabilityJobStatusResponse): ReachabilityResponse {
     const terminalStatus: ReachabilityResponse["status"] =
       terminal.status === "reachable" || terminal.status === "unreachable" || terminal.status === "unknown"
         ? terminal.status
         : "unknown";
 
-    setReachabilityResult({
+    const response: ReachabilityResponse = {
       status: terminalStatus,
       completed: Boolean(terminal.completed),
       reason: terminal.reason ?? terminalStatus,
@@ -2779,8 +2827,9 @@ export default function App() {
         has_next: false
       },
       evidences: []
-    });
-    return terminalStatus;
+    };
+    setReachabilityResult(response);
+    return response;
   }
 
   async function handleHeadAssist() {
@@ -2789,8 +2838,7 @@ export default function App() {
       return;
     }
     await withLoading(async () => {
-      setReachabilityResult(null);
-      setReachabilityRows([]);
+      resetReachabilitySearchState("");
       setReachabilityProgress({ percent: 0, phase: "queued", message: "ジョブ開始待ち" });
       const start = await apiPost<ReachabilityJobStartResponse>("/v1/derivation/reachability/jobs", {
         state,
@@ -2810,9 +2858,24 @@ export default function App() {
         setReachabilityMessage(`到達判定に失敗しました: ${terminal.error ?? "unknown error"}`);
         return;
       }
-      const terminalStatus = applyReachabilityTerminalStatus(terminal);
-      await loadReachabilityEvidencePage(start.job_id, 0, reachabilityLimit);
-      setReachabilityMessage(`到達判定: ${terminalStatus}`);
+      const terminalResult = applyReachabilityTerminalStatus(terminal);
+      const page = await loadReachabilityEvidencePage(start.job_id, 0, reachabilityLimit);
+      const resolvedResult: ReachabilityResponse = {
+        ...terminalResult,
+        counts: page.counts,
+        evidences: page.evidences
+      };
+      setReachabilityResult(resolvedResult);
+      const message = `到達判定: ${resolvedResult.status}`;
+      appendReachabilitySnapshot({
+        jobId: start.job_id,
+        result: resolvedResult,
+        rows: page.evidences,
+        offset: page.counts.offset,
+        limit: page.counts.limit,
+        message
+      });
+      setReachabilityMessage(message);
     });
   }
 
@@ -2844,10 +2907,61 @@ export default function App() {
         setReachabilityMessage(`追加探索に失敗しました: ${terminal.error ?? "unknown error"}`);
         return;
       }
-      const terminalStatus = applyReachabilityTerminalStatus(terminal);
-      await loadReachabilityEvidencePage(restarted.job_id, 0, reachabilityLimit);
-      setReachabilityMessage(`到達判定: ${terminalStatus}`);
+      const terminalResult = applyReachabilityTerminalStatus(terminal);
+      const page = await loadReachabilityEvidencePage(restarted.job_id, 0, reachabilityLimit);
+      const resolvedResult: ReachabilityResponse = {
+        ...terminalResult,
+        counts: page.counts,
+        evidences: page.evidences
+      };
+      setReachabilityResult(resolvedResult);
+      const message = `到達判定: ${resolvedResult.status}`;
+      appendReachabilitySnapshot({
+        jobId: restarted.job_id,
+        result: resolvedResult,
+        rows: page.evidences,
+        offset: page.counts.offset,
+        limit: page.counts.limit,
+        message
+      });
+      setReachabilityMessage(message);
     });
+  }
+
+  async function handleReachabilityPropose() {
+    if (!isReachabilityContinueMode) {
+      await handleHeadAssist();
+      return;
+    }
+    await handleContinueReachability();
+  }
+
+  function handleReachabilityPrevGroup() {
+    if (!canGoPrevReachability) {
+      return;
+    }
+    const nextIndex = reachabilityTimeline.index - 1;
+    const snapshot = reachabilityTimeline.history[nextIndex];
+    if (!snapshot) {
+      return;
+    }
+    applyReachabilitySnapshot(snapshot, nextIndex);
+  }
+
+  function handleReachabilityNextGroup() {
+    if (!canGoNextReachability) {
+      return;
+    }
+    const nextIndex = reachabilityTimeline.index + 1;
+    const snapshot = reachabilityTimeline.history[nextIndex];
+    if (!snapshot) {
+      return;
+    }
+    applyReachabilitySnapshot(snapshot, nextIndex);
+  }
+
+  function handleReachabilityReset() {
+    resetReachabilitySearchState("候補探索をリセットしました。");
   }
 
   async function executeStep2Rule(
@@ -2992,7 +3106,39 @@ export default function App() {
       return;
     }
     await withLoading(async () => {
-      await loadReachabilityEvidencePage(reachabilityJobId, nextOffset, reachabilityLimit);
+      const page = await loadReachabilityEvidencePage(reachabilityJobId, nextOffset, reachabilityLimit);
+      setReachabilityResult((prev) => {
+        if (!prev) {
+          return prev;
+        }
+        return {
+          ...prev,
+          counts: page.counts,
+          evidences: page.evidences
+        };
+      });
+      setReachabilityTimeline((prev) => {
+        if (prev.index < 0 || prev.index >= prev.history.length) {
+          return prev;
+        }
+        const current = prev.history[prev.index];
+        if (current.jobId !== reachabilityJobId) {
+          return prev;
+        }
+        const history = [...prev.history];
+        history[prev.index] = {
+          ...current,
+          rows: page.evidences,
+          offset: page.counts.offset,
+          limit: page.counts.limit,
+          result: {
+            ...current.result,
+            counts: page.counts,
+            evidences: page.evidences
+          }
+        };
+        return { history, index: prev.index };
+      });
       setReachabilityMessage("次の証拠を読み込みました。");
     });
   }
@@ -4678,15 +4824,25 @@ export default function App() {
             <button onClick={handleUndoStep2Execute} disabled={loading || step2UndoStack.length === 0}>
               やり直し
             </button>
-            <button onClick={handleHeadAssist} disabled={!state}>
+            <button
+              onClick={() => void handleReachabilityPropose()}
+              disabled={!state || loading || (isReachabilityContinueMode && Boolean(reachabilityResult?.completed))}
+            >
               候補を提案
             </button>
-            <button
-              onClick={handleContinueReachability}
-              disabled={!reachabilityJobId || !reachabilityResult || reachabilityResult.completed || loading}
-            >
-              探索を続ける
-            </button>
+            {hasReachabilityHistory && (
+              <>
+                <button onClick={handleReachabilityPrevGroup} disabled={loading || !canGoPrevReachability}>
+                  前の候補
+                </button>
+                <button onClick={handleReachabilityNextGroup} disabled={loading || !canGoNextReachability}>
+                  次の候補
+                </button>
+                <button onClick={handleReachabilityReset} disabled={loading}>
+                  候補をリセット
+                </button>
+              </>
+            )}
           </div>
           {reachabilityProgress && (
             <p className="hint">
@@ -4747,12 +4903,14 @@ export default function App() {
                     </td>
                     <td>
                       <div className="step2-reachability-actions">
-                        <button onClick={() => void handleExecuteHeadAssist(row)} disabled={loading}>
-                          先頭手を実行
-                        </button>
-                        <button onClick={() => void handleExecuteHeadAssistAllSteps(row)} disabled={loading}>
-                          全手順を実行
-                        </button>
+                        <div className="step2-reachability-main-actions">
+                          <button onClick={() => void handleExecuteHeadAssist(row)} disabled={loading}>
+                            先頭手を実行
+                          </button>
+                          <button onClick={() => void handleExecuteHeadAssistAllSteps(row)} disabled={loading}>
+                            全手順を実行
+                          </button>
+                        </div>
                         {group.options.length > 1 && (
                           <div className="step2-reachability-group-options">
                             <p className="hint">
