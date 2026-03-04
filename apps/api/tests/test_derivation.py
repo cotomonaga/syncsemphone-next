@@ -11,12 +11,22 @@ from app.api.v1.derivation import (
     _HEAD_ASSIST_DEFAULT_PARALLEL_CORES,
     _HEAD_ASSIST_SEARCH_BUDGET_SECONDS,
     _build_node_summary,
+    _collect_blocked_first_step_keys_for_continue,
+    _dedupe_response_evidences_by_first_step,
+    _first_step_key_from_internal_step,
     _build_state_summary,
     _node_summary_cache_key,
+    _search_reachability,
+    DerivationReachabilityRequest,
+    DerivationReachabilityResponse,
     _enumerate_candidate_transitions,
     _head_nonhead_indices,
     _item_for_index,
     _iter_action_descriptors,
+    ReachabilityCountsResponse,
+    ReachabilityEvidenceResponse,
+    ReachabilityMetricsResponse,
+    ReachabilityRuleStepResponse,
     _state_summary_cache_key,
     _resolve_head_assist_parallel_cores,
     _state_packed_signature,
@@ -37,6 +47,13 @@ def _legacy_root() -> Path:
 
 def _load_num_file(relative_path: str) -> str:
     return (_legacy_root() / relative_path).read_text(encoding="utf-8")
+
+
+def _numeration_text_from_ids(memo: str, lexicon_ids: list[int]) -> str:
+    line1 = [memo] + [str(x) for x in lexicon_ids]
+    line2 = [" "] + ["" for _ in lexicon_ids]
+    line3 = [" "] + [str(i) for i in range(1, len(lexicon_ids) + 1)]
+    return "\n".join(["\t".join(line1), "\t".join(line2), "\t".join(line3)])
 
 
 _UNINTERPRETABLE_PATTERN = re.compile(r",[0-9]+")
@@ -377,7 +394,7 @@ def test_derivation_init_from_sentence_resolves_compounded_tokens() -> None:
     )
     assert initialized.status_code == 200
     body = initialized.json()
-    assert body["numeration"]["lexicon_ids"] == [264, 265, 23, 266, 267, 268, 269, 270, 19, 271, 204]
+    assert body["numeration"]["lexicon_ids"] == [264, 265, 9501, 9401, 267, 9301, 9402, 270, 9511, 9611, 204]
     assert [row["token"] for row in body["numeration"]["token_resolutions"]] == [
         "ふわふわした",
         "わたあめ",
@@ -406,7 +423,7 @@ def test_derivation_numeration_generate_has_no_auto_phi_path() -> None:
     )
     assert response.status_code == 200
     body = response.json()
-    assert body["lexicon_ids"] == [264, 265, 23, 266, 267, 268, 269, 270, 19, 271, 204]
+    assert body["lexicon_ids"] == [264, 265, 9501, 9401, 267, 9301, 9402, 270, 9511, 9611, 204]
     assert body["auto_supplements"] == []
 
 
@@ -423,7 +440,7 @@ def test_derivation_numeration_generate_keeps_default_without_auto_ga_phi() -> N
     )
     assert response.status_code == 200
     body = response.json()
-    assert body["lexicon_ids"] == [264, 265, 23, 266, 267, 268, 269, 270, 19, 271, 204]
+    assert body["lexicon_ids"] == [264, 265, 9501, 9401, 267, 9301, 9402, 270, 9511, 9611, 204]
     assert body["auto_supplements"] == []
 
 
@@ -547,7 +564,7 @@ def test_derivation_reachability_jobs_reaches_usagi_ga_iru_with_auto_tense_suppl
     init_body = initialized.json()
     numeration = init_body["numeration"]
     assert numeration["token_resolutions"][-1]["token"] == "る"
-    assert numeration["lexicon_ids"][0:3] == [270, 19, 271]
+    assert numeration["lexicon_ids"][0:3] == [270, 9511, 9611]
     assert len(numeration["lexicon_ids"]) == 4
     assert numeration["lexicon_ids"][3] in {204, 308}
 
@@ -581,6 +598,78 @@ def test_derivation_reachability_jobs_reaches_usagi_ga_iru_with_auto_tense_suppl
     assert terminal is not None, "reachability job did not finish in time"
     assert terminal["status"] == "reachable"
     assert terminal["completed"] is True
+
+
+def test_derivation_reachability_imi01_s4_candidate_returns_adoptable_evidence() -> None:
+    client = TestClient(app)
+    numeration_text = _numeration_text_from_ids(
+        "ふわふわしたわたあめを食べているひつじと話しているうさぎがいる",
+        [264, 265, 9501, 9401, 267, 9301, 9402, 270, 9511, 9611, 204],
+    )
+    initialized = client.post(
+        "/v1/derivation/init",
+        json={
+            "grammar_id": "imi01",
+            "numeration_text": numeration_text,
+            "legacy_root": str(_legacy_root()),
+        },
+    )
+    assert initialized.status_code == 200
+
+    reachability = client.post(
+        "/v1/derivation/reachability",
+        json={
+            "state": initialized.json(),
+            "max_evidences": 20,
+            "offset": 0,
+            "limit": 10,
+            "budget_seconds": 20.0,
+            "max_nodes": 120_000,
+            "max_depth": 28,
+            "legacy_root": str(_legacy_root()),
+        },
+    )
+    assert reachability.status_code == 200
+    body = reachability.json()
+    assert body["status"] == "reachable"
+    assert body["metrics"]["cache_stats"]["adoptable_goal_found_count"] >= 1
+    assert len(body["evidences"]) >= 1
+
+
+def test_derivation_reachability_imi01_s3_candidate_returns_adoptable_evidence() -> None:
+    client = TestClient(app)
+    numeration_text = _numeration_text_from_ids(
+        "ひつじと話しているうさぎがいる",
+        [267, 9301, 9402, 270, 9511, 9611, 204],
+    )
+    initialized = client.post(
+        "/v1/derivation/init",
+        json={
+            "grammar_id": "imi01",
+            "numeration_text": numeration_text,
+            "legacy_root": str(_legacy_root()),
+        },
+    )
+    assert initialized.status_code == 200
+
+    reachability = client.post(
+        "/v1/derivation/reachability",
+        json={
+            "state": initialized.json(),
+            "max_evidences": 20,
+            "offset": 0,
+            "limit": 10,
+            "budget_seconds": 20.0,
+            "max_nodes": 120_000,
+            "max_depth": 28,
+            "legacy_root": str(_legacy_root()),
+        },
+    )
+    assert reachability.status_code == 200
+    body = reachability.json()
+    assert body["status"] == "reachable"
+    assert body["metrics"]["cache_stats"]["adoptable_goal_found_count"] >= 1
+    assert len(body["evidences"]) >= 1
 
 
 def test_derivation_init_from_sentence_marks_john_ga_wo_yonda_as_unreachable() -> None:
@@ -1057,7 +1146,7 @@ def test_derivation_reachability_enumerator_keeps_subj_t_path_for_japanese2_yomu
             "imi01",
             "うさぎがいる",
             "C",
-            [270, 19, 271, 204],
+            [270, 9511, 9611, 204],
             None,
             20.0,
             800_000,
@@ -2044,6 +2133,212 @@ def test_derivation_reachability_job_continue_after_node_limit() -> None:
     body = evidence_page.json()
     assert body["job_id"] == job_id
     assert len(body["evidences"]) > 0
+
+
+def test_reachability_search_blocks_previously_seen_first_steps_when_requested() -> None:
+    legacy_root = _legacy_root()
+    numeration_text = _load_num_file("imi01/set-numeration/04.num")
+    state = build_initial_derivation_state(
+        grammar_id="imi01",
+        numeration_text=numeration_text,
+        legacy_root=legacy_root,
+    )
+    request = DerivationReachabilityRequest(
+        state=state,
+        max_evidences=10,
+        offset=0,
+        limit=10,
+        budget_seconds=1.0,
+        max_nodes=30000,
+        max_depth=20,
+        legacy_root=str(legacy_root),
+        return_process_text=False,
+    )
+    profile = resolve_rule_versions(
+        profile=get_grammar_profile("imi01"),
+        legacy_root=legacy_root,
+    )
+    first_pass = _search_reachability(
+        request=request,
+        legacy_root=legacy_root,
+        rh_version=profile.rh_merge_version,
+        lh_version=profile.lh_merge_version,
+        search_signature_mode="structural",
+    )
+    assert len(first_pass.evidences) > 0
+    first_step_keys = [
+        _first_step_key_from_internal_step(evidence.steps[0])
+        for evidence in first_pass.evidences
+        if evidence.steps
+    ]
+    assert len(first_step_keys) > 0
+    blocked_first_step = first_step_keys[0]
+
+    second_pass = _search_reachability(
+        request=request,
+        legacy_root=legacy_root,
+        rh_version=profile.rh_merge_version,
+        lh_version=profile.lh_merge_version,
+        search_signature_mode="structural",
+        blocked_first_step_keys={blocked_first_step},
+    )
+    for evidence in second_pass.evidences:
+        if not evidence.steps:
+            continue
+        assert _first_step_key_from_internal_step(evidence.steps[0]) != blocked_first_step
+
+
+def test_dedupe_response_evidences_by_first_step_keeps_only_one() -> None:
+    step_common = ReachabilityRuleStepResponse(
+        step=1,
+        rule_name="RH-Merge",
+        rule_number=1,
+        rule_kind="double",
+        left=1,
+        right=2,
+        check=0,
+        left_id="x1-1",
+        right_id="x2-1",
+    )
+    row_a = ReachabilityEvidenceResponse(
+        rank=1,
+        steps_to_goal=2,
+        rule_sequence=[
+            step_common,
+            ReachabilityRuleStepResponse(
+                step=2,
+                rule_name="LH-Merge",
+                rule_number=2,
+                rule_kind="double",
+                left=1,
+                right=2,
+                check=0,
+                left_id="x2-1",
+                right_id="x3-1",
+            ),
+        ],
+        tree_root={"id": "a", "children": []},
+        process_text=None,
+    )
+    row_b = ReachabilityEvidenceResponse(
+        rank=2,
+        steps_to_goal=3,
+        rule_sequence=[
+            step_common,
+            ReachabilityRuleStepResponse(
+                step=2,
+                rule_name="RH-Merge",
+                rule_number=1,
+                rule_kind="double",
+                left=2,
+                right=3,
+                check=0,
+                left_id="x2-1",
+                right_id="x3-1",
+            ),
+        ],
+        tree_root={"id": "b", "children": []},
+        process_text=None,
+    )
+    row_c = ReachabilityEvidenceResponse(
+        rank=3,
+        steps_to_goal=2,
+        rule_sequence=[
+            ReachabilityRuleStepResponse(
+                step=1,
+                rule_name="LH-Merge",
+                rule_number=2,
+                rule_kind="double",
+                left=1,
+                right=2,
+                check=0,
+                left_id="x10-1",
+                right_id="x11-1",
+            )
+        ],
+        tree_root={"id": "c", "children": []},
+        process_text=None,
+    )
+    deduped = _dedupe_response_evidences_by_first_step([row_a, row_b, row_c])
+    assert len(deduped) == 2
+    first_keys = {
+        (
+            row.rule_sequence[0].rule_name,
+            row.rule_sequence[0].left_id,
+            row.rule_sequence[0].right_id,
+        )
+        for row in deduped
+    }
+    assert ("RH-Merge", "x1-1", "x2-1") in first_keys
+    assert ("LH-Merge", "x10-1", "x11-1") in first_keys
+
+
+def test_collect_blocked_first_step_keys_for_continue_uses_reachable_only() -> None:
+    evidence = ReachabilityEvidenceResponse(
+        rank=1,
+        steps_to_goal=1,
+        rule_sequence=[
+            ReachabilityRuleStepResponse(
+                step=1,
+                rule_name="RH-Merge",
+                rule_number=1,
+                rule_kind="double",
+                left=1,
+                right=2,
+                check=0,
+                left_id="x1-1",
+                right_id="x2-1",
+            )
+        ],
+        tree_root={"id": "x", "children": []},
+        process_text=None,
+    )
+    metrics = ReachabilityMetricsResponse(
+        expanded_nodes=1,
+        generated_nodes=1,
+        packed_nodes=0,
+        max_frontier=1,
+        elapsed_ms=1,
+        max_depth_reached=1,
+        actions_attempted=1,
+        timing_ms={},
+        cache_stats={},
+        layer_stats={},
+        leaf_stats={},
+    )
+    counts = ReachabilityCountsResponse(
+        count_unit="derivation_tree",
+        count_basis="structural_signature_v1",
+        tree_signature_basis="canonical_tree_v1",
+        count_status="exact",
+        goal_count_exact="1",
+        total_exact="1",
+        total_upper_bound_a_pair_only="1",
+        total_upper_bound_b_pair_rulemax="1",
+        rule_max_per_pair_bound=1,
+        rule_max_per_pair_observed=1,
+        shown_count=1,
+        offset=0,
+        limit=10,
+        shown_ratio_exact_percent=100.0,
+        coverage_upper_bound_a_percent=100.0,
+        coverage_upper_bound_b_percent=100.0,
+        has_next=False,
+    )
+    reachable_response = DerivationReachabilityResponse(
+        status="reachable",
+        completed=False,
+        reason="timeout",
+        metrics=metrics,
+        counts=counts,
+        evidences=[evidence],
+    )
+    unknown_response = reachable_response.model_copy(update={"status": "unknown"})
+
+    reachable_keys = _collect_blocked_first_step_keys_for_continue(reachable_response)
+    unknown_keys = _collect_blocked_first_step_keys_for_continue(unknown_response)
+    assert len(reachable_keys) == 1
+    assert unknown_keys == set()
 
 
 def test_derivation_reachability_job_continue_rejects_completed_job() -> None:

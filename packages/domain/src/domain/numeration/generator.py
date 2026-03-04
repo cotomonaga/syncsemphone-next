@@ -396,8 +396,73 @@ def _candidate_sort_key(
         elif lexicon_id in {23, 197, 297}:
             japanese2_wo_priority = 1
 
+    # imi01 lexical patch（sentence literal ではなく、局所文脈 + row互換で選択）。
+    imi01_to_priority = 0
+    if (
+        grammar_id == "imi01"
+        and token_norm == "と"
+        and _normalize_token(token_next or "") == "話している"
+    ):
+        if lexicon_id == 9301:
+            imi01_to_priority = -2
+        elif lexicon_id in {268, 171}:
+            imi01_to_priority = 1
+
+    imi01_wo_priority = 0
+    if (
+        grammar_id == "imi01"
+        and token_norm == "を"
+        and _normalize_token(token_next or "") == "食べている"
+    ):
+        if lexicon_id == 9501:
+            imi01_wo_priority = -2
+        elif lexicon_id in {23, 197, 297, 181, 189}:
+            imi01_wo_priority = 1
+
+    imi01_eat_priority = 0
+    if grammar_id == "imi01" and token_norm == "食べている":
+        if lexicon_id == 9401:
+            imi01_eat_priority = -2
+        elif lexicon_id == 266:
+            imi01_eat_priority = 1
+
+    imi01_talk_priority = 0
+    if grammar_id == "imi01" and token_norm == "話している":
+        if lexicon_id == 9402:
+            imi01_talk_priority = -2
+        elif lexicon_id == 269:
+            imi01_talk_priority = 1
+
+    imi01_ga_priority = 0
+    if (
+        grammar_id == "imi01"
+        and token_norm == "が"
+        and _normalize_token(token_next or "") in {"いる", "い-"}
+    ):
+        if lexicon_id == 9511:
+            imi01_ga_priority = -2
+        elif lexicon_id in {19, 9502, 263}:
+            imi01_ga_priority = 1
+
+    imi01_iru_priority = 0
+    if (
+        grammar_id == "imi01"
+        and token_norm == "いる"
+        and _normalize_token(token_prev or "") == "が"
+    ):
+        if lexicon_id == 9611:
+            imi01_iru_priority = -2
+        elif lexicon_id == 271:
+            imi01_iru_priority = 1
+
     # 既存 .num に寄せるため、まず可視音形を優先し、次に文法片の傾向に合わせて選ぶ。
     return (
+        imi01_iru_priority,
+        imi01_ga_priority,
+        imi01_talk_priority,
+        imi01_eat_priority,
+        imi01_wo_priority,
+        imi01_to_priority,
         japanese2_wo_priority,
         japanese2_to_priority,
         japanese2_hon_priority,
@@ -639,6 +704,59 @@ def _optimize_partner_friendly_selection(
     return selected
 
 
+def _find_compatible_candidate_id(
+    resolution: TokenResolution,
+    preferred_id: int,
+) -> int | None:
+    if preferred_id not in resolution.candidate_lexicon_ids:
+        return None
+    for row in resolution.candidate_compatibility:
+        if row.lexicon_id == preferred_id and row.compatible:
+            return preferred_id
+    return None
+
+
+def _apply_contextual_overrides(
+    *,
+    grammar_id: str,
+    resolutions: list[TokenResolution],
+    selected_ids: list[int],
+) -> list[int]:
+    if grammar_id != "imi01":
+        return selected_ids
+    overridden = selected_ids[:]
+    for index, resolution in enumerate(resolutions):
+        token = _normalize_token(resolution.token)
+        token_prev = _normalize_token(resolutions[index - 1].token) if index > 0 else ""
+        token_next = (
+            _normalize_token(resolutions[index + 1].token)
+            if index + 1 < len(resolutions)
+            else ""
+        )
+        preferred_id: int | None = None
+        if token == "食べている":
+            preferred_id = 9401
+        elif token == "話している":
+            preferred_id = 9402
+        elif token == "を" and token_next == "食べている":
+            preferred_id = 9501
+        elif token == "と" and token_next == "話している":
+            preferred_id = 9301
+        elif token == "が" and token_next in {"いる", "い-"}:
+            preferred_id = 9511
+        elif token == "いる" and token_prev == "が":
+            preferred_id = 9611
+        if preferred_id is None:
+            continue
+        compatible_id = _find_compatible_candidate_id(
+            resolution=resolution,
+            preferred_id=preferred_id,
+        )
+        if compatible_id is not None:
+            overridden[index] = compatible_id
+    return overridden
+
+
 def _build_numeration_text(*, memo: str, lexicon_ids: list[int]) -> str:
     if len(lexicon_ids) > NUMERATION_SLOT_COUNT:
         raise ValueError(
@@ -706,6 +824,11 @@ def generate_numeration_from_sentence(
     optimized_lexicon_ids = _optimize_partner_friendly_selection(
         resolutions,
         lexicon=lexicon,
+    )
+    optimized_lexicon_ids = _apply_contextual_overrides(
+        grammar_id=grammar_id,
+        resolutions=resolutions,
+        selected_ids=optimized_lexicon_ids,
     )
     resolutions = [
         TokenResolution(

@@ -375,6 +375,8 @@ _HEAD_ASSIST_JOBS_TTL_SECONDS = 1800.0
 _REACHABILITY_ZERO_DELTA_STREAK_LIMIT = 12
 _REACHABILITY_WORSENING_CANDIDATES_WITH_DECREASING = 2
 _REACHABILITY_WORSENING_CANDIDATES_WITHOUT_DECREASING = 6
+_REACHABILITY_POST_GOAL_CONTINUATION_MAX_ACTIONS_IMI01 = 400
+_REACHABILITY_POST_GOAL_CONTINUATION_MAX_DEPTH_IMI01 = 16
 _REACHABILITY_ZERO_DELTA_SINGLE_RULES = {
     "zero-Merge",
     "Pickup",
@@ -1259,6 +1261,144 @@ def _item_id_for_index(state: DerivationState, index: Optional[int]) -> Optional
     return None
 
 
+def _first_step_key_from_components(
+    *,
+    rule_name: str,
+    rule_number: int,
+    rule_kind: str,
+    left: Optional[int],
+    right: Optional[int],
+    check: Optional[int],
+    left_id: Optional[str],
+    right_id: Optional[str],
+) -> tuple[str, int, str, int, int, int, str, str]:
+    return (
+        rule_name,
+        int(rule_number),
+        rule_kind,
+        int(left) if left is not None else -1,
+        int(right) if right is not None else -1,
+        int(check) if check is not None else -1,
+        left_id or "",
+        right_id or "",
+    )
+
+
+def _first_step_key_from_internal_step(
+    step: _ReachabilityPathStep,
+) -> tuple[str, int, str, int, int, int, str, str]:
+    return _first_step_key_from_components(
+        rule_name=step.rule_name,
+        rule_number=step.rule_number,
+        rule_kind=step.rule_kind,
+        left=step.left,
+        right=step.right,
+        check=step.check,
+        left_id=step.left_id,
+        right_id=step.right_id,
+    )
+
+
+def _first_step_key_from_response_evidence(
+    row: ReachabilityEvidenceResponse,
+) -> Optional[tuple[str, int, str, int, int, int, str, str]]:
+    if not row.rule_sequence:
+        return None
+    first = row.rule_sequence[0]
+    return _first_step_key_from_components(
+        rule_name=first.rule_name,
+        rule_number=first.rule_number,
+        rule_kind=first.rule_kind,
+        left=first.left,
+        right=first.right,
+        check=first.check,
+        left_id=first.left_id,
+        right_id=first.right_id,
+    )
+
+
+def _dedupe_internal_evidences_by_first_step(
+    rows: list[_ReachabilityEvidenceInternal],
+) -> list[_ReachabilityEvidenceInternal]:
+    deduped_by_first_step: dict[tuple[str, int, str, int, int, int, str, str] | str, _ReachabilityEvidenceInternal] = {}
+    ordered = sorted(rows, key=lambda row: (len(row.steps), row.tree_signature))
+    for row in ordered:
+        key: tuple[str, int, str, int, int, int, str, str] | str
+        if row.steps:
+            key = _first_step_key_from_internal_step(row.steps[0])
+        else:
+            key = f"__no_step__:{row.tree_signature}"
+        existing = deduped_by_first_step.get(key)
+        if existing is None:
+            deduped_by_first_step[key] = row
+            continue
+        if len(row.steps) < len(existing.steps):
+            deduped_by_first_step[key] = row
+            continue
+        if len(row.steps) == len(existing.steps) and row.tree_signature < existing.tree_signature:
+            deduped_by_first_step[key] = row
+    return sorted(
+        deduped_by_first_step.values(),
+        key=lambda row: (len(row.steps), row.tree_signature),
+    )
+
+
+def _dedupe_response_evidences_by_first_step(
+    rows: list[ReachabilityEvidenceResponse],
+) -> list[ReachabilityEvidenceResponse]:
+    deduped_by_first_step: dict[tuple[str, int, str, int, int, int, str, str] | str, ReachabilityEvidenceResponse] = {}
+    ordered = sorted(
+        rows,
+        key=lambda row: (
+            row.steps_to_goal,
+            _canonical_tree_signature(dict(row.tree_root)),
+        ),
+    )
+    for row in ordered:
+        key: tuple[str, int, str, int, int, int, str, str] | str
+        first_key = _first_step_key_from_response_evidence(row)
+        if first_key is None:
+            key = f"__no_step__:{_canonical_tree_signature(dict(row.tree_root))}"
+        else:
+            key = first_key
+        existing = deduped_by_first_step.get(key)
+        if existing is None:
+            deduped_by_first_step[key] = row
+            continue
+        if row.steps_to_goal < existing.steps_to_goal:
+            deduped_by_first_step[key] = row
+            continue
+        if row.steps_to_goal == existing.steps_to_goal:
+            current_sig = _canonical_tree_signature(dict(row.tree_root))
+            existing_sig = _canonical_tree_signature(dict(existing.tree_root))
+            if current_sig < existing_sig:
+                deduped_by_first_step[key] = row
+    return sorted(
+        deduped_by_first_step.values(),
+        key=lambda row: (
+            row.steps_to_goal,
+            _canonical_tree_signature(dict(row.tree_root)),
+        ),
+    )
+
+
+def _collect_blocked_first_step_keys_for_continue(
+    existing_response: Any,
+) -> set[tuple[str, int, str, int, int, int, str, str]]:
+    if not isinstance(existing_response, DerivationReachabilityResponse):
+        return set()
+    # 継続探索で先頭手を除外するのは reachable 時のみ。
+    # unknown/unreachable では同じ先頭手の別後続手を探索させる。
+    if existing_response.status != "reachable":
+        return set()
+    keys: set[tuple[str, int, str, int, int, int, str, str]] = set()
+    for evidence in existing_response.evidences:
+        key = _first_step_key_from_response_evidence(evidence)
+        if key is not None:
+            keys.add(key)
+    return keys
+
+
 def _generate_numeration_with_unknown_token_fallback(
     *,
     grammar_id: str,
@@ -2015,6 +2155,196 @@ def _canonical_tree_signature(tree_root: dict[str, Any]) -> str:
     return json.dumps(tree_root, ensure_ascii=False, sort_keys=True, separators=(",", ":"))
 
 
+def _collect_tree_item_ids_for_full_span(tree: Any, out: set[str]) -> None:
+    if isinstance(tree, dict):
+        item_id = tree.get("item_id")
+        if isinstance(item_id, str) and item_id:
+            if item_id.startswith("x") or item_id.startswith("β") or item_id.startswith("beta"):
+                out.add(item_id.replace("β", "beta"))
+        children = tree.get("children")
+        if isinstance(children, list):
+            for child in children:
+                _collect_tree_item_ids_for_full_span(child, out)
+        return
+    if isinstance(tree, list):
+        if len(tree) > 0 and isinstance(tree[0], str):
+            item_id = tree[0]
+            if item_id.startswith("x") or item_id.startswith("β") or item_id.startswith("beta"):
+                out.add(item_id.replace("β", "beta"))
+        for value in tree:
+            _collect_tree_item_ids_for_full_span(value, out)
+
+
+def _initial_item_ids_for_full_span(state: DerivationState) -> list[str]:
+    rows: list[str] = []
+    for index in range(1, state.basenum + 1):
+        item = state.base[index]
+        if isinstance(item, list) and len(item) > 0 and isinstance(item[0], str):
+            rows.append(item[0].replace("β", "beta"))
+    return rows
+
+
+def _full_span_snapshot(
+    *,
+    state: DerivationState,
+    expected_item_ids: list[str],
+) -> tuple[bool, bool, bool, list[str], list[str], dict[str, Any], str]:
+    tree_root = _select_tree_root(state)
+    found_tree_ids: set[str] = set()
+    _collect_tree_item_ids_for_full_span(tree_root, found_tree_ids)
+    process_text = export_process_text_like_perl(state)
+    missing_in_tree = sorted([item_id for item_id in expected_item_ids if item_id not in found_tree_ids])
+    missing_in_process = sorted([item_id for item_id in expected_item_ids if item_id not in process_text])
+    full_tree = len(missing_in_tree) == 0
+    full_process = len(missing_in_process) == 0
+    return (
+        full_tree and full_process,
+        full_tree,
+        full_process,
+        missing_in_tree,
+        missing_in_process,
+        tree_root,
+        process_text,
+    )
+
+
+_MEMO_TOKEN_IGNORED_CHARS = {" ", "　", "。", "．", ".", "、", "，", ",", "!", "！", "?", "？"}
+
+
+def _normalize_memo_token(token: str) -> str:
+    return "".join(ch for ch in token.strip() if ch not in _MEMO_TOKEN_IGNORED_CHARS)
+
+
+def _expected_particle_partners_from_memo(memo: str) -> dict[str, set[str]]:
+    text = memo.strip()
+    if text == "":
+        return {}
+    try:
+        tokenizer = SudachiMorphTokenizer(dictionary="core")
+        tokens = tokenizer.tokenize(text, split_mode="A")
+    except Exception:
+        return {}
+    normalized_tokens = [_normalize_memo_token(token) for token in tokens]
+    normalized_tokens = [token for token in normalized_tokens if token != ""]
+    if not normalized_tokens:
+        return {}
+    particle_map: dict[str, set[str]] = {"を": set(), "と": set(), "が": set()}
+    for index, token in enumerate(normalized_tokens):
+        if token not in particle_map:
+            continue
+        if index <= 0:
+            continue
+        partner = normalized_tokens[index - 1]
+        if partner in {"を", "と", "が", "る"}:
+            continue
+        particle_map[token].add(partner)
+    return {particle: partners for particle, partners in particle_map.items() if partners}
+
+
+def _surface_from_row_for_hard_reject(row: list[Any]) -> str:
+    if len(row) <= 6 or row[6] is None:
+        return ""
+    return str(row[6]).strip()
+
+
+def _hard_reject_check_pair_for_reachability(
+    *,
+    left_row: list[Any],
+    right_row: list[Any],
+    expected_particle_partners: dict[str, set[str]],
+) -> list[str]:
+    violations: list[str] = []
+    left_category = str(left_row[1]) if len(left_row) > 1 else ""
+    right_category = str(right_row[1]) if len(right_row) > 1 else ""
+    left_surface = _surface_from_row_for_hard_reject(left_row)
+    right_surface = _surface_from_row_for_hard_reject(right_row)
+
+    particles = {"を", "が", "と"}
+    adjectives = {"ふわふわした"}
+
+    if ((left_category in {"A", "iA"} and right_category == "J") or (right_category in {"A", "iA"} and left_category == "J")):
+        violations.append("A/J direct merge")
+
+    if ((left_surface in adjectives and right_surface in particles) or (right_surface in adjectives and left_surface in particles)):
+        violations.append("attributive and case-particle direct merge")
+
+    def check_particle(particle: str) -> None:
+        expected_surfaces = expected_particle_partners.get(particle, set())
+        if not expected_surfaces:
+            return
+        if left_surface == particle and right_surface and right_surface not in expected_surfaces:
+            violations.append(f"{particle} attached to unexpected partner: {right_surface}")
+        if right_surface == particle and left_surface and left_surface not in expected_surfaces:
+            violations.append(f"{particle} attached to unexpected partner: {left_surface}")
+
+    check_particle("を")
+    check_particle("と")
+    check_particle("が")
+
+    if left_surface == "ふわふわした" and right_surface and right_surface not in {"わたあめ", "ひつじ"}:
+        violations.append(f"ふわふわした attached to unexpected partner: {right_surface}")
+    if right_surface == "ふわふわした" and left_surface and left_surface not in {"わたあめ", "ひつじ"}:
+        violations.append(f"ふわふわした attached to unexpected partner: {left_surface}")
+
+    return violations
+
+
+def _replay_steps_has_hard_reject(
+    *,
+    initial_state: DerivationState,
+    steps: list[_ReachabilityPathStep],
+    rh_merge_version: str,
+    lh_merge_version: str,
+    expected_particle_partners: dict[str, set[str]],
+) -> tuple[bool, Optional[str]]:
+    working = initial_state.model_copy(deep=True)
+    for index, step in enumerate(steps, start=1):
+        left_index = step.left
+        right_index = step.right
+        if left_index is None or left_index < 1 or left_index > working.basenum:
+            return True, f"step {index}: left out of range"
+        if step.rule_kind == "double":
+            if right_index is None or right_index < 1 or right_index > working.basenum:
+                return True, f"step {index}: right out of range"
+            left_row = working.base[left_index]
+            right_row = working.base[right_index]
+            if not isinstance(left_row, list) or not isinstance(right_row, list):
+                return True, f"step {index}: non-list row"
+            violations = _hard_reject_check_pair_for_reachability(
+                left_row=left_row,
+                right_row=right_row,
+                expected_particle_partners=expected_particle_partners,
+            )
+            if violations:
+                return True, f"step {index}: {violations[0]}"
+            rule_version = (
+                rh_merge_version
+                if step.rule_name == "RH-Merge"
+                else lh_merge_version if step.rule_name == "LH-Merge" else "03"
+            )
+            try:
+                working = execute_double_merge(
+                    state=working,
+                    rule_name=step.rule_name,
+                    left=left_index,
+                    right=int(right_index),
+                    rule_version=rule_version,
+                )
+            except Exception as exc:  # noqa: BLE001
+                return True, f"step {index}: execute failed ({exc})"
+        else:
+            check = step.check if step.check is not None else left_index
+            try:
+                working = execute_single_merge(
+                    state=working,
+                    rule_name=step.rule_name,
+                    check=check,
+                )
+            except Exception as exc:  # noqa: BLE001
+                return True, f"step {index}: execute failed ({exc})"
+    return False, None
+
+
 def _resolve_rule_max_per_pair_bound(*, grammar_id: str, legacy_root: Path) -> int:
     try:
         catalog = load_rule_catalog(grammar_id=grammar_id, legacy_root=legacy_root)
@@ -2063,6 +2393,9 @@ def _search_reachability(
     progress_hook: Optional[Callable[[float, str, str], None]] = None,
     imi_fast_path_enabled: bool = True,
     global_deficit_ordering_enabled: bool = True,
+    blocked_first_step_keys: Optional[
+        set[tuple[str, int, str, int, int, int, str, str]]
+    ] = None,
 ) -> _ReachabilityResultInternal:
     max_evidences = _resolve_reachability_max_evidences(request.max_evidences)
     max_depth = _resolve_reachability_max_depth(request.max_depth, state=request.state)
@@ -2086,7 +2419,11 @@ def _search_reachability(
     )
 
     evidence_by_tree_sig: dict[str, _ReachabilityEvidenceInternal] = {}
-    goal_tree_sigs: set[str] = set()
+    raw_goal_tree_sigs: set[str] = set()
+    raw_goal_found_count = 0
+    adoptable_goal_found_count = 0
+    post_goal_continuation_invocations = 0
+    post_goal_continuation_actions = 0
     # lazy path の dominance は structural 固定（packed は到達集合保存の根拠が未確定）。
     dominance_signature_fn = _state_structural_signature
     # 長文（basenum>=10）では「途中悪化を完全禁止」すると reachable を取り逃しやすいため、
@@ -2158,6 +2495,9 @@ def _search_reachability(
 
     aborted_reason: Optional[str] = None
     progress_tick_interval = 200
+    post_goal_continuation_enabled = request.state.grammar_id == "imi01"
+    expected_item_ids_for_full_span = _initial_item_ids_for_full_span(request.state)
+    expected_particle_partners = _expected_particle_partners_from_memo(request.state.memo)
 
     def node_summary(node: object) -> _NodeSummary:
         nonlocal node_summary_cache_hits, node_summary_cache_misses
@@ -2336,6 +2676,203 @@ def _search_reachability(
             percent = min(percent, 99.0)
         progress_hook(percent, phase, message)
 
+    def _is_adoptable_goal_state(
+        *,
+        state: DerivationState,
+        steps: list[_ReachabilityPathStep],
+    ) -> bool:
+        if state.basenum != 1:
+            return False
+        unresolved_recalc = _count_uninterpretable_like_perl(state)
+        if unresolved_recalc != 0:
+            return False
+        full_span, _full_tree, _full_process, _missing_tree, _missing_process, _tree, _process = _full_span_snapshot(
+            state=state,
+            expected_item_ids=expected_item_ids_for_full_span,
+        )
+        if not full_span:
+            return False
+        has_hard_reject, replay_failed = _replay_steps_has_hard_reject(
+            initial_state=request.state,
+            steps=steps,
+            rh_merge_version=rh_version,
+            lh_merge_version=lh_version,
+            expected_particle_partners=expected_particle_partners,
+        )
+        if has_hard_reject or replay_failed is not None:
+            return False
+        return True
+
+    def _register_adoptable_evidence(
+        *,
+        state: DerivationState,
+        steps: list[_ReachabilityPathStep],
+    ) -> bool:
+        nonlocal adoptable_goal_found_count
+        tree_root = _select_tree_root(state)
+        tree_sig = _canonical_tree_signature(tree_root)
+        existing = evidence_by_tree_sig.get(tree_sig)
+        if existing is not None and len(existing.steps) <= len(steps):
+            return False
+        if existing is None and len(evidence_by_tree_sig) >= max_evidences:
+            return False
+        evidence_by_tree_sig[tree_sig] = _ReachabilityEvidenceInternal(
+            steps=list(steps),
+            final_state=state.model_copy(deep=True),
+            tree_signature=tree_sig,
+        )
+        adoptable_goal_found_count += 1
+        return True
+
+    def _register_raw_evidence(
+        *,
+        state: DerivationState,
+        steps: list[_ReachabilityPathStep],
+    ) -> bool:
+        tree_root = _select_tree_root(state)
+        tree_sig = _canonical_tree_signature(tree_root)
+        existing = evidence_by_tree_sig.get(tree_sig)
+        if existing is not None and len(existing.steps) <= len(steps):
+            return False
+        if existing is None and len(evidence_by_tree_sig) >= max_evidences:
+            return False
+        evidence_by_tree_sig[tree_sig] = _ReachabilityEvidenceInternal(
+            steps=list(steps),
+            final_state=state.model_copy(deep=True),
+            tree_signature=tree_sig,
+        )
+        return True
+
+    def _try_post_goal_continuation(
+        *,
+        seed_state: DerivationState,
+        seed_steps: list[_ReachabilityPathStep],
+    ) -> None:
+        nonlocal post_goal_continuation_invocations, post_goal_continuation_actions
+        if not post_goal_continuation_enabled:
+            return
+        if seed_state.basenum <= 1:
+            return
+        post_goal_continuation_invocations += 1
+        local_actions = 0
+        local_action_cap = _REACHABILITY_POST_GOAL_CONTINUATION_MAX_ACTIONS_IMI01
+        local_deadline = min(
+            deadline,
+            time.perf_counter() + min(2.0, max(0.25, budget_seconds * 0.25)),
+        )
+        depth_cap = min(
+            _REACHABILITY_POST_GOAL_CONTINUATION_MAX_DEPTH_IMI01,
+            max(0, seed_state.basenum - 1),
+        )
+        cont_steps: list[_ReachabilityPathStep] = []
+        found = False
+
+        def dfs_cont(current: DerivationState, remaining: int) -> None:
+            nonlocal local_actions, found, post_goal_continuation_actions
+            if found:
+                return
+            if remaining <= 0 or current.basenum <= 1:
+                if _is_adoptable_goal_state(state=current, steps=seed_steps + cont_steps):
+                    _register_adoptable_evidence(state=current, steps=seed_steps + cont_steps)
+                    found = True
+                return
+            if time.perf_counter() >= local_deadline:
+                return
+            if local_actions >= local_action_cap:
+                return
+
+            unresolved_now = _count_uninterpretable_like_perl(current)
+            if unresolved_now == 0 and _is_adoptable_goal_state(state=current, steps=seed_steps + cont_steps):
+                _register_adoptable_evidence(state=current, steps=seed_steps + cont_steps)
+                found = True
+                return
+
+            for left in range(1, current.basenum + 1):
+                for right in range(1, current.basenum + 1):
+                    if left == right:
+                        continue
+                    if time.perf_counter() >= local_deadline or local_actions >= local_action_cap:
+                        return
+                    left_row = _item_for_index(current, left)
+                    right_row = _item_for_index(current, right)
+                    if left_row is None or right_row is None:
+                        continue
+                    pair_violations = _hard_reject_check_pair_for_reachability(
+                        left_row=left_row,
+                        right_row=right_row,
+                        expected_particle_partners=expected_particle_partners,
+                    )
+                    if pair_violations:
+                        continue
+                    candidates = list_merge_candidates(
+                        state=current,
+                        left=left,
+                        right=right,
+                        legacy_root=legacy_root,
+                        rh_merge_version=rh_version,
+                        lh_merge_version=lh_version,
+                    )
+                    for candidate in candidates:
+                        if candidate.rule_kind != "double":
+                            continue
+                        if candidate.rule_name not in {"RH-Merge", "LH-Merge"}:
+                            continue
+                        actual_left = candidate.left if candidate.left is not None else left
+                        actual_right = candidate.right if candidate.right is not None else right
+                        if actual_left == actual_right:
+                            continue
+                        if not _passes_nohead_constraint(
+                            state=current,
+                            rule_name=candidate.rule_name,
+                            left=actual_left,
+                            right=actual_right,
+                        ):
+                            continue
+                        left_actual_row = _item_for_index(current, actual_left)
+                        right_actual_row = _item_for_index(current, actual_right)
+                        if left_actual_row is None or right_actual_row is None:
+                            continue
+                        actual_violations = _hard_reject_check_pair_for_reachability(
+                            left_row=left_actual_row,
+                            right_row=right_actual_row,
+                            expected_particle_partners=expected_particle_partners,
+                        )
+                        if actual_violations:
+                            continue
+                        try:
+                            _, _, next_state = _execute_candidate_for_assist(
+                                state=current,
+                                candidate=candidate,
+                                fallback_left=left,
+                                fallback_right=right,
+                                rh_merge_version=rh_version,
+                                lh_merge_version=lh_version,
+                            )
+                        except ValueError:
+                            continue
+                        local_actions += 1
+                        post_goal_continuation_actions += 1
+                        cont_steps.append(
+                            _ReachabilityPathStep(
+                                rule_name=candidate.rule_name,
+                                rule_number=candidate.rule_number,
+                                rule_kind=candidate.rule_kind,
+                                left=actual_left,
+                                right=actual_right,
+                                check=candidate.check,
+                                left_id=_item_id_for_index(current, actual_left),
+                                right_id=_item_id_for_index(current, actual_right),
+                            )
+                        )
+                        dfs_cont(next_state, remaining - 1)
+                        cont_steps.pop()
+                        if found:
+                            return
+                        if time.perf_counter() >= local_deadline or local_actions >= local_action_cap:
+                            return
+
+        dfs_cont(seed_state, depth_cap)
+
     def dfs(
         current: DerivationState,
         remaining_depth: int,
@@ -2349,6 +2886,7 @@ def _search_reachability(
         nonlocal cross_parent_duplicate_child_struct_states
         nonlocal dominated_child_count, dominance_improvement_count
         nonlocal post_filter_skipped_by_dominance
+        nonlocal raw_goal_found_count
 
         max_depth_reached = max(max_depth_reached, len(path))
         if time.perf_counter() >= deadline:
@@ -2388,15 +2926,19 @@ def _search_reachability(
             )
 
         if current_unresolved == 0:
-            tree_root = _select_tree_root(current)
-            tree_sig = _canonical_tree_signature(tree_root)
-            goal_tree_sigs.add(tree_sig)
-            if tree_sig not in evidence_by_tree_sig and len(evidence_by_tree_sig) < max_evidences:
-                evidence_by_tree_sig[tree_sig] = _ReachabilityEvidenceInternal(
-                    steps=list(path),
-                    final_state=current.model_copy(deep=True),
-                    tree_signature=tree_sig,
-                )
+            raw_goal_found_count += 1
+            raw_goal_tree_sigs.add(_canonical_tree_signature(_select_tree_root(current)))
+            full_steps = list(path)
+            if post_goal_continuation_enabled:
+                if _is_adoptable_goal_state(state=current, steps=full_steps):
+                    _register_adoptable_evidence(state=current, steps=full_steps)
+                elif current.basenum > 1:
+                    _try_post_goal_continuation(
+                        seed_state=current.model_copy(deep=True),
+                        seed_steps=full_steps,
+                    )
+            else:
+                _register_raw_evidence(state=current, steps=full_steps)
             return True
 
         if remaining_depth <= 0:
@@ -2761,9 +3303,22 @@ def _search_reachability(
             if actions_attempted >= max_nodes:
                 aborted_reason = "node_limit"
                 return False
-            actions_attempted += 1
             left_id = _item_id_for_index(current, actual_left)
             right_id = _item_id_for_index(current, actual_right)
+            if len(path) == 0 and blocked_first_step_keys:
+                first_step_key = _first_step_key_from_components(
+                    rule_name=candidate.rule_name,
+                    rule_number=candidate.rule_number,
+                    rule_kind=candidate.rule_kind,
+                    left=actual_left,
+                    right=actual_right,
+                    check=candidate.check,
+                    left_id=left_id,
+                    right_id=right_id,
+                )
+                if first_step_key in blocked_first_step_keys:
+                    continue
+            actions_attempted += 1
             path.append(
                 _ReachabilityPathStep(
                     rule_name=candidate.rule_name,
@@ -2793,7 +3348,7 @@ def _search_reachability(
     completed = dfs(request.state.model_copy(deep=True), max_depth, [], 0)
 
     if not completed:
-        if len(goal_tree_sigs) > 0:
+        if len(raw_goal_tree_sigs) > 0:
             status = "reachable"
         else:
             status = "unknown"
@@ -2802,14 +3357,14 @@ def _search_reachability(
         goal_count_exact: Optional[int] = None
         total_exact: Optional[int] = None
     else:
-        if len(goal_tree_sigs) > 0:
+        if len(raw_goal_tree_sigs) > 0:
             status = "reachable"
         else:
             status = "unreachable"
         reason = "completed"
         count_status = "exact"
-        goal_count_exact = len(goal_tree_sigs)
-        total_exact = len(goal_tree_sigs)
+        goal_count_exact = len(raw_goal_tree_sigs)
+        total_exact = len(raw_goal_tree_sigs)
 
     elapsed_ms = int((time.perf_counter() - started) * 1000)
     report_progress("finalizing", "結果を整形中")
@@ -2866,6 +3421,10 @@ def _search_reachability(
             else 0.0,
             6,
         ),
+        "raw_goal_found_count": raw_goal_found_count,
+        "adoptable_goal_found_count": adoptable_goal_found_count,
+        "post_goal_continuation_invocations": post_goal_continuation_invocations,
+        "post_goal_continuation_actions": post_goal_continuation_actions,
     }
     layer_stats_response = {
         str(key): value
@@ -2926,7 +3485,8 @@ def _build_reachability_response(
         request.limit,
         max_evidences=max_evidences,
     )
-    evidences_capped = internal.evidences[:max_evidences]
+    unique_first_step_rows = _dedupe_internal_evidences_by_first_step(internal.evidences)
+    evidences_capped = unique_first_step_rows[:max_evidences]
     page_rows = evidences_capped[offset : offset + limit]
     shown_count = len(page_rows)
 
@@ -3029,6 +3589,7 @@ def _merge_reachability_response_evidences(
         merged_by_tree_sig.values(),
         key=lambda row: (row.steps_to_goal, _canonical_tree_signature(dict(row.tree_root))),
     )
+    ordered_rows = _dedupe_response_evidences_by_first_step(ordered_rows)
     capped_rows = ordered_rows[:max_evidences]
     reranked_rows = [
         row.model_copy(update={"rank": rank})
@@ -3135,6 +3696,13 @@ def _run_reachability_job(
     merge_with_existing: bool = False,
 ) -> None:
     try:
+        blocked_first_step_keys: set[tuple[str, int, str, int, int, int, str, str]] = set()
+        if merge_with_existing:
+            with _REACHABILITY_JOBS_LOCK:
+                row = _REACHABILITY_JOBS.get(job_id)
+                existing_response = row.get("result") if row is not None else None
+            blocked_first_step_keys = _collect_blocked_first_step_keys_for_continue(existing_response)
+
         with _REACHABILITY_JOBS_LOCK:
             row = _REACHABILITY_JOBS.get(job_id)
             if row is None:
@@ -3148,6 +3716,7 @@ def _run_reachability_job(
             rh_version=rh_version,
             lh_version=lh_version,
             search_signature_mode=search_signature_mode,
+            blocked_first_step_keys=blocked_first_step_keys or None,
             progress_hook=lambda percent, phase, message: _set_reachability_job_progress(
                 job_id=job_id,
                 percent=percent,
