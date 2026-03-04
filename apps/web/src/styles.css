@@ -37,14 +37,20 @@ body {
 }
 
 .hero {
-  padding: 18px 4px 14px;
+  padding: 12px 14px;
   position: relative;
+  min-height: 56px;
+  border: 1px solid #b7c8d8;
+  border-radius: 14px;
+  background: linear-gradient(140deg, #e6f1fa 0%, #dcecf8 100%);
+  box-shadow: 0 10px 24px rgba(31, 68, 103, 0.08);
 }
 
-.hero h1 {
-  margin: 8px 0;
+.hero-page-title {
+  margin: 14px 8px 10px;
   font-family: "M PLUS 1p", sans-serif;
   letter-spacing: 0.04em;
+  font-size: 2.2rem;
 }
 
 .hero p {
@@ -55,8 +61,8 @@ body {
 
 .auth-session-controls {
   position: absolute;
-  top: 6px;
-  left: 4px;
+  top: 10px;
+  right: 12px;
   display: inline-flex;
   align-items: center;
   gap: 8px;
@@ -1319,8 +1325,8 @@ td {
 
 .ui-mode-switch {
   position: absolute;
-  top: 6px;
-  right: 4px;
+  top: 10px;
+  left: 12px;
   display: inline-flex;
   gap: 6px;
 }
@@ -1719,13 +1725,14 @@ td {
 .legacy-mode .hero {
   border: 1px solid #8ca0b3;
   background: #bbccdd;
+  min-height: 50px;
   padding: 10px 12px;
 }
 
-.legacy-mode .hero h1 {
+.legacy-mode .hero-page-title {
   font-family: "Meiryo UI", "Hiragino Kaku Gothic ProN", sans-serif;
   letter-spacing: 0;
-  margin: 4px 0;
+  margin: 8px 4px 10px;
   font-size: 1.25rem;
 }
 

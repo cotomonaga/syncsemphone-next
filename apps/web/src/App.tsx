@@ -3980,7 +3980,6 @@ export default function App() {
   return (
     <div className={uiMode === "legacy" ? "page legacy-mode" : "page renewed-mode"}>
       <header className="hero">
-        <h1>SYNCSEMPHONE NEXT</h1>
         {ENABLE_LOGIN_AUTH && loggedInUser && (
           <div className="auth-session-controls">
             <span className="auth-session-user">{loggedInUser} でログイン中</span>
@@ -4014,6 +4013,7 @@ export default function App() {
           </button>
         </div>
       </header>
+      <h1 className="hero-page-title">SYNCSEMPHONE NEXT</h1>
 
       {error && <p className="alert">Error: {error}</p>}
 
