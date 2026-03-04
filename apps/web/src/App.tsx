@@ -37,7 +37,6 @@ type TreeMode = "tree" | "tree_cat";
 type UiMode = "legacy" | "renewed";
 type TokenInputMode = "manual" | "auto";
 type Step1EntryMode = "example_sentence" | "upload_num" | "build_lexicon";
-type ReferenceDocTab = "feature" | "rule";
 type RenewMenu = "hypothesis" | "reference" | "lexicon" | "numeration";
 type RenewPanel =
   | "setup"
@@ -49,7 +48,6 @@ type RenewPanel =
   | "grammarInspect"
   | "lexiconInspect"
   | "ruleCompare"
-  | "referenceDocs"
   | "lexicon";
 
 type PersistedUiState = {
@@ -165,11 +163,7 @@ const RENEW_MENUS: Array<{
   {
     key: "reference",
     label: "Grammarの確認",
-    steps: [
-      { key: "grammarInspect", label: "文法規則の内容確認" },
-      { key: "lexiconInspect", label: "語彙の内容確認" },
-      { key: "referenceDocs", label: "資料参照" }
-    ]
+    steps: [{ key: "grammarInspect", label: "文法規則の内容確認" }]
   },
   {
     key: "lexicon",
@@ -1249,7 +1243,6 @@ export default function App() {
   const [ruleDocs, setRuleDocs] = useState<RuleDocEntry[]>([]);
   const [selectedRuleDoc, setSelectedRuleDoc] = useState("");
   const [ruleDocHtml, setRuleDocHtml] = useState("");
-  const [referenceDocTab, setReferenceDocTab] = useState<ReferenceDocTab>("feature");
   const [referenceDocsLoadedGrammarId, setReferenceDocsLoadedGrammarId] = useState("");
   const [inspectLexiconSummary, setInspectLexiconSummary] = useState<LexiconSummaryResponse | null>(null);
   const [inspectLexiconItems, setInspectLexiconItems] = useState<LexiconItemsPageResponse | null>(null);
@@ -1286,7 +1279,6 @@ export default function App() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [uiPersistenceReady, setUiPersistenceReady] = useState(!ENABLE_UI_PERSISTENCE);
-  const referenceSectionRef = useRef<HTMLElement | null>(null);
   const step1UploadFileInputRef = useRef<HTMLInputElement | null>(null);
   const numerationEditorFileInputRef = useRef<HTMLInputElement | null>(null);
   const autoPreviewRequestSeqRef = useRef(0);
@@ -2142,6 +2134,7 @@ export default function App() {
       if (firstRule) {
         setInspectCompareRuleNumber(firstRule.rule_number);
       }
+      setSetupGrammarId(grammarKey);
       setRenewMenu("reference");
       setRenewPanel("grammarInspect");
       setUiMode("renewed");
@@ -3201,11 +3194,11 @@ export default function App() {
     });
   }
 
-  async function handleLoadReferenceDocs() {
+  async function handleLoadReferenceDocs(grammarKey: string) {
     await withLoading(async () => {
       const [featureRows, ruleRows] = await Promise.all([
         apiGet<FeatureDocEntry[]>("/v1/reference/features"),
-        apiGet<RuleDocEntry[]>(`/v1/reference/rules/${grammarId}`)
+        apiGet<RuleDocEntry[]>(`/v1/reference/rules/${grammarKey}`)
       ]);
       setFeatureDocs(featureRows);
       setRuleDocs(ruleRows);
@@ -3232,7 +3225,7 @@ export default function App() {
       ]);
       setFeatureDocHtml(featureDoc?.html_text || "");
       setRuleDocHtml(ruleDoc?.html_text || "");
-      setReferenceDocsLoadedGrammarId(grammarId);
+      setReferenceDocsLoadedGrammarId(grammarKey);
     });
   }
 
@@ -3382,31 +3375,21 @@ export default function App() {
     }
   }
 
-  async function jumpToReferenceDocs() {
-    setUiMode("renewed");
-    setRenewMenu("reference");
-    setRenewPanel("referenceDocs");
-    await handleLoadReferenceDocs();
-    window.requestAnimationFrame(() => {
-      referenceSectionRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
-    });
-  }
-
   useEffect(() => {
     void handleLoadAllGrammars();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   useEffect(() => {
-    if (renewPanel !== "referenceDocs") {
+    if (renewPanel !== "grammarInspect" || uiMode !== "renewed") {
       return;
     }
-    if (referenceDocsLoadedGrammarId === grammarId && featureDocs.length > 0 && ruleDocs.length > 0) {
+    if (referenceDocsLoadedGrammarId === setupGrammarId) {
       return;
     }
-    void handleLoadReferenceDocs();
+    void handleLoadReferenceDocs(setupGrammarId);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [renewPanel, grammarId]);
+  }, [renewPanel, setupGrammarId, uiMode, referenceDocsLoadedGrammarId]);
 
   useEffect(() => {
     if (renewPanel !== "grammarInspect" || uiMode !== "renewed") {
@@ -5098,7 +5081,33 @@ export default function App() {
         </section>
 
         <section className="card" data-panel="grammarInspect">
-          <h2>6. 文法規則の内容確認</h2>
+          <h2>文法規則の内容確認</h2>
+          <div className="row grammar-inspect-controls">
+            <label>
+              表示対象文法
+              <select
+                aria-label="grammar-inspect-select"
+                value={setupGrammarId}
+                onChange={(event) => setSetupGrammarId(event.target.value)}
+              >
+                {grammarOptions.map((option) => (
+                  <option key={`inspect-grammar-${option.grammar_id}`} value={option.grammar_id}>
+                    {formatGrammarOption(option)}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <button
+              type="button"
+              className="secondary-btn"
+              onClick={() => {
+                void handleOpenGrammarInspect(setupGrammarId);
+              }}
+              disabled={loading}
+            >
+              再読込
+            </button>
+          </div>
           <p className="hint">
             選択中 Grammar:
             {" "}
@@ -5149,17 +5158,66 @@ export default function App() {
               </tbody>
             </table>
           </div>
-          <div className="row row-end grammar-inspect-footer">
-            <button
-              type="button"
-              className="secondary-btn"
-              onClick={() => {
-                void jumpToReferenceDocs();
-              }}
-              disabled={loading}
-            >
-              資料を閲覧
-            </button>
+          <div className="stack grammar-docs-inline">
+            <h3>この文法に関する資料</h3>
+            <div className="row grammar-doc-row">
+              <label>
+                規則資料
+                <select
+                  aria-label="rule-doc-select-inline"
+                  value={selectedRuleDoc}
+                  onChange={(event) => setSelectedRuleDoc(event.target.value)}
+                >
+                  <option value="">（規則資料を選択）</option>
+                  {ruleDocs.map((doc) => (
+                    <option key={`${doc.rule_number}-${doc.file_name}`} value={doc.file_name}>
+                      {doc.rule_number}: {doc.rule_name}
+                    </option>
+                  ))}
+                </select>
+              </label>
+              <button
+                type="button"
+                onClick={() => {
+                  void handleOpenRuleDoc(selectedRuleDoc);
+                }}
+                disabled={loading || selectedRuleDoc === ""}
+              >
+                表示
+              </button>
+            </div>
+            <iframe title="rule-doc-inline" srcDoc={ruleDocHtml} style={{ width: "100%", height: 240 }} />
+            <div className="row grammar-doc-row">
+              <label>
+                素性資料
+                <select
+                  aria-label="feature-doc-select-inline"
+                  value={selectedFeatureDoc}
+                  onChange={(event) => setSelectedFeatureDoc(event.target.value)}
+                >
+                  <option value="">（素性資料を選択）</option>
+                  {featureDocs.map((doc) => (
+                    <option key={doc.file_name} value={doc.file_name}>
+                      {doc.title}
+                    </option>
+                  ))}
+                </select>
+              </label>
+              <button
+                type="button"
+                onClick={() => {
+                  void handleOpenFeatureDoc(selectedFeatureDoc);
+                }}
+                disabled={loading || selectedFeatureDoc === ""}
+              >
+                表示
+              </button>
+            </div>
+            <iframe
+              title="feature-doc-inline"
+              srcDoc={featureDocHtml}
+              style={{ width: "100%", height: 240 }}
+            />
           </div>
         </section>
 
@@ -5360,84 +5418,6 @@ export default function App() {
                 <pre data-testid="python-rule-source">{inspectRuleCompare.python_source_text}</pre>
               </div>
             </div>
-          )}
-        </section>
-
-        <section className="card" data-panel="referenceDocs" ref={referenceSectionRef}>
-          <h2>9. 資料参照（素性資料 / 規則資料）</h2>
-          <div className="row">
-            <button
-              type="button"
-              className={referenceDocTab === "feature" ? "renew-step-btn active" : "renew-step-btn"}
-              onClick={() => setReferenceDocTab("feature")}
-            >
-              素性資料
-            </button>
-            <button
-              type="button"
-              className={referenceDocTab === "rule" ? "renew-step-btn active" : "renew-step-btn"}
-              onClick={() => setReferenceDocTab("rule")}
-            >
-              規則資料
-            </button>
-          </div>
-
-          {referenceDocTab === "feature" ? (
-            <>
-              <div className="row">
-                <select
-                  aria-label="feature-doc-select"
-                  value={selectedFeatureDoc}
-                  onChange={(event) => setSelectedFeatureDoc(event.target.value)}
-                >
-                  <option value="">（素性資料を選択）</option>
-                  {featureDocs.map((doc) => (
-                    <option key={doc.file_name} value={doc.file_name}>
-                      {doc.title}
-                    </option>
-                  ))}
-                </select>
-                <button
-                  onClick={() => {
-                    void handleOpenFeatureDoc(selectedFeatureDoc);
-                  }}
-                  disabled={loading || selectedFeatureDoc === ""}
-                >
-                  表示
-                </button>
-              </div>
-              <iframe
-                title="feature-doc"
-                srcDoc={featureDocHtml}
-                style={{ width: "100%", height: 260 }}
-              />
-            </>
-          ) : (
-            <>
-              <div className="row">
-                <select
-                  aria-label="rule-doc-select"
-                  value={selectedRuleDoc}
-                  onChange={(event) => setSelectedRuleDoc(event.target.value)}
-                >
-                  <option value="">（規則資料を選択）</option>
-                  {ruleDocs.map((doc) => (
-                    <option key={`${doc.rule_number}-${doc.file_name}`} value={doc.file_name}>
-                      {doc.rule_number}: {doc.rule_name}
-                    </option>
-                  ))}
-                </select>
-                <button
-                  onClick={() => {
-                    void handleOpenRuleDoc(selectedRuleDoc);
-                  }}
-                  disabled={loading || selectedRuleDoc === ""}
-                >
-                  表示
-                </button>
-              </div>
-              <iframe title="rule-doc" srcDoc={ruleDocHtml} style={{ width: "100%", height: 260 }} />
-            </>
           )}
         </section>
 
