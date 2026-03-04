@@ -163,15 +163,6 @@ const RENEW_MENUS: Array<{
   steps: Array<{ key: RenewPanel; label: string }>;
 }> = [
   {
-    key: "hypothesis",
-    label: "構造を構築",
-    steps: [
-      { key: "setup", label: "【Step.1】LexiconとGrammarの選択" },
-      { key: "sentence", label: "【Step.2】Numerationの形成" },
-      { key: "target", label: "【Step.3】Grammarの適用" }
-    ]
-  },
-  {
     key: "reference",
     label: "Grammarの確認",
     steps: [
@@ -189,6 +180,15 @@ const RENEW_MENUS: Array<{
     key: "numeration",
     label: "Numファイルの編集",
     steps: [{ key: "numeration", label: "Numファイルの編集" }]
+  },
+  {
+    key: "hypothesis",
+    label: "構造を構築",
+    steps: [
+      { key: "setup", label: "【Step.1】LexiconとGrammarの選択" },
+      { key: "sentence", label: "【Step.2】Numerationの形成" },
+      { key: "target", label: "【Step.3】Grammarの適用" }
+    ]
   }
 ];
 
