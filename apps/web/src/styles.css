@@ -992,25 +992,118 @@ button:disabled {
 }
 
 .step2-tree-graph-panel {
-  margin-top: 8px;
+  margin-top: 10px;
   border: 1px solid var(--line);
-  border-radius: 8px;
-  padding: 8px;
-  background: #f7fafc;
+  border-radius: 12px;
+  padding: 10px;
+  background: linear-gradient(180deg, #f8fcff 0%, #eef6ff 100%);
+  box-shadow: 0 6px 14px rgba(23, 44, 71, 0.08);
+}
+
+.step2-tree-graph-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  margin-bottom: 6px;
 }
 
 .step2-tree-graph-title {
-  margin: 0 0 6px;
+  margin: 0;
   color: var(--ink-soft);
   font-size: 0.84rem;
+  font-weight: 600;
+}
+
+.step2-tree-info-toggle {
+  font-size: 0.75rem;
+  padding: 6px 10px;
+  border-radius: 999px;
+  white-space: nowrap;
+}
+
+.step2-tree-info-popover {
+  margin-bottom: 8px;
+  border: 1px solid #c8d8e6;
+  border-radius: 10px;
+  background: #fff;
+  padding: 8px;
+  max-height: 180px;
+  overflow: auto;
+}
+
+.step2-tree-info-empty {
+  margin: 0;
+  font-size: 0.82rem;
+  color: var(--ink-soft);
+}
+
+.step2-tree-info-grid {
+  display: grid;
+  gap: 8px;
+}
+
+.step2-tree-info-item {
+  border: 1px solid #d6e3ef;
+  border-radius: 8px;
+  padding: 6px 8px;
+  background: #f9fcff;
+}
+
+.step2-tree-info-item-head {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.step2-tree-info-chip {
+  display: inline-flex;
+  align-items: center;
+  font-size: 0.72rem;
+  color: #204660;
+  background: #e7f2ff;
+  border: 1px solid #d0e6ff;
+  border-radius: 999px;
+  padding: 2px 8px;
+}
+
+.step2-tree-info-item-label {
+  margin-top: 6px;
+  display: grid;
+  gap: 2px;
+  font-family: "Menlo", "Monaco", monospace;
+  font-size: 0.75rem;
+  color: #243f5a;
 }
 
 .step2-tree-graph-scroll {
-  overflow: auto;
+  overflow: hidden;
   background: #fff;
-  border: 1px solid var(--line);
-  border-radius: 6px;
-  padding: 4px;
+  border: 1px solid #d4e0ed;
+  border-radius: 10px;
+  padding: 6px;
+}
+
+.tree-graph-viewport {
+  width: 100%;
+  overflow: hidden;
+  border-radius: 8px;
+  background:
+    radial-gradient(circle at 20% 20%, rgba(173, 210, 255, 0.15), transparent 45%),
+    radial-gradient(circle at 80% 80%, rgba(184, 234, 209, 0.18), transparent 45%),
+    #fff;
+  cursor: grab;
+  touch-action: none;
+  user-select: none;
+}
+
+.tree-graph-viewport.is-dragging {
+  cursor: grabbing;
+}
+
+.tree-graph-viewport svg {
+  display: block;
+  max-width: 100%;
 }
 
 .step2-reachability-actions {

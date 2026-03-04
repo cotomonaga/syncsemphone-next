@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState, type PointerEvent } from "react";
 import { apiGet, apiPost, parseManualTokens } from "./api";
 import LexiconWorkbench from "./LexiconWorkbench";
 import type {
@@ -126,6 +126,13 @@ type TreeRenderModel = {
   edges: RenderEdge[];
   width: number;
   height: number;
+};
+
+type TreeInfoRow = {
+  node: string;
+  edge: string;
+  flag: string;
+  labelLines: string[];
 };
 
 const DEFAULT_GRAMMARS: GrammarOption[] = [
@@ -851,6 +858,28 @@ function toDisplayLines(value: unknown): string[] {
   return raw.split("\n");
 }
 
+function parseTreeInfoRows(csvText: string): TreeInfoRow[] {
+  const rows: TreeInfoRow[] = [];
+  const lines = csvText
+    .split(/\r?\n/)
+    .map((line) => line.trim())
+    .filter((line) => line !== "");
+  for (const line of lines) {
+    const cols = line.split(",", 4);
+    if (cols.length !== 4) {
+      continue;
+    }
+    const [node, edge, flag, label] = cols;
+    rows.push({
+      node,
+      edge,
+      flag,
+      labelLines: toDisplayLines(label)
+    });
+  }
+  return rows;
+}
+
 function buildTreeRenderModel(csvText: string): { model: TreeRenderModel; dotText: string } {
   const nodeLabels = new Map<string, string>();
   const nodeFlags = new Map<string, string>();
@@ -971,10 +1000,10 @@ function buildTreeRenderModel(csvText: string): { model: TreeRenderModel; dotTex
   };
 }
 
-function renderTreeGraphSvg(model: TreeRenderModel, testId: string): JSX.Element {
+function renderTreeGraphElements(model: TreeRenderModel): JSX.Element {
   const nodeById = new Map(model.nodes.map((node) => [node.id, node]));
   return (
-    <svg width={model.width} height={model.height} data-testid={testId}>
+    <>
       {model.edges.map((edge) => {
         const from = nodeById.get(edge.from);
         const to = nodeById.get(edge.to);
@@ -1009,7 +1038,122 @@ function renderTreeGraphSvg(model: TreeRenderModel, testId: string): JSX.Element
           ))}
         </g>
       ))}
-    </svg>
+    </>
+  );
+}
+
+type TreeGraphViewportProps = {
+  model: TreeRenderModel;
+  testId: string;
+  className?: string;
+};
+
+function TreeGraphViewport({ model, testId, className = "" }: TreeGraphViewportProps): JSX.Element {
+  const wrapperRef = useRef<HTMLDivElement | null>(null);
+  const dragRef = useRef<{
+    pointerId: number;
+    startX: number;
+    startY: number;
+    baseX: number;
+    baseY: number;
+  } | null>(null);
+  const [viewportWidth, setViewportWidth] = useState(0);
+  const [pan, setPan] = useState({ x: 0, y: 0 });
+  const [dragging, setDragging] = useState(false);
+
+  useEffect(() => {
+    const target = wrapperRef.current;
+    if (!target) {
+      return;
+    }
+    const updateSize = () => {
+      setViewportWidth(target.clientWidth);
+    };
+    updateSize();
+    if (typeof ResizeObserver === "undefined") {
+      return;
+    }
+    const observer = new ResizeObserver(updateSize);
+    observer.observe(target);
+    return () => {
+      observer.disconnect();
+    };
+  }, []);
+
+  useEffect(() => {
+    setPan({ x: 0, y: 0 });
+    setDragging(false);
+    dragRef.current = null;
+  }, [model.width, model.height, viewportWidth]);
+
+  const padding = 16;
+  const effectiveWidth = viewportWidth > padding * 2 ? viewportWidth - padding * 2 : model.width;
+  const fitScale = Math.min(1, effectiveWidth / model.width);
+  const scaledWidth = model.width * fitScale;
+  const scaledHeight = model.height * fitScale;
+  const canvasWidth = Math.max(viewportWidth || scaledWidth + padding * 2, scaledWidth + padding * 2);
+  const canvasHeight = Math.max(280, scaledHeight + padding * 2);
+  const baseX = (canvasWidth - scaledWidth) / 2;
+  const baseY = padding;
+  const maxPanX = Math.max(80, canvasWidth * 0.45);
+  const maxPanY = Math.max(80, canvasHeight * 0.45);
+
+  const beginDrag = (event: PointerEvent<HTMLDivElement>) => {
+    if (event.button !== 0) {
+      return;
+    }
+    dragRef.current = {
+      pointerId: event.pointerId,
+      startX: event.clientX,
+      startY: event.clientY,
+      baseX: pan.x,
+      baseY: pan.y
+    };
+    setDragging(true);
+    event.currentTarget.setPointerCapture(event.pointerId);
+    event.preventDefault();
+  };
+
+  const moveDrag = (event: PointerEvent<HTMLDivElement>) => {
+    const drag = dragRef.current;
+    if (!drag || drag.pointerId !== event.pointerId) {
+      return;
+    }
+    const nextX = drag.baseX + (event.clientX - drag.startX);
+    const nextY = drag.baseY + (event.clientY - drag.startY);
+    setPan({
+      x: Math.max(-maxPanX, Math.min(maxPanX, nextX)),
+      y: Math.max(-maxPanY, Math.min(maxPanY, nextY))
+    });
+  };
+
+  const endDrag = (event: PointerEvent<HTMLDivElement>) => {
+    const drag = dragRef.current;
+    if (!drag || drag.pointerId !== event.pointerId) {
+      return;
+    }
+    dragRef.current = null;
+    setDragging(false);
+    if (event.currentTarget.hasPointerCapture(event.pointerId)) {
+      event.currentTarget.releasePointerCapture(event.pointerId);
+    }
+  };
+
+  return (
+    <div
+      ref={wrapperRef}
+      className={`tree-graph-viewport ${className} ${dragging ? "is-dragging" : ""}`.trim()}
+      onPointerDown={beginDrag}
+      onPointerMove={moveDrag}
+      onPointerUp={endDrag}
+      onPointerCancel={endDrag}
+    >
+      <svg width={canvasWidth} height={canvasHeight} data-testid={testId}>
+        <g transform={`translate(${baseX + pan.x},${baseY + pan.y}) scale(${fitScale})`}>
+          {renderTreeGraphElements(model)}
+        </g>
+      </svg>
+    </div>
   );
 }
 
@@ -1088,6 +1232,7 @@ export default function App() {
   const [treeSourceCsv, setTreeSourceCsv] = useState("");
   const [treeDot, setTreeDot] = useState("");
   const [treeGraph, setTreeGraph] = useState<TreeRenderModel | null>(null);
+  const [isStep2TreeInfoOpen, setIsStep2TreeInfoOpen] = useState(false);
 
   const [lfRows, setLfRows] = useState<LfResponse["list_representation"]>([]);
   const [srRows, setSrRows] = useState<SrResponse["truth_conditional_meaning"]>([]);
@@ -1209,6 +1354,14 @@ export default function App() {
   const step1NumerationLexiconSourceTextForDisplay = useMemo(
     () => encodeNumerationTextLikePerl(step1NumerationLexiconSourceText),
     [step1NumerationLexiconSourceText]
+  );
+  const activeTreeCsvText = useMemo(
+    () => (activeTreeMode === "tree_cat" ? treeCatCsv : treeCsv),
+    [activeTreeMode, treeCatCsv, treeCsv]
+  );
+  const step2TreeInfoRows = useMemo(
+    () => parseTreeInfoRows(activeTreeCsvText),
+    [activeTreeCsvText]
   );
   const numerationEditorGrid = useMemo(() => parseTabSeparatedGrid(numerationText), [numerationText]);
   const numerationEditorGridColumnCount = useMemo(
@@ -4368,11 +4521,49 @@ export default function App() {
               </div>
               {treeGraph && (
                 <div className="step2-tree-graph-panel" data-testid="step2-tree-graph-panel">
-                  <p className="step2-tree-graph-title">
-                    表示中: {activeTreeMode === "tree_cat" ? "樹形図（範疇蘇生）" : "樹形図（指標番号）"}
-                  </p>
+                  <div className="step2-tree-graph-head">
+                    <p className="step2-tree-graph-title">
+                      表示中: {activeTreeMode === "tree_cat" ? "樹形図（範疇蘇生）" : "樹形図（指標番号）"}
+                    </p>
+                    <button
+                      type="button"
+                      className="step0-start-btn step2-tree-info-toggle"
+                      onClick={() => setIsStep2TreeInfoOpen((prev) => !prev)}
+                      data-testid="step2-tree-info-toggle"
+                    >
+                      {isStep2TreeInfoOpen ? "情報を閉じる" : "情報を表示"}
+                    </button>
+                  </div>
+                  {isStep2TreeInfoOpen && (
+                    <div className="step2-tree-info-popover" data-testid="step2-tree-info">
+                      {step2TreeInfoRows.length === 0 ? (
+                        <p className="step2-tree-info-empty">表示中の樹形図テキスト情報はありません。</p>
+                      ) : (
+                        <div className="step2-tree-info-grid">
+                          {step2TreeInfoRows.map((row, index) => (
+                            <div className="step2-tree-info-item" key={`tree-info-${row.node}-${index}`}>
+                              <div className="step2-tree-info-item-head">
+                                <span className="step2-tree-info-chip">node: {row.node}</span>
+                                <span className="step2-tree-info-chip">edge: {row.edge || "-"}</span>
+                                <span className="step2-tree-info-chip">flag: {row.flag || "-"}</span>
+                              </div>
+                              <div className="step2-tree-info-item-label">
+                                {row.labelLines.map((line, lineIndex) => (
+                                  <span key={`tree-info-${row.node}-${lineIndex}`}>{line}</span>
+                                ))}
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  )}
                   <div className="step2-tree-graph-scroll">
-                    {renderTreeGraphSvg(treeGraph, "step2-tree-graph")}
+                    <TreeGraphViewport
+                      model={treeGraph}
+                      testId="step2-tree-graph"
+                      className="step2-tree-graph-viewport"
+                    />
                   </div>
                 </div>
               )}
@@ -4657,7 +4848,7 @@ export default function App() {
           </label>
           {treeGraph && (
             <div style={{ overflow: "auto" }}>
-              {renderTreeGraphSvg(treeGraph, "tree-graph")}
+              <TreeGraphViewport model={treeGraph} testId="tree-graph" />
             </div>
           )}
         </section>
