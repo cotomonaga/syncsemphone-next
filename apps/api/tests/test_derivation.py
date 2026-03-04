@@ -885,7 +885,9 @@ def test_derivation_auto_mode_tense_examples_tokenize_and_reachability(
     assert reachability.status_code == 200
     body = reachability.json()
     assert body["status"] == "reachable", f"{tense_label} sentence should be reachable"
-    assert body["completed"] is True
+    # Finite-budget runs may return reachable with completed=False (reason=timeout).
+    if body["completed"] is False:
+        assert body["reason"] == "timeout"
 
 
 def test_derivation_numeration_tokenize_returns_tokens(monkeypatch: pytest.MonkeyPatch) -> None:

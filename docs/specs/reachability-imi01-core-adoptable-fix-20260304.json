@@ -1,0 +1,2082 @@
+{
+  "generated_at": "2026-03-04",
+  "grammar_id": "imi01",
+  "constraints": {
+    "no_grammar_change": true,
+    "no_new_lexical_rows": true,
+    "no_auto_add_ga_phi": true
+  },
+  "production_rows": {
+    "fixed_patch_rows": [
+      9301,
+      9401,
+      9402,
+      9501,
+      9511,
+      9611,
+      204
+    ],
+    "content_rows": [
+      264,
+      265,
+      267,
+      270
+    ]
+  },
+  "official_candidates": {
+    "S3": [
+      267,
+      9301,
+      9402,
+      270,
+      9511,
+      9611,
+      204
+    ],
+    "S4": [
+      264,
+      265,
+      9501,
+      9401,
+      267,
+      9301,
+      9402,
+      270,
+      9511,
+      9611,
+      204
+    ]
+  },
+  "code_path": {
+    "raw_goal_found": "unresolved==0 reached",
+    "adoptable_goal": "unresolved_recalc==0 and basenum==1 and full_span and not hard_reject",
+    "post_goal_continuation": "enabled for imi01 (bounded RH/LH continuation from partial-goal)",
+    "evidence_serialization": "adoptable evidence must retain full_span in tree/process/history",
+    "strict_literal_gate_removed": true,
+    "note": "hard-reject remains memo-driven via token partners, not literal sentence whitelist"
+  },
+  "runs": [
+    {
+      "run_name": "S3_auto",
+      "mode": "auto",
+      "sentence_key": "S3",
+      "sentence": "ひつじと話しているうさぎがいる",
+      "lexicon_ids": [
+        267,
+        9301,
+        9402,
+        270,
+        9511,
+        9611,
+        204
+      ],
+      "status": "reachable",
+      "reason": "timeout",
+      "completed": false,
+      "evidence_present": true,
+      "adoptable_evidence_present": true,
+      "adoptable_evidence_count": 1,
+      "metrics": {
+        "actions_attempted": 82265,
+        "max_depth_reached": 6,
+        "best_leaf_unresolved_min": 1,
+        "cache_stats": {
+          "state_summary_cache_hits": 82265,
+          "state_summary_cache_misses": 1,
+          "node_summary_cache_hits": 184587,
+          "node_summary_cache_misses": 76278,
+          "avg_state_key_build_ms": 0.0,
+          "avg_node_key_build_ms": 0.005281,
+          "all_current_state_visits": 82266,
+          "unique_current_struct_states": 82266,
+          "revisited_current_struct_state_visits": 0,
+          "revisit_ratio": 0.0,
+          "unique_child_struct_states": 82445,
+          "cross_parent_duplicate_child_struct_states": 4510,
+          "cross_parent_duplicate_child_ratio": 0.054741,
+          "dominated_child_count": 4510,
+          "dominance_improvement_count": 0,
+          "post_filter_skipped_by_dominance": 4510,
+          "dominated_child_ratio": 0.054741,
+          "unique_structural_states_per_100k_actions": 100001.215584,
+          "raw_goal_found_count": 1,
+          "adoptable_goal_found_count": 1,
+          "post_goal_continuation_invocations": 1,
+          "post_goal_continuation_actions": 5
+        }
+      },
+      "evidences": [
+        {
+          "rank": 1,
+          "steps_to_goal": 6,
+          "tree_signature": "{\"category\":\"V\",\"children\":[{\"category\":\"J\",\"children\":[{\"category\":\"N\",\"children\":[{\"category\":\"V\",\"children\":[{\"category\":\"Z\",\"children\":[{\"category\":\"N\",\"children\":[],\"item_id\":\"x1-1\",\"phono\":\"ひつじ\",\"se\":[\"ひつじ:T\"],\"sl\":\"x1-1\",\"sy\":[]},{\"category\":\"Z\",\"children\":[],\"item_id\":\"x2-1\",\"phono\":\"と\",\"se\":[],\"sl\":\"zero\",\"sy\":[]}],\"item_id\":\"x2-1\",\"phono\":\"\",\"se\":[\"α<sub>8</sub>:x1-1\"],\"sl\":\"\",\"sy\":[]},{\"category\":\"V\",\"children\":[],\"item_id\":\"x3-1\",\"phono\":\"話している\",\"se\":[],\"sl\":\"zero\",\"sy\":[]}],\"item_id\":\"x3-1\",\"phono\":\"\",\"se\":[],\"sl\":\"\",\"sy\":[]},{\"category\":\"N\",\"children\":[],\"item_id\":\"x4-1\",\"phono\":\"うさぎ\",\"se\":[],\"sl\":\"zero\",\"sy\":[]}],\"item_id\":\"x4-1\",\"phono\":\"\",\"se\":[\"うさぎ:T\"],\"sl\":\"x4-1\",\"sy\":[]},{\"category\":\"J\",\"children\":[],\"item_id\":\"x5-1\",\"phono\":\"が\",\"se\":[],\"sl\":\"zero\",\"sy\":[]}],\"item_id\":\"x5-1\",\"phono\":\"\",\"se\":[\"α<sub>9</sub>:x4-1\"],\"sl\":\"\",\"sy\":[]},{\"category\":\"V\",\"children\":[{\"category\":\"V\",\"children\":[],\"item_id\":\"x6-1\",\"phono\":\"い-\",\"se\":[],\"sl\":\"zero\",\"sy\":[]},{\"category\":\"T\",\"children\":[],\"item_id\":\"x7-1\",\"phono\":\"-ru\",\"se\":[\"Time:imperfect\"],\"sl\":\"\",\"sy\":[]}],\"item_id\":\"x6-1\",\"phono\":\"\",\"se\":[],\"sl\":\"zero\",\"sy\":[]}],\"item_id\":\"x6-1\",\"phono\":\"\",\"se\":[],\"sl\":\"\",\"sy\":[]}",
+          "tree": {
+            "item_id": "x6-1",
+            "category": "V",
+            "sy": [],
+            "sl": "",
+            "se": [],
+            "phono": "",
+            "children": [
+              {
+                "item_id": "x5-1",
+                "category": "J",
+                "sy": [],
+                "sl": "",
+                "se": [
+                  "α<sub>9</sub>:x4-1"
+                ],
+                "phono": "",
+                "children": [
+                  {
+                    "item_id": "x4-1",
+                    "category": "N",
+                    "sy": [],
+                    "sl": "x4-1",
+                    "se": [
+                      "うさぎ:T"
+                    ],
+                    "phono": "",
+                    "children": [
+                      {
+                        "item_id": "x3-1",
+                        "category": "V",
+                        "sy": [],
+                        "sl": "",
+                        "se": [],
+                        "phono": "",
+                        "children": [
+                          {
+                            "item_id": "x2-1",
+                            "category": "Z",
+                            "sy": [],
+                            "sl": "",
+                            "se": [
+                              "α<sub>8</sub>:x1-1"
+                            ],
+                            "phono": "",
+                            "children": [
+                              {
+                                "item_id": "x1-1",
+                                "category": "N",
+                                "sy": [],
+                                "sl": "x1-1",
+                                "se": [
+                                  "ひつじ:T"
+                                ],
+                                "phono": "ひつじ",
+                                "children": []
+                              },
+                              {
+                                "item_id": "x2-1",
+                                "category": "Z",
+                                "sy": [],
+                                "sl": "zero",
+                                "se": [],
+                                "phono": "と",
+                                "children": []
+                              }
+                            ]
+                          },
+                          {
+                            "item_id": "x3-1",
+                            "category": "V",
+                            "sy": [],
+                            "sl": "zero",
+                            "se": [],
+                            "phono": "話している",
+                            "children": []
+                          }
+                        ]
+                      },
+                      {
+                        "item_id": "x4-1",
+                        "category": "N",
+                        "sy": [],
+                        "sl": "zero",
+                        "se": [],
+                        "phono": "うさぎ",
+                        "children": []
+                      }
+                    ]
+                  },
+                  {
+                    "item_id": "x5-1",
+                    "category": "J",
+                    "sy": [],
+                    "sl": "zero",
+                    "se": [],
+                    "phono": "が",
+                    "children": []
+                  }
+                ]
+              },
+              {
+                "item_id": "x6-1",
+                "category": "V",
+                "sy": [],
+                "sl": "zero",
+                "se": [],
+                "phono": "",
+                "children": [
+                  {
+                    "item_id": "x6-1",
+                    "category": "V",
+                    "sy": [],
+                    "sl": "zero",
+                    "se": [],
+                    "phono": "い-",
+                    "children": []
+                  },
+                  {
+                    "item_id": "x7-1",
+                    "category": "T",
+                    "sy": [],
+                    "sl": "",
+                    "se": [
+                      "Time:imperfect"
+                    ],
+                    "phono": "-ru",
+                    "children": []
+                  }
+                ]
+              }
+            ]
+          },
+          "process": "imi01\nひつじと話しているうさぎがいる\n10\n1\n([x6-1 x7-1] LH-Merge) ([x1-1 x2-1] RH-Merge) ([x2-1 x3-1] RH-Merge) ([x3-1 x4-1] RH-Merge) ([x4-1 x5-1] RH-Merge) ([x5-1 x6-1] RH-Merge) \n[null,[\"x6-1\",\"V\",[],[],\"\",[],null,[[\"x5-1\",\"J\",[],[],\"\",[null,\"α<sub>9</sub>:x4-1\"],null,[[\"x4-1\",\"N\",[],[],\"x4-1\",[null,\"うさぎ:T\"],null,[[\"x3-1\",\"V\",[],[],\"\",[],null,[[\"x2-1\",\"Z\",[],[],\"\",[null,\"α<sub>8</sub>:x1-1\"],null,[[\"x1-1\",\"N\",[],[],\"x1-1\",[null,\"ひつじ:T\"],\"ひつじ\",null],[\"x2-1\",\"Z\",\"\",[\"\"],\"zero\",\"zero\",\"と\",null]]],[\"x3-1\",\"V\",\"\",[\"\"],\"zero\",\"zero\",\"話している\",null]]],[\"x4-1\",\"N\",\"\",[\"\"],\"zero\",\"zero\",\"うさぎ\",null]]],[\"x5-1\",\"J\",\"\",[\"\"],\"zero\",\"zero\",\"が\",null]]],[\"x6-1\",\"V\",\"\",[\"\"],\"zero\",\"zero\",null,[[\"x6-1\",\"V\",\"\",[\"\"],\"zero\",\"zero\",\"い-\",null],[\"x7-1\",\"T\",[],[],null,[null,\"Time:imperfect\"],\"-ru\",null]]]]]]",
+          "history": [
+            {
+              "step": 1,
+              "rule_name": "LH-Merge",
+              "rule_number": 2,
+              "rule_kind": "double",
+              "left": 6,
+              "right": 7,
+              "check": null,
+              "left_id": "x6-1",
+              "right_id": "x7-1"
+            },
+            {
+              "step": 2,
+              "rule_name": "RH-Merge",
+              "rule_number": 1,
+              "rule_kind": "double",
+              "left": 1,
+              "right": 2,
+              "check": null,
+              "left_id": "x1-1",
+              "right_id": "x2-1"
+            },
+            {
+              "step": 3,
+              "rule_name": "RH-Merge",
+              "rule_number": 1,
+              "rule_kind": "double",
+              "left": 1,
+              "right": 2,
+              "check": null,
+              "left_id": "x2-1",
+              "right_id": "x3-1"
+            },
+            {
+              "step": 4,
+              "rule_name": "RH-Merge",
+              "rule_number": 1,
+              "rule_kind": "double",
+              "left": 1,
+              "right": 2,
+              "check": null,
+              "left_id": "x3-1",
+              "right_id": "x4-1"
+            },
+            {
+              "step": 5,
+              "rule_name": "RH-Merge",
+              "rule_number": 1,
+              "rule_kind": "double",
+              "left": 1,
+              "right": 2,
+              "check": null,
+              "left_id": "x4-1",
+              "right_id": "x5-1"
+            },
+            {
+              "step": 6,
+              "rule_name": "RH-Merge",
+              "rule_number": 1,
+              "rule_kind": "double",
+              "left": 1,
+              "right": 2,
+              "check": null,
+              "left_id": "x5-1",
+              "right_id": "x6-1"
+            }
+          ],
+          "full_span": true,
+          "full_span_tree": true,
+          "full_span_process": true,
+          "missing_tree": [],
+          "missing_process": [],
+          "basenum": 1,
+          "unresolved_recalc": 0,
+          "hard_reject": false,
+          "hard_reject_replay_failed": null,
+          "adoptable": true
+        }
+      ]
+    },
+    {
+      "run_name": "S3_explicit",
+      "mode": "explicit",
+      "sentence_key": "S3",
+      "sentence": "ひつじと話しているうさぎがいる",
+      "lexicon_ids": [
+        267,
+        9301,
+        9402,
+        270,
+        9511,
+        9611,
+        204
+      ],
+      "status": "reachable",
+      "reason": "timeout",
+      "completed": false,
+      "evidence_present": true,
+      "adoptable_evidence_present": true,
+      "adoptable_evidence_count": 1,
+      "metrics": {
+        "actions_attempted": 81709,
+        "max_depth_reached": 6,
+        "best_leaf_unresolved_min": 1,
+        "cache_stats": {
+          "state_summary_cache_hits": 81709,
+          "state_summary_cache_misses": 1,
+          "node_summary_cache_hits": 183333,
+          "node_summary_cache_misses": 75789,
+          "avg_state_key_build_ms": 0.0,
+          "avg_node_key_build_ms": 0.005245,
+          "all_current_state_visits": 81710,
+          "unique_current_struct_states": 81710,
+          "revisited_current_struct_state_visits": 0,
+          "revisit_ratio": 0.0,
+          "unique_child_struct_states": 81878,
+          "cross_parent_duplicate_child_struct_states": 4496,
+          "cross_parent_duplicate_child_ratio": 0.054949,
+          "dominated_child_count": 4496,
+          "dominance_improvement_count": 0,
+          "post_filter_skipped_by_dominance": 4496,
+          "dominated_child_ratio": 0.054949,
+          "unique_structural_states_per_100k_actions": 100001.223855,
+          "raw_goal_found_count": 1,
+          "adoptable_goal_found_count": 1,
+          "post_goal_continuation_invocations": 1,
+          "post_goal_continuation_actions": 5
+        }
+      },
+      "evidences": [
+        {
+          "rank": 1,
+          "steps_to_goal": 6,
+          "tree_signature": "{\"category\":\"V\",\"children\":[{\"category\":\"J\",\"children\":[{\"category\":\"N\",\"children\":[{\"category\":\"V\",\"children\":[{\"category\":\"Z\",\"children\":[{\"category\":\"N\",\"children\":[],\"item_id\":\"x1-1\",\"phono\":\"ひつじ\",\"se\":[\"ひつじ:T\"],\"sl\":\"x1-1\",\"sy\":[]},{\"category\":\"Z\",\"children\":[],\"item_id\":\"x2-1\",\"phono\":\"と\",\"se\":[],\"sl\":\"zero\",\"sy\":[]}],\"item_id\":\"x2-1\",\"phono\":\"\",\"se\":[\"α<sub>8</sub>:x1-1\"],\"sl\":\"\",\"sy\":[]},{\"category\":\"V\",\"children\":[],\"item_id\":\"x3-1\",\"phono\":\"話している\",\"se\":[],\"sl\":\"zero\",\"sy\":[]}],\"item_id\":\"x3-1\",\"phono\":\"\",\"se\":[],\"sl\":\"\",\"sy\":[]},{\"category\":\"N\",\"children\":[],\"item_id\":\"x4-1\",\"phono\":\"うさぎ\",\"se\":[],\"sl\":\"zero\",\"sy\":[]}],\"item_id\":\"x4-1\",\"phono\":\"\",\"se\":[\"うさぎ:T\"],\"sl\":\"x4-1\",\"sy\":[]},{\"category\":\"J\",\"children\":[],\"item_id\":\"x5-1\",\"phono\":\"が\",\"se\":[],\"sl\":\"zero\",\"sy\":[]}],\"item_id\":\"x5-1\",\"phono\":\"\",\"se\":[\"α<sub>9</sub>:x4-1\"],\"sl\":\"\",\"sy\":[]},{\"category\":\"V\",\"children\":[{\"category\":\"V\",\"children\":[],\"item_id\":\"x6-1\",\"phono\":\"い-\",\"se\":[],\"sl\":\"zero\",\"sy\":[]},{\"category\":\"T\",\"children\":[],\"item_id\":\"x7-1\",\"phono\":\"-ru\",\"se\":[\"Time:imperfect\"],\"sl\":\"\",\"sy\":[]}],\"item_id\":\"x6-1\",\"phono\":\"\",\"se\":[],\"sl\":\"zero\",\"sy\":[]}],\"item_id\":\"x6-1\",\"phono\":\"\",\"se\":[],\"sl\":\"\",\"sy\":[]}",
+          "tree": {
+            "item_id": "x6-1",
+            "category": "V",
+            "sy": [],
+            "sl": "",
+            "se": [],
+            "phono": "",
+            "children": [
+              {
+                "item_id": "x5-1",
+                "category": "J",
+                "sy": [],
+                "sl": "",
+                "se": [
+                  "α<sub>9</sub>:x4-1"
+                ],
+                "phono": "",
+                "children": [
+                  {
+                    "item_id": "x4-1",
+                    "category": "N",
+                    "sy": [],
+                    "sl": "x4-1",
+                    "se": [
+                      "うさぎ:T"
+                    ],
+                    "phono": "",
+                    "children": [
+                      {
+                        "item_id": "x3-1",
+                        "category": "V",
+                        "sy": [],
+                        "sl": "",
+                        "se": [],
+                        "phono": "",
+                        "children": [
+                          {
+                            "item_id": "x2-1",
+                            "category": "Z",
+                            "sy": [],
+                            "sl": "",
+                            "se": [
+                              "α<sub>8</sub>:x1-1"
+                            ],
+                            "phono": "",
+                            "children": [
+                              {
+                                "item_id": "x1-1",
+                                "category": "N",
+                                "sy": [],
+                                "sl": "x1-1",
+                                "se": [
+                                  "ひつじ:T"
+                                ],
+                                "phono": "ひつじ",
+                                "children": []
+                              },
+                              {
+                                "item_id": "x2-1",
+                                "category": "Z",
+                                "sy": [],
+                                "sl": "zero",
+                                "se": [],
+                                "phono": "と",
+                                "children": []
+                              }
+                            ]
+                          },
+                          {
+                            "item_id": "x3-1",
+                            "category": "V",
+                            "sy": [],
+                            "sl": "zero",
+                            "se": [],
+                            "phono": "話している",
+                            "children": []
+                          }
+                        ]
+                      },
+                      {
+                        "item_id": "x4-1",
+                        "category": "N",
+                        "sy": [],
+                        "sl": "zero",
+                        "se": [],
+                        "phono": "うさぎ",
+                        "children": []
+                      }
+                    ]
+                  },
+                  {
+                    "item_id": "x5-1",
+                    "category": "J",
+                    "sy": [],
+                    "sl": "zero",
+                    "se": [],
+                    "phono": "が",
+                    "children": []
+                  }
+                ]
+              },
+              {
+                "item_id": "x6-1",
+                "category": "V",
+                "sy": [],
+                "sl": "zero",
+                "se": [],
+                "phono": "",
+                "children": [
+                  {
+                    "item_id": "x6-1",
+                    "category": "V",
+                    "sy": [],
+                    "sl": "zero",
+                    "se": [],
+                    "phono": "い-",
+                    "children": []
+                  },
+                  {
+                    "item_id": "x7-1",
+                    "category": "T",
+                    "sy": [],
+                    "sl": "",
+                    "se": [
+                      "Time:imperfect"
+                    ],
+                    "phono": "-ru",
+                    "children": []
+                  }
+                ]
+              }
+            ]
+          },
+          "process": "imi01\nひつじと話しているうさぎがいる\n10\n1\n([x6-1 x7-1] LH-Merge) ([x1-1 x2-1] RH-Merge) ([x2-1 x3-1] RH-Merge) ([x3-1 x4-1] RH-Merge) ([x4-1 x5-1] RH-Merge) ([x5-1 x6-1] RH-Merge) \n[null,[\"x6-1\",\"V\",[],[],\"\",[],null,[[\"x5-1\",\"J\",[],[],\"\",[null,\"α<sub>9</sub>:x4-1\"],null,[[\"x4-1\",\"N\",[],[],\"x4-1\",[null,\"うさぎ:T\"],null,[[\"x3-1\",\"V\",[],[],\"\",[],null,[[\"x2-1\",\"Z\",[],[],\"\",[null,\"α<sub>8</sub>:x1-1\"],null,[[\"x1-1\",\"N\",[],[],\"x1-1\",[null,\"ひつじ:T\"],\"ひつじ\",null],[\"x2-1\",\"Z\",\"\",[\"\"],\"zero\",\"zero\",\"と\",null]]],[\"x3-1\",\"V\",\"\",[\"\"],\"zero\",\"zero\",\"話している\",null]]],[\"x4-1\",\"N\",\"\",[\"\"],\"zero\",\"zero\",\"うさぎ\",null]]],[\"x5-1\",\"J\",\"\",[\"\"],\"zero\",\"zero\",\"が\",null]]],[\"x6-1\",\"V\",\"\",[\"\"],\"zero\",\"zero\",null,[[\"x6-1\",\"V\",\"\",[\"\"],\"zero\",\"zero\",\"い-\",null],[\"x7-1\",\"T\",[],[],null,[null,\"Time:imperfect\"],\"-ru\",null]]]]]]",
+          "history": [
+            {
+              "step": 1,
+              "rule_name": "LH-Merge",
+              "rule_number": 2,
+              "rule_kind": "double",
+              "left": 6,
+              "right": 7,
+              "check": null,
+              "left_id": "x6-1",
+              "right_id": "x7-1"
+            },
+            {
+              "step": 2,
+              "rule_name": "RH-Merge",
+              "rule_number": 1,
+              "rule_kind": "double",
+              "left": 1,
+              "right": 2,
+              "check": null,
+              "left_id": "x1-1",
+              "right_id": "x2-1"
+            },
+            {
+              "step": 3,
+              "rule_name": "RH-Merge",
+              "rule_number": 1,
+              "rule_kind": "double",
+              "left": 1,
+              "right": 2,
+              "check": null,
+              "left_id": "x2-1",
+              "right_id": "x3-1"
+            },
+            {
+              "step": 4,
+              "rule_name": "RH-Merge",
+              "rule_number": 1,
+              "rule_kind": "double",
+              "left": 1,
+              "right": 2,
+              "check": null,
+              "left_id": "x3-1",
+              "right_id": "x4-1"
+            },
+            {
+              "step": 5,
+              "rule_name": "RH-Merge",
+              "rule_number": 1,
+              "rule_kind": "double",
+              "left": 1,
+              "right": 2,
+              "check": null,
+              "left_id": "x4-1",
+              "right_id": "x5-1"
+            },
+            {
+              "step": 6,
+              "rule_name": "RH-Merge",
+              "rule_number": 1,
+              "rule_kind": "double",
+              "left": 1,
+              "right": 2,
+              "check": null,
+              "left_id": "x5-1",
+              "right_id": "x6-1"
+            }
+          ],
+          "full_span": true,
+          "full_span_tree": true,
+          "full_span_process": true,
+          "missing_tree": [],
+          "missing_process": [],
+          "basenum": 1,
+          "unresolved_recalc": 0,
+          "hard_reject": false,
+          "hard_reject_replay_failed": null,
+          "adoptable": true
+        }
+      ]
+    },
+    {
+      "run_name": "S4_auto",
+      "mode": "auto",
+      "sentence_key": "S4",
+      "sentence": "ふわふわしたわたあめを食べているひつじと話しているうさぎがいる",
+      "lexicon_ids": [
+        264,
+        265,
+        9501,
+        9401,
+        267,
+        9301,
+        9402,
+        270,
+        9511,
+        9611,
+        204
+      ],
+      "status": "reachable",
+      "reason": "timeout",
+      "completed": false,
+      "evidence_present": true,
+      "adoptable_evidence_present": true,
+      "adoptable_evidence_count": 2,
+      "metrics": {
+        "actions_attempted": 55046,
+        "max_depth_reached": 10,
+        "best_leaf_unresolved_min": 1,
+        "cache_stats": {
+          "state_summary_cache_hits": 55046,
+          "state_summary_cache_misses": 1,
+          "node_summary_cache_hits": 125111,
+          "node_summary_cache_misses": 51787,
+          "avg_state_key_build_ms": 0.0,
+          "avg_node_key_build_ms": 0.007702,
+          "all_current_state_visits": 55047,
+          "unique_current_struct_states": 55047,
+          "revisited_current_struct_state_visits": 0,
+          "revisit_ratio": 0.0,
+          "unique_child_struct_states": 55802,
+          "cross_parent_duplicate_child_struct_states": 3164,
+          "cross_parent_duplicate_child_ratio": 0.056982,
+          "dominated_child_count": 3164,
+          "dominance_improvement_count": 0,
+          "post_filter_skipped_by_dominance": 3164,
+          "dominated_child_ratio": 0.056982,
+          "unique_structural_states_per_100k_actions": 100001.816662,
+          "raw_goal_found_count": 3,
+          "adoptable_goal_found_count": 2,
+          "post_goal_continuation_invocations": 3,
+          "post_goal_continuation_actions": 416
+        }
+      },
+      "evidences": [
+        {
+          "rank": 1,
+          "steps_to_goal": 10,
+          "tree_signature": "{\"category\":\"V\",\"children\":[{\"category\":\"J\",\"children\":[{\"category\":\"N\",\"children\":[{\"category\":\"V\",\"children\":[{\"category\":\"Z\",\"children\":[{\"category\":\"N\",\"children\":[{\"category\":\"V\",\"children\":[{\"category\":\"J\",\"children\":[{\"category\":\"N\",\"children\":[],\"item_id\":\"x2-1\",\"phono\":\"わたあめ\",\"se\":[\"わたあめ:T\"],\"sl\":\"x2-1\",\"sy\":[]},{\"category\":\"J\",\"children\":[],\"item_id\":\"x3-1\",\"phono\":\"を\",\"se\":[],\"sl\":\"zero\",\"sy\":[]}],\"item_id\":\"x3-1\",\"phono\":\"\",\"se\":[\"α<sub>12</sub>:x2-1\"],\"sl\":\"\",\"sy\":[]},{\"category\":\"V\",\"children\":[],\"item_id\":\"x4-1\",\"phono\":\"食べている\",\"se\":[],\"sl\":\"zero\",\"sy\":[]}],\"item_id\":\"x4-1\",\"phono\":\"\",\"se\":[],\"sl\":\"\",\"sy\":[]},{\"category\":\"N\",\"children\":[{\"category\":\"A\",\"children\":[],\"item_id\":\"x1-1\",\"phono\":\"ふわふわした\",\"se\":[\"ふわふわした:T\"],\"sl\":\"x5-1\",\"sy\":[]},{\"category\":\"N\",\"children\":[],\"item_id\":\"x5-1\",\"phono\":\"ひつじ\",\"se\":[],\"sl\":\"zero\",\"sy\":[]}],\"item_id\":\"x5-1\",\"phono\":\"\",\"se\":[],\"sl\":\"zero\",\"sy\":[]}],\"item_id\":\"x5-1\",\"phono\":\"\",\"se\":[\"ひつじ:T\"],\"sl\":\"x5-1\",\"sy\":[]},{\"category\":\"Z\",\"children\":[],\"item_id\":\"x6-1\",\"phono\":\"と\",\"se\":[],\"sl\":\"zero\",\"sy\":[]}],\"item_id\":\"x6-1\",\"phono\":\"\",\"se\":[\"α<sub>13</sub>:x5-1\"],\"sl\":\"\",\"sy\":[]},{\"category\":\"V\",\"children\":[],\"item_id\":\"x7-1\",\"phono\":\"話している\",\"se\":[],\"sl\":\"zero\",\"sy\":[]}],\"item_id\":\"x7-1\",\"phono\":\"\",\"se\":[],\"sl\":\"\",\"sy\":[]},{\"category\":\"N\",\"children\":[],\"item_id\":\"x8-1\",\"phono\":\"うさぎ\",\"se\":[],\"sl\":\"zero\",\"sy\":[]}],\"item_id\":\"x8-1\",\"phono\":\"\",\"se\":[\"うさぎ:T\"],\"sl\":\"x8-1\",\"sy\":[]},{\"category\":\"J\",\"children\":[],\"item_id\":\"x9-1\",\"phono\":\"が\",\"se\":[],\"sl\":\"zero\",\"sy\":[]}],\"item_id\":\"x9-1\",\"phono\":\"\",\"se\":[\"α<sub>14</sub>:x8-1\"],\"sl\":\"\",\"sy\":[]},{\"category\":\"V\",\"children\":[{\"category\":\"V\",\"children\":[],\"item_id\":\"x10-1\",\"phono\":\"い-\",\"se\":[],\"sl\":\"zero\",\"sy\":[]},{\"category\":\"T\",\"children\":[],\"item_id\":\"x11-1\",\"phono\":\"-ru\",\"se\":[\"Time:imperfect\"],\"sl\":\"\",\"sy\":[]}],\"item_id\":\"x10-1\",\"phono\":\"\",\"se\":[],\"sl\":\"zero\",\"sy\":[]}],\"item_id\":\"x10-1\",\"phono\":\"\",\"se\":[],\"sl\":\"\",\"sy\":[]}",
+          "tree": {
+            "item_id": "x10-1",
+            "category": "V",
+            "sy": [],
+            "sl": "",
+            "se": [],
+            "phono": "",
+            "children": [
+              {
+                "item_id": "x9-1",
+                "category": "J",
+                "sy": [],
+                "sl": "",
+                "se": [
+                  "α<sub>14</sub>:x8-1"
+                ],
+                "phono": "",
+                "children": [
+                  {
+                    "item_id": "x8-1",
+                    "category": "N",
+                    "sy": [],
+                    "sl": "x8-1",
+                    "se": [
+                      "うさぎ:T"
+                    ],
+                    "phono": "",
+                    "children": [
+                      {
+                        "item_id": "x7-1",
+                        "category": "V",
+                        "sy": [],
+                        "sl": "",
+                        "se": [],
+                        "phono": "",
+                        "children": [
+                          {
+                            "item_id": "x6-1",
+                            "category": "Z",
+                            "sy": [],
+                            "sl": "",
+                            "se": [
+                              "α<sub>13</sub>:x5-1"
+                            ],
+                            "phono": "",
+                            "children": [
+                              {
+                                "item_id": "x5-1",
+                                "category": "N",
+                                "sy": [],
+                                "sl": "x5-1",
+                                "se": [
+                                  "ひつじ:T"
+                                ],
+                                "phono": "",
+                                "children": [
+                                  {
+                                    "item_id": "x4-1",
+                                    "category": "V",
+                                    "sy": [],
+                                    "sl": "",
+                                    "se": [],
+                                    "phono": "",
+                                    "children": [
+                                      {
+                                        "item_id": "x3-1",
+                                        "category": "J",
+                                        "sy": [],
+                                        "sl": "",
+                                        "se": [
+                                          "α<sub>12</sub>:x2-1"
+                                        ],
+                                        "phono": "",
+                                        "children": [
+                                          {
+                                            "item_id": "x2-1",
+                                            "category": "N",
+                                            "sy": [],
+                                            "sl": "x2-1",
+                                            "se": [
+                                              "わたあめ:T"
+                                            ],
+                                            "phono": "わたあめ",
+                                            "children": []
+                                          },
+                                          {
+                                            "item_id": "x3-1",
+                                            "category": "J",
+                                            "sy": [],
+                                            "sl": "zero",
+                                            "se": [],
+                                            "phono": "を",
+                                            "children": []
+                                          }
+                                        ]
+                                      },
+                                      {
+                                        "item_id": "x4-1",
+                                        "category": "V",
+                                        "sy": [],
+                                        "sl": "zero",
+                                        "se": [],
+                                        "phono": "食べている",
+                                        "children": []
+                                      }
+                                    ]
+                                  },
+                                  {
+                                    "item_id": "x5-1",
+                                    "category": "N",
+                                    "sy": [],
+                                    "sl": "zero",
+                                    "se": [],
+                                    "phono": "",
+                                    "children": [
+                                      {
+                                        "item_id": "x1-1",
+                                        "category": "A",
+                                        "sy": [],
+                                        "sl": "x5-1",
+                                        "se": [
+                                          "ふわふわした:T"
+                                        ],
+                                        "phono": "ふわふわした",
+                                        "children": []
+                                      },
+                                      {
+                                        "item_id": "x5-1",
+                                        "category": "N",
+                                        "sy": [],
+                                        "sl": "zero",
+                                        "se": [],
+                                        "phono": "ひつじ",
+                                        "children": []
+                                      }
+                                    ]
+                                  }
+                                ]
+                              },
+                              {
+                                "item_id": "x6-1",
+                                "category": "Z",
+                                "sy": [],
+                                "sl": "zero",
+                                "se": [],
+                                "phono": "と",
+                                "children": []
+                              }
+                            ]
+                          },
+                          {
+                            "item_id": "x7-1",
+                            "category": "V",
+                            "sy": [],
+                            "sl": "zero",
+                            "se": [],
+                            "phono": "話している",
+                            "children": []
+                          }
+                        ]
+                      },
+                      {
+                        "item_id": "x8-1",
+                        "category": "N",
+                        "sy": [],
+                        "sl": "zero",
+                        "se": [],
+                        "phono": "うさぎ",
+                        "children": []
+                      }
+                    ]
+                  },
+                  {
+                    "item_id": "x9-1",
+                    "category": "J",
+                    "sy": [],
+                    "sl": "zero",
+                    "se": [],
+                    "phono": "が",
+                    "children": []
+                  }
+                ]
+              },
+              {
+                "item_id": "x10-1",
+                "category": "V",
+                "sy": [],
+                "sl": "zero",
+                "se": [],
+                "phono": "",
+                "children": [
+                  {
+                    "item_id": "x10-1",
+                    "category": "V",
+                    "sy": [],
+                    "sl": "zero",
+                    "se": [],
+                    "phono": "い-",
+                    "children": []
+                  },
+                  {
+                    "item_id": "x11-1",
+                    "category": "T",
+                    "sy": [],
+                    "sl": "",
+                    "se": [
+                      "Time:imperfect"
+                    ],
+                    "phono": "-ru",
+                    "children": []
+                  }
+                ]
+              }
+            ]
+          },
+          "process": "imi01\nふわふわしたわたあめを食べているひつじと話しているうさぎがいる\n15\n1\n([x10-1 x11-1] LH-Merge) ([x1-1 x5-1] RH-Merge) ([x2-1 x3-1] RH-Merge) ([x3-1 x4-1] RH-Merge) ([x4-1 x5-1] RH-Merge) ([x5-1 x6-1] RH-Merge) ([x6-1 x7-1] RH-Merge) ([x7-1 x8-1] RH-Merge) ([x8-1 x9-1] RH-Merge) ([x9-1 x10-1] RH-Merge) \n[null,[\"x10-1\",\"V\",[],[],\"\",[],null,[[\"x9-1\",\"J\",[],[],\"\",[null,\"α<sub>14</sub>:x8-1\"],null,[[\"x8-1\",\"N\",[],[],\"x8-1\",[null,\"うさぎ:T\"],null,[[\"x7-1\",\"V\",[],[],\"\",[],null,[[\"x6-1\",\"Z\",[],[],\"\",[null,\"α<sub>13</sub>:x5-1\"],null,[[\"x5-1\",\"N\",[],[],\"x5-1\",[null,\"ひつじ:T\"],null,[[\"x4-1\",\"V\",[],[],\"\",[],null,[[\"x3-1\",\"J\",[],[],\"\",[null,\"α<sub>12</sub>:x2-1\"],null,[[\"x2-1\",\"N\",[],[],\"x2-1\",[null,\"わたあめ:T\"],\"わたあめ\",null],[\"x3-1\",\"J\",\"\",[\"\"],\"zero\",\"zero\",\"を\",null]]],[\"x4-1\",\"V\",\"\",[\"\"],\"zero\",\"zero\",\"食べている\",null]]],[\"x5-1\",\"N\",\"\",[\"\"],\"zero\",\"zero\",null,[[\"x1-1\",\"A\",[],[],\"x5-1\",[null,\"ふわふわした:T\"],\"ふわふわした\",null],[\"x5-1\",\"N\",\"\",[\"\"],\"zero\",\"zero\",\"ひつじ\",null]]]]],[\"x6-1\",\"Z\",\"\",[\"\"],\"zero\",\"zero\",\"と\",null]]],[\"x7-1\",\"V\",\"\",[\"\"],\"zero\",\"zero\",\"話している\",null]]],[\"x8-1\",\"N\",\"\",[\"\"],\"zero\",\"zero\",\"うさぎ\",null]]],[\"x9-1\",\"J\",\"\",[\"\"],\"zero\",\"zero\",\"が\",null]]],[\"x10-1\",\"V\",\"\",[\"\"],\"zero\",\"zero\",null,[[\"x10-1\",\"V\",\"\",[\"\"],\"zero\",\"zero\",\"い-\",null],[\"x11-1\",\"T\",[],[],null,[null,\"Time:imperfect\"],\"-ru\",null]]]]]]",
+          "history": [
+            {
+              "step": 1,
+              "rule_name": "LH-Merge",
+              "rule_number": 2,
+              "rule_kind": "double",
+              "left": 10,
+              "right": 11,
+              "check": null,
+              "left_id": "x10-1",
+              "right_id": "x11-1"
+            },
+            {
+              "step": 2,
+              "rule_name": "RH-Merge",
+              "rule_number": 1,
+              "rule_kind": "double",
+              "left": 1,
+              "right": 5,
+              "check": null,
+              "left_id": "x1-1",
+              "right_id": "x5-1"
+            },
+            {
+              "step": 3,
+              "rule_name": "RH-Merge",
+              "rule_number": 1,
+              "rule_kind": "double",
+              "left": 1,
+              "right": 2,
+              "check": null,
+              "left_id": "x2-1",
+              "right_id": "x3-1"
+            },
+            {
+              "step": 4,
+              "rule_name": "RH-Merge",
+              "rule_number": 1,
+              "rule_kind": "double",
+              "left": 1,
+              "right": 2,
+              "check": null,
+              "left_id": "x3-1",
+              "right_id": "x4-1"
+            },
+            {
+              "step": 5,
+              "rule_name": "RH-Merge",
+              "rule_number": 1,
+              "rule_kind": "double",
+              "left": 1,
+              "right": 2,
+              "check": null,
+              "left_id": "x4-1",
+              "right_id": "x5-1"
+            },
+            {
+              "step": 6,
+              "rule_name": "RH-Merge",
+              "rule_number": 1,
+              "rule_kind": "double",
+              "left": 1,
+              "right": 2,
+              "check": null,
+              "left_id": "x5-1",
+              "right_id": "x6-1"
+            },
+            {
+              "step": 7,
+              "rule_name": "RH-Merge",
+              "rule_number": 1,
+              "rule_kind": "double",
+              "left": 1,
+              "right": 2,
+              "check": null,
+              "left_id": "x6-1",
+              "right_id": "x7-1"
+            },
+            {
+              "step": 8,
+              "rule_name": "RH-Merge",
+              "rule_number": 1,
+              "rule_kind": "double",
+              "left": 1,
+              "right": 2,
+              "check": null,
+              "left_id": "x7-1",
+              "right_id": "x8-1"
+            },
+            {
+              "step": 9,
+              "rule_name": "RH-Merge",
+              "rule_number": 1,
+              "rule_kind": "double",
+              "left": 1,
+              "right": 2,
+              "check": null,
+              "left_id": "x8-1",
+              "right_id": "x9-1"
+            },
+            {
+              "step": 10,
+              "rule_name": "RH-Merge",
+              "rule_number": 1,
+              "rule_kind": "double",
+              "left": 1,
+              "right": 2,
+              "check": null,
+              "left_id": "x9-1",
+              "right_id": "x10-1"
+            }
+          ],
+          "full_span": true,
+          "full_span_tree": true,
+          "full_span_process": true,
+          "missing_tree": [],
+          "missing_process": [],
+          "basenum": 1,
+          "unresolved_recalc": 0,
+          "hard_reject": false,
+          "hard_reject_replay_failed": null,
+          "adoptable": true
+        },
+        {
+          "rank": 2,
+          "steps_to_goal": 10,
+          "tree_signature": "{\"category\":\"V\",\"children\":[{\"category\":\"J\",\"children\":[{\"category\":\"N\",\"children\":[{\"category\":\"V\",\"children\":[{\"category\":\"Z\",\"children\":[{\"category\":\"N\",\"children\":[{\"category\":\"V\",\"children\":[{\"category\":\"J\",\"children\":[{\"category\":\"N\",\"children\":[{\"category\":\"A\",\"children\":[],\"item_id\":\"x1-1\",\"phono\":\"ふわふわした\",\"se\":[\"ふわふわした:T\"],\"sl\":\"x2-1\",\"sy\":[]},{\"category\":\"N\",\"children\":[],\"item_id\":\"x2-1\",\"phono\":\"わたあめ\",\"se\":[],\"sl\":\"zero\",\"sy\":[]}],\"item_id\":\"x2-1\",\"phono\":\"\",\"se\":[\"わたあめ:T\"],\"sl\":\"x2-1\",\"sy\":[]},{\"category\":\"J\",\"children\":[],\"item_id\":\"x3-1\",\"phono\":\"を\",\"se\":[],\"sl\":\"zero\",\"sy\":[]}],\"item_id\":\"x3-1\",\"phono\":\"\",\"se\":[\"α<sub>12</sub>:x2-1\"],\"sl\":\"\",\"sy\":[]},{\"category\":\"V\",\"children\":[],\"item_id\":\"x4-1\",\"phono\":\"食べている\",\"se\":[],\"sl\":\"zero\",\"sy\":[]}],\"item_id\":\"x4-1\",\"phono\":\"\",\"se\":[],\"sl\":\"\",\"sy\":[]},{\"category\":\"N\",\"children\":[],\"item_id\":\"x5-1\",\"phono\":\"ひつじ\",\"se\":[],\"sl\":\"zero\",\"sy\":[]}],\"item_id\":\"x5-1\",\"phono\":\"\",\"se\":[\"ひつじ:T\"],\"sl\":\"x5-1\",\"sy\":[]},{\"category\":\"Z\",\"children\":[],\"item_id\":\"x6-1\",\"phono\":\"と\",\"se\":[],\"sl\":\"zero\",\"sy\":[]}],\"item_id\":\"x6-1\",\"phono\":\"\",\"se\":[\"α<sub>13</sub>:x5-1\"],\"sl\":\"\",\"sy\":[]},{\"category\":\"V\",\"children\":[],\"item_id\":\"x7-1\",\"phono\":\"話している\",\"se\":[],\"sl\":\"zero\",\"sy\":[]}],\"item_id\":\"x7-1\",\"phono\":\"\",\"se\":[],\"sl\":\"\",\"sy\":[]},{\"category\":\"N\",\"children\":[],\"item_id\":\"x8-1\",\"phono\":\"うさぎ\",\"se\":[],\"sl\":\"zero\",\"sy\":[]}],\"item_id\":\"x8-1\",\"phono\":\"\",\"se\":[\"うさぎ:T\"],\"sl\":\"x8-1\",\"sy\":[]},{\"category\":\"J\",\"children\":[],\"item_id\":\"x9-1\",\"phono\":\"が\",\"se\":[],\"sl\":\"zero\",\"sy\":[]}],\"item_id\":\"x9-1\",\"phono\":\"\",\"se\":[\"α<sub>14</sub>:x8-1\"],\"sl\":\"\",\"sy\":[]},{\"category\":\"V\",\"children\":[{\"category\":\"V\",\"children\":[],\"item_id\":\"x10-1\",\"phono\":\"い-\",\"se\":[],\"sl\":\"zero\",\"sy\":[]},{\"category\":\"T\",\"children\":[],\"item_id\":\"x11-1\",\"phono\":\"-ru\",\"se\":[\"Time:imperfect\"],\"sl\":\"\",\"sy\":[]}],\"item_id\":\"x10-1\",\"phono\":\"\",\"se\":[],\"sl\":\"zero\",\"sy\":[]}],\"item_id\":\"x10-1\",\"phono\":\"\",\"se\":[],\"sl\":\"\",\"sy\":[]}",
+          "tree": {
+            "item_id": "x10-1",
+            "category": "V",
+            "sy": [],
+            "sl": "",
+            "se": [],
+            "phono": "",
+            "children": [
+              {
+                "item_id": "x9-1",
+                "category": "J",
+                "sy": [],
+                "sl": "",
+                "se": [
+                  "α<sub>14</sub>:x8-1"
+                ],
+                "phono": "",
+                "children": [
+                  {
+                    "item_id": "x8-1",
+                    "category": "N",
+                    "sy": [],
+                    "sl": "x8-1",
+                    "se": [
+                      "うさぎ:T"
+                    ],
+                    "phono": "",
+                    "children": [
+                      {
+                        "item_id": "x7-1",
+                        "category": "V",
+                        "sy": [],
+                        "sl": "",
+                        "se": [],
+                        "phono": "",
+                        "children": [
+                          {
+                            "item_id": "x6-1",
+                            "category": "Z",
+                            "sy": [],
+                            "sl": "",
+                            "se": [
+                              "α<sub>13</sub>:x5-1"
+                            ],
+                            "phono": "",
+                            "children": [
+                              {
+                                "item_id": "x5-1",
+                                "category": "N",
+                                "sy": [],
+                                "sl": "x5-1",
+                                "se": [
+                                  "ひつじ:T"
+                                ],
+                                "phono": "",
+                                "children": [
+                                  {
+                                    "item_id": "x4-1",
+                                    "category": "V",
+                                    "sy": [],
+                                    "sl": "",
+                                    "se": [],
+                                    "phono": "",
+                                    "children": [
+                                      {
+                                        "item_id": "x3-1",
+                                        "category": "J",
+                                        "sy": [],
+                                        "sl": "",
+                                        "se": [
+                                          "α<sub>12</sub>:x2-1"
+                                        ],
+                                        "phono": "",
+                                        "children": [
+                                          {
+                                            "item_id": "x2-1",
+                                            "category": "N",
+                                            "sy": [],
+                                            "sl": "x2-1",
+                                            "se": [
+                                              "わたあめ:T"
+                                            ],
+                                            "phono": "",
+                                            "children": [
+                                              {
+                                                "item_id": "x1-1",
+                                                "category": "A",
+                                                "sy": [],
+                                                "sl": "x2-1",
+                                                "se": [
+                                                  "ふわふわした:T"
+                                                ],
+                                                "phono": "ふわふわした",
+                                                "children": []
+                                              },
+                                              {
+                                                "item_id": "x2-1",
+                                                "category": "N",
+                                                "sy": [],
+                                                "sl": "zero",
+                                                "se": [],
+                                                "phono": "わたあめ",
+                                                "children": []
+                                              }
+                                            ]
+                                          },
+                                          {
+                                            "item_id": "x3-1",
+                                            "category": "J",
+                                            "sy": [],
+                                            "sl": "zero",
+                                            "se": [],
+                                            "phono": "を",
+                                            "children": []
+                                          }
+                                        ]
+                                      },
+                                      {
+                                        "item_id": "x4-1",
+                                        "category": "V",
+                                        "sy": [],
+                                        "sl": "zero",
+                                        "se": [],
+                                        "phono": "食べている",
+                                        "children": []
+                                      }
+                                    ]
+                                  },
+                                  {
+                                    "item_id": "x5-1",
+                                    "category": "N",
+                                    "sy": [],
+                                    "sl": "zero",
+                                    "se": [],
+                                    "phono": "ひつじ",
+                                    "children": []
+                                  }
+                                ]
+                              },
+                              {
+                                "item_id": "x6-1",
+                                "category": "Z",
+                                "sy": [],
+                                "sl": "zero",
+                                "se": [],
+                                "phono": "と",
+                                "children": []
+                              }
+                            ]
+                          },
+                          {
+                            "item_id": "x7-1",
+                            "category": "V",
+                            "sy": [],
+                            "sl": "zero",
+                            "se": [],
+                            "phono": "話している",
+                            "children": []
+                          }
+                        ]
+                      },
+                      {
+                        "item_id": "x8-1",
+                        "category": "N",
+                        "sy": [],
+                        "sl": "zero",
+                        "se": [],
+                        "phono": "うさぎ",
+                        "children": []
+                      }
+                    ]
+                  },
+                  {
+                    "item_id": "x9-1",
+                    "category": "J",
+                    "sy": [],
+                    "sl": "zero",
+                    "se": [],
+                    "phono": "が",
+                    "children": []
+                  }
+                ]
+              },
+              {
+                "item_id": "x10-1",
+                "category": "V",
+                "sy": [],
+                "sl": "zero",
+                "se": [],
+                "phono": "",
+                "children": [
+                  {
+                    "item_id": "x10-1",
+                    "category": "V",
+                    "sy": [],
+                    "sl": "zero",
+                    "se": [],
+                    "phono": "い-",
+                    "children": []
+                  },
+                  {
+                    "item_id": "x11-1",
+                    "category": "T",
+                    "sy": [],
+                    "sl": "",
+                    "se": [
+                      "Time:imperfect"
+                    ],
+                    "phono": "-ru",
+                    "children": []
+                  }
+                ]
+              }
+            ]
+          },
+          "process": "imi01\nふわふわしたわたあめを食べているひつじと話しているうさぎがいる\n15\n1\n([x10-1 x11-1] LH-Merge) ([x1-1 x2-1] RH-Merge) ([x2-1 x3-1] RH-Merge) ([x3-1 x4-1] RH-Merge) ([x4-1 x5-1] RH-Merge) ([x5-1 x6-1] RH-Merge) ([x6-1 x7-1] RH-Merge) ([x7-1 x8-1] RH-Merge) ([x8-1 x9-1] RH-Merge) ([x9-1 x10-1] RH-Merge) \n[null,[\"x10-1\",\"V\",[],[],\"\",[],null,[[\"x9-1\",\"J\",[],[],\"\",[null,\"α<sub>14</sub>:x8-1\"],null,[[\"x8-1\",\"N\",[],[],\"x8-1\",[null,\"うさぎ:T\"],null,[[\"x7-1\",\"V\",[],[],\"\",[],null,[[\"x6-1\",\"Z\",[],[],\"\",[null,\"α<sub>13</sub>:x5-1\"],null,[[\"x5-1\",\"N\",[],[],\"x5-1\",[null,\"ひつじ:T\"],null,[[\"x4-1\",\"V\",[],[],\"\",[],null,[[\"x3-1\",\"J\",[],[],\"\",[null,\"α<sub>12</sub>:x2-1\"],null,[[\"x2-1\",\"N\",[],[],\"x2-1\",[null,\"わたあめ:T\"],null,[[\"x1-1\",\"A\",[],[],\"x2-1\",[null,\"ふわふわした:T\"],\"ふわふわした\",null],[\"x2-1\",\"N\",\"\",[\"\"],\"zero\",\"zero\",\"わたあめ\",null]]],[\"x3-1\",\"J\",\"\",[\"\"],\"zero\",\"zero\",\"を\",null]]],[\"x4-1\",\"V\",\"\",[\"\"],\"zero\",\"zero\",\"食べている\",null]]],[\"x5-1\",\"N\",\"\",[\"\"],\"zero\",\"zero\",\"ひつじ\",null]]],[\"x6-1\",\"Z\",\"\",[\"\"],\"zero\",\"zero\",\"と\",null]]],[\"x7-1\",\"V\",\"\",[\"\"],\"zero\",\"zero\",\"話している\",null]]],[\"x8-1\",\"N\",\"\",[\"\"],\"zero\",\"zero\",\"うさぎ\",null]]],[\"x9-1\",\"J\",\"\",[\"\"],\"zero\",\"zero\",\"が\",null]]],[\"x10-1\",\"V\",\"\",[\"\"],\"zero\",\"zero\",null,[[\"x10-1\",\"V\",\"\",[\"\"],\"zero\",\"zero\",\"い-\",null],[\"x11-1\",\"T\",[],[],null,[null,\"Time:imperfect\"],\"-ru\",null]]]]]]",
+          "history": [
+            {
+              "step": 1,
+              "rule_name": "LH-Merge",
+              "rule_number": 2,
+              "rule_kind": "double",
+              "left": 10,
+              "right": 11,
+              "check": null,
+              "left_id": "x10-1",
+              "right_id": "x11-1"
+            },
+            {
+              "step": 2,
+              "rule_name": "RH-Merge",
+              "rule_number": 1,
+              "rule_kind": "double",
+              "left": 1,
+              "right": 2,
+              "check": null,
+              "left_id": "x1-1",
+              "right_id": "x2-1"
+            },
+            {
+              "step": 3,
+              "rule_name": "RH-Merge",
+              "rule_number": 1,
+              "rule_kind": "double",
+              "left": 1,
+              "right": 2,
+              "check": null,
+              "left_id": "x2-1",
+              "right_id": "x3-1"
+            },
+            {
+              "step": 4,
+              "rule_name": "RH-Merge",
+              "rule_number": 1,
+              "rule_kind": "double",
+              "left": 1,
+              "right": 2,
+              "check": null,
+              "left_id": "x3-1",
+              "right_id": "x4-1"
+            },
+            {
+              "step": 5,
+              "rule_name": "RH-Merge",
+              "rule_number": 1,
+              "rule_kind": "double",
+              "left": 1,
+              "right": 2,
+              "check": null,
+              "left_id": "x4-1",
+              "right_id": "x5-1"
+            },
+            {
+              "step": 6,
+              "rule_name": "RH-Merge",
+              "rule_number": 1,
+              "rule_kind": "double",
+              "left": 1,
+              "right": 2,
+              "check": null,
+              "left_id": "x5-1",
+              "right_id": "x6-1"
+            },
+            {
+              "step": 7,
+              "rule_name": "RH-Merge",
+              "rule_number": 1,
+              "rule_kind": "double",
+              "left": 1,
+              "right": 2,
+              "check": null,
+              "left_id": "x6-1",
+              "right_id": "x7-1"
+            },
+            {
+              "step": 8,
+              "rule_name": "RH-Merge",
+              "rule_number": 1,
+              "rule_kind": "double",
+              "left": 1,
+              "right": 2,
+              "check": null,
+              "left_id": "x7-1",
+              "right_id": "x8-1"
+            },
+            {
+              "step": 9,
+              "rule_name": "RH-Merge",
+              "rule_number": 1,
+              "rule_kind": "double",
+              "left": 1,
+              "right": 2,
+              "check": null,
+              "left_id": "x8-1",
+              "right_id": "x9-1"
+            },
+            {
+              "step": 10,
+              "rule_name": "RH-Merge",
+              "rule_number": 1,
+              "rule_kind": "double",
+              "left": 1,
+              "right": 2,
+              "check": null,
+              "left_id": "x9-1",
+              "right_id": "x10-1"
+            }
+          ],
+          "full_span": true,
+          "full_span_tree": true,
+          "full_span_process": true,
+          "missing_tree": [],
+          "missing_process": [],
+          "basenum": 1,
+          "unresolved_recalc": 0,
+          "hard_reject": false,
+          "hard_reject_replay_failed": null,
+          "adoptable": true
+        }
+      ]
+    },
+    {
+      "run_name": "S4_explicit",
+      "mode": "explicit",
+      "sentence_key": "S4",
+      "sentence": "ふわふわしたわたあめを食べているひつじと話しているうさぎがいる",
+      "lexicon_ids": [
+        264,
+        265,
+        9501,
+        9401,
+        267,
+        9301,
+        9402,
+        270,
+        9511,
+        9611,
+        204
+      ],
+      "status": "reachable",
+      "reason": "timeout",
+      "completed": false,
+      "evidence_present": true,
+      "adoptable_evidence_present": true,
+      "adoptable_evidence_count": 2,
+      "metrics": {
+        "actions_attempted": 54868,
+        "max_depth_reached": 10,
+        "best_leaf_unresolved_min": 1,
+        "cache_stats": {
+          "state_summary_cache_hits": 54868,
+          "state_summary_cache_misses": 1,
+          "node_summary_cache_hits": 124739,
+          "node_summary_cache_misses": 51631,
+          "avg_state_key_build_ms": 0.0,
+          "avg_node_key_build_ms": 0.007755,
+          "all_current_state_visits": 54869,
+          "unique_current_struct_states": 54869,
+          "revisited_current_struct_state_visits": 0,
+          "revisit_ratio": 0.0,
+          "unique_child_struct_states": 55635,
+          "cross_parent_duplicate_child_struct_states": 3155,
+          "cross_parent_duplicate_child_ratio": 0.056992,
+          "dominated_child_count": 3155,
+          "dominance_improvement_count": 0,
+          "post_filter_skipped_by_dominance": 3155,
+          "dominated_child_ratio": 0.056992,
+          "unique_structural_states_per_100k_actions": 100001.822556,
+          "raw_goal_found_count": 3,
+          "adoptable_goal_found_count": 2,
+          "post_goal_continuation_invocations": 3,
+          "post_goal_continuation_actions": 416
+        }
+      },
+      "evidences": [
+        {
+          "rank": 1,
+          "steps_to_goal": 10,
+          "tree_signature": "{\"category\":\"V\",\"children\":[{\"category\":\"J\",\"children\":[{\"category\":\"N\",\"children\":[{\"category\":\"V\",\"children\":[{\"category\":\"Z\",\"children\":[{\"category\":\"N\",\"children\":[{\"category\":\"V\",\"children\":[{\"category\":\"J\",\"children\":[{\"category\":\"N\",\"children\":[],\"item_id\":\"x2-1\",\"phono\":\"わたあめ\",\"se\":[\"わたあめ:T\"],\"sl\":\"x2-1\",\"sy\":[]},{\"category\":\"J\",\"children\":[],\"item_id\":\"x3-1\",\"phono\":\"を\",\"se\":[],\"sl\":\"zero\",\"sy\":[]}],\"item_id\":\"x3-1\",\"phono\":\"\",\"se\":[\"α<sub>12</sub>:x2-1\"],\"sl\":\"\",\"sy\":[]},{\"category\":\"V\",\"children\":[],\"item_id\":\"x4-1\",\"phono\":\"食べている\",\"se\":[],\"sl\":\"zero\",\"sy\":[]}],\"item_id\":\"x4-1\",\"phono\":\"\",\"se\":[],\"sl\":\"\",\"sy\":[]},{\"category\":\"N\",\"children\":[{\"category\":\"A\",\"children\":[],\"item_id\":\"x1-1\",\"phono\":\"ふわふわした\",\"se\":[\"ふわふわした:T\"],\"sl\":\"x5-1\",\"sy\":[]},{\"category\":\"N\",\"children\":[],\"item_id\":\"x5-1\",\"phono\":\"ひつじ\",\"se\":[],\"sl\":\"zero\",\"sy\":[]}],\"item_id\":\"x5-1\",\"phono\":\"\",\"se\":[],\"sl\":\"zero\",\"sy\":[]}],\"item_id\":\"x5-1\",\"phono\":\"\",\"se\":[\"ひつじ:T\"],\"sl\":\"x5-1\",\"sy\":[]},{\"category\":\"Z\",\"children\":[],\"item_id\":\"x6-1\",\"phono\":\"と\",\"se\":[],\"sl\":\"zero\",\"sy\":[]}],\"item_id\":\"x6-1\",\"phono\":\"\",\"se\":[\"α<sub>13</sub>:x5-1\"],\"sl\":\"\",\"sy\":[]},{\"category\":\"V\",\"children\":[],\"item_id\":\"x7-1\",\"phono\":\"話している\",\"se\":[],\"sl\":\"zero\",\"sy\":[]}],\"item_id\":\"x7-1\",\"phono\":\"\",\"se\":[],\"sl\":\"\",\"sy\":[]},{\"category\":\"N\",\"children\":[],\"item_id\":\"x8-1\",\"phono\":\"うさぎ\",\"se\":[],\"sl\":\"zero\",\"sy\":[]}],\"item_id\":\"x8-1\",\"phono\":\"\",\"se\":[\"うさぎ:T\"],\"sl\":\"x8-1\",\"sy\":[]},{\"category\":\"J\",\"children\":[],\"item_id\":\"x9-1\",\"phono\":\"が\",\"se\":[],\"sl\":\"zero\",\"sy\":[]}],\"item_id\":\"x9-1\",\"phono\":\"\",\"se\":[\"α<sub>14</sub>:x8-1\"],\"sl\":\"\",\"sy\":[]},{\"category\":\"V\",\"children\":[{\"category\":\"V\",\"children\":[],\"item_id\":\"x10-1\",\"phono\":\"い-\",\"se\":[],\"sl\":\"zero\",\"sy\":[]},{\"category\":\"T\",\"children\":[],\"item_id\":\"x11-1\",\"phono\":\"-ru\",\"se\":[\"Time:imperfect\"],\"sl\":\"\",\"sy\":[]}],\"item_id\":\"x10-1\",\"phono\":\"\",\"se\":[],\"sl\":\"zero\",\"sy\":[]}],\"item_id\":\"x10-1\",\"phono\":\"\",\"se\":[],\"sl\":\"\",\"sy\":[]}",
+          "tree": {
+            "item_id": "x10-1",
+            "category": "V",
+            "sy": [],
+            "sl": "",
+            "se": [],
+            "phono": "",
+            "children": [
+              {
+                "item_id": "x9-1",
+                "category": "J",
+                "sy": [],
+                "sl": "",
+                "se": [
+                  "α<sub>14</sub>:x8-1"
+                ],
+                "phono": "",
+                "children": [
+                  {
+                    "item_id": "x8-1",
+                    "category": "N",
+                    "sy": [],
+                    "sl": "x8-1",
+                    "se": [
+                      "うさぎ:T"
+                    ],
+                    "phono": "",
+                    "children": [
+                      {
+                        "item_id": "x7-1",
+                        "category": "V",
+                        "sy": [],
+                        "sl": "",
+                        "se": [],
+                        "phono": "",
+                        "children": [
+                          {
+                            "item_id": "x6-1",
+                            "category": "Z",
+                            "sy": [],
+                            "sl": "",
+                            "se": [
+                              "α<sub>13</sub>:x5-1"
+                            ],
+                            "phono": "",
+                            "children": [
+                              {
+                                "item_id": "x5-1",
+                                "category": "N",
+                                "sy": [],
+                                "sl": "x5-1",
+                                "se": [
+                                  "ひつじ:T"
+                                ],
+                                "phono": "",
+                                "children": [
+                                  {
+                                    "item_id": "x4-1",
+                                    "category": "V",
+                                    "sy": [],
+                                    "sl": "",
+                                    "se": [],
+                                    "phono": "",
+                                    "children": [
+                                      {
+                                        "item_id": "x3-1",
+                                        "category": "J",
+                                        "sy": [],
+                                        "sl": "",
+                                        "se": [
+                                          "α<sub>12</sub>:x2-1"
+                                        ],
+                                        "phono": "",
+                                        "children": [
+                                          {
+                                            "item_id": "x2-1",
+                                            "category": "N",
+                                            "sy": [],
+                                            "sl": "x2-1",
+                                            "se": [
+                                              "わたあめ:T"
+                                            ],
+                                            "phono": "わたあめ",
+                                            "children": []
+                                          },
+                                          {
+                                            "item_id": "x3-1",
+                                            "category": "J",
+                                            "sy": [],
+                                            "sl": "zero",
+                                            "se": [],
+                                            "phono": "を",
+                                            "children": []
+                                          }
+                                        ]
+                                      },
+                                      {
+                                        "item_id": "x4-1",
+                                        "category": "V",
+                                        "sy": [],
+                                        "sl": "zero",
+                                        "se": [],
+                                        "phono": "食べている",
+                                        "children": []
+                                      }
+                                    ]
+                                  },
+                                  {
+                                    "item_id": "x5-1",
+                                    "category": "N",
+                                    "sy": [],
+                                    "sl": "zero",
+                                    "se": [],
+                                    "phono": "",
+                                    "children": [
+                                      {
+                                        "item_id": "x1-1",
+                                        "category": "A",
+                                        "sy": [],
+                                        "sl": "x5-1",
+                                        "se": [
+                                          "ふわふわした:T"
+                                        ],
+                                        "phono": "ふわふわした",
+                                        "children": []
+                                      },
+                                      {
+                                        "item_id": "x5-1",
+                                        "category": "N",
+                                        "sy": [],
+                                        "sl": "zero",
+                                        "se": [],
+                                        "phono": "ひつじ",
+                                        "children": []
+                                      }
+                                    ]
+                                  }
+                                ]
+                              },
+                              {
+                                "item_id": "x6-1",
+                                "category": "Z",
+                                "sy": [],
+                                "sl": "zero",
+                                "se": [],
+                                "phono": "と",
+                                "children": []
+                              }
+                            ]
+                          },
+                          {
+                            "item_id": "x7-1",
+                            "category": "V",
+                            "sy": [],
+                            "sl": "zero",
+                            "se": [],
+                            "phono": "話している",
+                            "children": []
+                          }
+                        ]
+                      },
+                      {
+                        "item_id": "x8-1",
+                        "category": "N",
+                        "sy": [],
+                        "sl": "zero",
+                        "se": [],
+                        "phono": "うさぎ",
+                        "children": []
+                      }
+                    ]
+                  },
+                  {
+                    "item_id": "x9-1",
+                    "category": "J",
+                    "sy": [],
+                    "sl": "zero",
+                    "se": [],
+                    "phono": "が",
+                    "children": []
+                  }
+                ]
+              },
+              {
+                "item_id": "x10-1",
+                "category": "V",
+                "sy": [],
+                "sl": "zero",
+                "se": [],
+                "phono": "",
+                "children": [
+                  {
+                    "item_id": "x10-1",
+                    "category": "V",
+                    "sy": [],
+                    "sl": "zero",
+                    "se": [],
+                    "phono": "い-",
+                    "children": []
+                  },
+                  {
+                    "item_id": "x11-1",
+                    "category": "T",
+                    "sy": [],
+                    "sl": "",
+                    "se": [
+                      "Time:imperfect"
+                    ],
+                    "phono": "-ru",
+                    "children": []
+                  }
+                ]
+              }
+            ]
+          },
+          "process": "imi01\nふわふわしたわたあめを食べているひつじと話しているうさぎがいる\n15\n1\n([x10-1 x11-1] LH-Merge) ([x1-1 x5-1] RH-Merge) ([x2-1 x3-1] RH-Merge) ([x3-1 x4-1] RH-Merge) ([x4-1 x5-1] RH-Merge) ([x5-1 x6-1] RH-Merge) ([x6-1 x7-1] RH-Merge) ([x7-1 x8-1] RH-Merge) ([x8-1 x9-1] RH-Merge) ([x9-1 x10-1] RH-Merge) \n[null,[\"x10-1\",\"V\",[],[],\"\",[],null,[[\"x9-1\",\"J\",[],[],\"\",[null,\"α<sub>14</sub>:x8-1\"],null,[[\"x8-1\",\"N\",[],[],\"x8-1\",[null,\"うさぎ:T\"],null,[[\"x7-1\",\"V\",[],[],\"\",[],null,[[\"x6-1\",\"Z\",[],[],\"\",[null,\"α<sub>13</sub>:x5-1\"],null,[[\"x5-1\",\"N\",[],[],\"x5-1\",[null,\"ひつじ:T\"],null,[[\"x4-1\",\"V\",[],[],\"\",[],null,[[\"x3-1\",\"J\",[],[],\"\",[null,\"α<sub>12</sub>:x2-1\"],null,[[\"x2-1\",\"N\",[],[],\"x2-1\",[null,\"わたあめ:T\"],\"わたあめ\",null],[\"x3-1\",\"J\",\"\",[\"\"],\"zero\",\"zero\",\"を\",null]]],[\"x4-1\",\"V\",\"\",[\"\"],\"zero\",\"zero\",\"食べている\",null]]],[\"x5-1\",\"N\",\"\",[\"\"],\"zero\",\"zero\",null,[[\"x1-1\",\"A\",[],[],\"x5-1\",[null,\"ふわふわした:T\"],\"ふわふわした\",null],[\"x5-1\",\"N\",\"\",[\"\"],\"zero\",\"zero\",\"ひつじ\",null]]]]],[\"x6-1\",\"Z\",\"\",[\"\"],\"zero\",\"zero\",\"と\",null]]],[\"x7-1\",\"V\",\"\",[\"\"],\"zero\",\"zero\",\"話している\",null]]],[\"x8-1\",\"N\",\"\",[\"\"],\"zero\",\"zero\",\"うさぎ\",null]]],[\"x9-1\",\"J\",\"\",[\"\"],\"zero\",\"zero\",\"が\",null]]],[\"x10-1\",\"V\",\"\",[\"\"],\"zero\",\"zero\",null,[[\"x10-1\",\"V\",\"\",[\"\"],\"zero\",\"zero\",\"い-\",null],[\"x11-1\",\"T\",[],[],null,[null,\"Time:imperfect\"],\"-ru\",null]]]]]]",
+          "history": [
+            {
+              "step": 1,
+              "rule_name": "LH-Merge",
+              "rule_number": 2,
+              "rule_kind": "double",
+              "left": 10,
+              "right": 11,
+              "check": null,
+              "left_id": "x10-1",
+              "right_id": "x11-1"
+            },
+            {
+              "step": 2,
+              "rule_name": "RH-Merge",
+              "rule_number": 1,
+              "rule_kind": "double",
+              "left": 1,
+              "right": 5,
+              "check": null,
+              "left_id": "x1-1",
+              "right_id": "x5-1"
+            },
+            {
+              "step": 3,
+              "rule_name": "RH-Merge",
+              "rule_number": 1,
+              "rule_kind": "double",
+              "left": 1,
+              "right": 2,
+              "check": null,
+              "left_id": "x2-1",
+              "right_id": "x3-1"
+            },
+            {
+              "step": 4,
+              "rule_name": "RH-Merge",
+              "rule_number": 1,
+              "rule_kind": "double",
+              "left": 1,
+              "right": 2,
+              "check": null,
+              "left_id": "x3-1",
+              "right_id": "x4-1"
+            },
+            {
+              "step": 5,
+              "rule_name": "RH-Merge",
+              "rule_number": 1,
+              "rule_kind": "double",
+              "left": 1,
+              "right": 2,
+              "check": null,
+              "left_id": "x4-1",
+              "right_id": "x5-1"
+            },
+            {
+              "step": 6,
+              "rule_name": "RH-Merge",
+              "rule_number": 1,
+              "rule_kind": "double",
+              "left": 1,
+              "right": 2,
+              "check": null,
+              "left_id": "x5-1",
+              "right_id": "x6-1"
+            },
+            {
+              "step": 7,
+              "rule_name": "RH-Merge",
+              "rule_number": 1,
+              "rule_kind": "double",
+              "left": 1,
+              "right": 2,
+              "check": null,
+              "left_id": "x6-1",
+              "right_id": "x7-1"
+            },
+            {
+              "step": 8,
+              "rule_name": "RH-Merge",
+              "rule_number": 1,
+              "rule_kind": "double",
+              "left": 1,
+              "right": 2,
+              "check": null,
+              "left_id": "x7-1",
+              "right_id": "x8-1"
+            },
+            {
+              "step": 9,
+              "rule_name": "RH-Merge",
+              "rule_number": 1,
+              "rule_kind": "double",
+              "left": 1,
+              "right": 2,
+              "check": null,
+              "left_id": "x8-1",
+              "right_id": "x9-1"
+            },
+            {
+              "step": 10,
+              "rule_name": "RH-Merge",
+              "rule_number": 1,
+              "rule_kind": "double",
+              "left": 1,
+              "right": 2,
+              "check": null,
+              "left_id": "x9-1",
+              "right_id": "x10-1"
+            }
+          ],
+          "full_span": true,
+          "full_span_tree": true,
+          "full_span_process": true,
+          "missing_tree": [],
+          "missing_process": [],
+          "basenum": 1,
+          "unresolved_recalc": 0,
+          "hard_reject": false,
+          "hard_reject_replay_failed": null,
+          "adoptable": true
+        },
+        {
+          "rank": 2,
+          "steps_to_goal": 10,
+          "tree_signature": "{\"category\":\"V\",\"children\":[{\"category\":\"J\",\"children\":[{\"category\":\"N\",\"children\":[{\"category\":\"V\",\"children\":[{\"category\":\"Z\",\"children\":[{\"category\":\"N\",\"children\":[{\"category\":\"V\",\"children\":[{\"category\":\"J\",\"children\":[{\"category\":\"N\",\"children\":[{\"category\":\"A\",\"children\":[],\"item_id\":\"x1-1\",\"phono\":\"ふわふわした\",\"se\":[\"ふわふわした:T\"],\"sl\":\"x2-1\",\"sy\":[]},{\"category\":\"N\",\"children\":[],\"item_id\":\"x2-1\",\"phono\":\"わたあめ\",\"se\":[],\"sl\":\"zero\",\"sy\":[]}],\"item_id\":\"x2-1\",\"phono\":\"\",\"se\":[\"わたあめ:T\"],\"sl\":\"x2-1\",\"sy\":[]},{\"category\":\"J\",\"children\":[],\"item_id\":\"x3-1\",\"phono\":\"を\",\"se\":[],\"sl\":\"zero\",\"sy\":[]}],\"item_id\":\"x3-1\",\"phono\":\"\",\"se\":[\"α<sub>12</sub>:x2-1\"],\"sl\":\"\",\"sy\":[]},{\"category\":\"V\",\"children\":[],\"item_id\":\"x4-1\",\"phono\":\"食べている\",\"se\":[],\"sl\":\"zero\",\"sy\":[]}],\"item_id\":\"x4-1\",\"phono\":\"\",\"se\":[],\"sl\":\"\",\"sy\":[]},{\"category\":\"N\",\"children\":[],\"item_id\":\"x5-1\",\"phono\":\"ひつじ\",\"se\":[],\"sl\":\"zero\",\"sy\":[]}],\"item_id\":\"x5-1\",\"phono\":\"\",\"se\":[\"ひつじ:T\"],\"sl\":\"x5-1\",\"sy\":[]},{\"category\":\"Z\",\"children\":[],\"item_id\":\"x6-1\",\"phono\":\"と\",\"se\":[],\"sl\":\"zero\",\"sy\":[]}],\"item_id\":\"x6-1\",\"phono\":\"\",\"se\":[\"α<sub>13</sub>:x5-1\"],\"sl\":\"\",\"sy\":[]},{\"category\":\"V\",\"children\":[],\"item_id\":\"x7-1\",\"phono\":\"話している\",\"se\":[],\"sl\":\"zero\",\"sy\":[]}],\"item_id\":\"x7-1\",\"phono\":\"\",\"se\":[],\"sl\":\"\",\"sy\":[]},{\"category\":\"N\",\"children\":[],\"item_id\":\"x8-1\",\"phono\":\"うさぎ\",\"se\":[],\"sl\":\"zero\",\"sy\":[]}],\"item_id\":\"x8-1\",\"phono\":\"\",\"se\":[\"うさぎ:T\"],\"sl\":\"x8-1\",\"sy\":[]},{\"category\":\"J\",\"children\":[],\"item_id\":\"x9-1\",\"phono\":\"が\",\"se\":[],\"sl\":\"zero\",\"sy\":[]}],\"item_id\":\"x9-1\",\"phono\":\"\",\"se\":[\"α<sub>14</sub>:x8-1\"],\"sl\":\"\",\"sy\":[]},{\"category\":\"V\",\"children\":[{\"category\":\"V\",\"children\":[],\"item_id\":\"x10-1\",\"phono\":\"い-\",\"se\":[],\"sl\":\"zero\",\"sy\":[]},{\"category\":\"T\",\"children\":[],\"item_id\":\"x11-1\",\"phono\":\"-ru\",\"se\":[\"Time:imperfect\"],\"sl\":\"\",\"sy\":[]}],\"item_id\":\"x10-1\",\"phono\":\"\",\"se\":[],\"sl\":\"zero\",\"sy\":[]}],\"item_id\":\"x10-1\",\"phono\":\"\",\"se\":[],\"sl\":\"\",\"sy\":[]}",
+          "tree": {
+            "item_id": "x10-1",
+            "category": "V",
+            "sy": [],
+            "sl": "",
+            "se": [],
+            "phono": "",
+            "children": [
+              {
+                "item_id": "x9-1",
+                "category": "J",
+                "sy": [],
+                "sl": "",
+                "se": [
+                  "α<sub>14</sub>:x8-1"
+                ],
+                "phono": "",
+                "children": [
+                  {
+                    "item_id": "x8-1",
+                    "category": "N",
+                    "sy": [],
+                    "sl": "x8-1",
+                    "se": [
+                      "うさぎ:T"
+                    ],
+                    "phono": "",
+                    "children": [
+                      {
+                        "item_id": "x7-1",
+                        "category": "V",
+                        "sy": [],
+                        "sl": "",
+                        "se": [],
+                        "phono": "",
+                        "children": [
+                          {
+                            "item_id": "x6-1",
+                            "category": "Z",
+                            "sy": [],
+                            "sl": "",
+                            "se": [
+                              "α<sub>13</sub>:x5-1"
+                            ],
+                            "phono": "",
+                            "children": [
+                              {
+                                "item_id": "x5-1",
+                                "category": "N",
+                                "sy": [],
+                                "sl": "x5-1",
+                                "se": [
+                                  "ひつじ:T"
+                                ],
+                                "phono": "",
+                                "children": [
+                                  {
+                                    "item_id": "x4-1",
+                                    "category": "V",
+                                    "sy": [],
+                                    "sl": "",
+                                    "se": [],
+                                    "phono": "",
+                                    "children": [
+                                      {
+                                        "item_id": "x3-1",
+                                        "category": "J",
+                                        "sy": [],
+                                        "sl": "",
+                                        "se": [
+                                          "α<sub>12</sub>:x2-1"
+                                        ],
+                                        "phono": "",
+                                        "children": [
+                                          {
+                                            "item_id": "x2-1",
+                                            "category": "N",
+                                            "sy": [],
+                                            "sl": "x2-1",
+                                            "se": [
+                                              "わたあめ:T"
+                                            ],
+                                            "phono": "",
+                                            "children": [
+                                              {
+                                                "item_id": "x1-1",
+                                                "category": "A",
+                                                "sy": [],
+                                                "sl": "x2-1",
+                                                "se": [
+                                                  "ふわふわした:T"
+                                                ],
+                                                "phono": "ふわふわした",
+                                                "children": []
+                                              },
+                                              {
+                                                "item_id": "x2-1",
+                                                "category": "N",
+                                                "sy": [],
+                                                "sl": "zero",
+                                                "se": [],
+                                                "phono": "わたあめ",
+                                                "children": []
+                                              }
+                                            ]
+                                          },
+                                          {
+                                            "item_id": "x3-1",
+                                            "category": "J",
+                                            "sy": [],
+                                            "sl": "zero",
+                                            "se": [],
+                                            "phono": "を",
+                                            "children": []
+                                          }
+                                        ]
+                                      },
+                                      {
+                                        "item_id": "x4-1",
+                                        "category": "V",
+                                        "sy": [],
+                                        "sl": "zero",
+                                        "se": [],
+                                        "phono": "食べている",
+                                        "children": []
+                                      }
+                                    ]
+                                  },
+                                  {
+                                    "item_id": "x5-1",
+                                    "category": "N",
+                                    "sy": [],
+                                    "sl": "zero",
+                                    "se": [],
+                                    "phono": "ひつじ",
+                                    "children": []
+                                  }
+                                ]
+                              },
+                              {
+                                "item_id": "x6-1",
+                                "category": "Z",
+                                "sy": [],
+                                "sl": "zero",
+                                "se": [],
+                                "phono": "と",
+                                "children": []
+                              }
+                            ]
+                          },
+                          {
+                            "item_id": "x7-1",
+                            "category": "V",
+                            "sy": [],
+                            "sl": "zero",
+                            "se": [],
+                            "phono": "話している",
+                            "children": []
+                          }
+                        ]
+                      },
+                      {
+                        "item_id": "x8-1",
+                        "category": "N",
+                        "sy": [],
+                        "sl": "zero",
+                        "se": [],
+                        "phono": "うさぎ",
+                        "children": []
+                      }
+                    ]
+                  },
+                  {
+                    "item_id": "x9-1",
+                    "category": "J",
+                    "sy": [],
+                    "sl": "zero",
+                    "se": [],
+                    "phono": "が",
+                    "children": []
+                  }
+                ]
+              },
+              {
+                "item_id": "x10-1",
+                "category": "V",
+                "sy": [],
+                "sl": "zero",
+                "se": [],
+                "phono": "",
+                "children": [
+                  {
+                    "item_id": "x10-1",
+                    "category": "V",
+                    "sy": [],
+                    "sl": "zero",
+                    "se": [],
+                    "phono": "い-",
+                    "children": []
+                  },
+                  {
+                    "item_id": "x11-1",
+                    "category": "T",
+                    "sy": [],
+                    "sl": "",
+                    "se": [
+                      "Time:imperfect"
+                    ],
+                    "phono": "-ru",
+                    "children": []
+                  }
+                ]
+              }
+            ]
+          },
+          "process": "imi01\nふわふわしたわたあめを食べているひつじと話しているうさぎがいる\n15\n1\n([x10-1 x11-1] LH-Merge) ([x1-1 x2-1] RH-Merge) ([x2-1 x3-1] RH-Merge) ([x3-1 x4-1] RH-Merge) ([x4-1 x5-1] RH-Merge) ([x5-1 x6-1] RH-Merge) ([x6-1 x7-1] RH-Merge) ([x7-1 x8-1] RH-Merge) ([x8-1 x9-1] RH-Merge) ([x9-1 x10-1] RH-Merge) \n[null,[\"x10-1\",\"V\",[],[],\"\",[],null,[[\"x9-1\",\"J\",[],[],\"\",[null,\"α<sub>14</sub>:x8-1\"],null,[[\"x8-1\",\"N\",[],[],\"x8-1\",[null,\"うさぎ:T\"],null,[[\"x7-1\",\"V\",[],[],\"\",[],null,[[\"x6-1\",\"Z\",[],[],\"\",[null,\"α<sub>13</sub>:x5-1\"],null,[[\"x5-1\",\"N\",[],[],\"x5-1\",[null,\"ひつじ:T\"],null,[[\"x4-1\",\"V\",[],[],\"\",[],null,[[\"x3-1\",\"J\",[],[],\"\",[null,\"α<sub>12</sub>:x2-1\"],null,[[\"x2-1\",\"N\",[],[],\"x2-1\",[null,\"わたあめ:T\"],null,[[\"x1-1\",\"A\",[],[],\"x2-1\",[null,\"ふわふわした:T\"],\"ふわふわした\",null],[\"x2-1\",\"N\",\"\",[\"\"],\"zero\",\"zero\",\"わたあめ\",null]]],[\"x3-1\",\"J\",\"\",[\"\"],\"zero\",\"zero\",\"を\",null]]],[\"x4-1\",\"V\",\"\",[\"\"],\"zero\",\"zero\",\"食べている\",null]]],[\"x5-1\",\"N\",\"\",[\"\"],\"zero\",\"zero\",\"ひつじ\",null]]],[\"x6-1\",\"Z\",\"\",[\"\"],\"zero\",\"zero\",\"と\",null]]],[\"x7-1\",\"V\",\"\",[\"\"],\"zero\",\"zero\",\"話している\",null]]],[\"x8-1\",\"N\",\"\",[\"\"],\"zero\",\"zero\",\"うさぎ\",null]]],[\"x9-1\",\"J\",\"\",[\"\"],\"zero\",\"zero\",\"が\",null]]],[\"x10-1\",\"V\",\"\",[\"\"],\"zero\",\"zero\",null,[[\"x10-1\",\"V\",\"\",[\"\"],\"zero\",\"zero\",\"い-\",null],[\"x11-1\",\"T\",[],[],null,[null,\"Time:imperfect\"],\"-ru\",null]]]]]]",
+          "history": [
+            {
+              "step": 1,
+              "rule_name": "LH-Merge",
+              "rule_number": 2,
+              "rule_kind": "double",
+              "left": 10,
+              "right": 11,
+              "check": null,
+              "left_id": "x10-1",
+              "right_id": "x11-1"
+            },
+            {
+              "step": 2,
+              "rule_name": "RH-Merge",
+              "rule_number": 1,
+              "rule_kind": "double",
+              "left": 1,
+              "right": 2,
+              "check": null,
+              "left_id": "x1-1",
+              "right_id": "x2-1"
+            },
+            {
+              "step": 3,
+              "rule_name": "RH-Merge",
+              "rule_number": 1,
+              "rule_kind": "double",
+              "left": 1,
+              "right": 2,
+              "check": null,
+              "left_id": "x2-1",
+              "right_id": "x3-1"
+            },
+            {
+              "step": 4,
+              "rule_name": "RH-Merge",
+              "rule_number": 1,
+              "rule_kind": "double",
+              "left": 1,
+              "right": 2,
+              "check": null,
+              "left_id": "x3-1",
+              "right_id": "x4-1"
+            },
+            {
+              "step": 5,
+              "rule_name": "RH-Merge",
+              "rule_number": 1,
+              "rule_kind": "double",
+              "left": 1,
+              "right": 2,
+              "check": null,
+              "left_id": "x4-1",
+              "right_id": "x5-1"
+            },
+            {
+              "step": 6,
+              "rule_name": "RH-Merge",
+              "rule_number": 1,
+              "rule_kind": "double",
+              "left": 1,
+              "right": 2,
+              "check": null,
+              "left_id": "x5-1",
+              "right_id": "x6-1"
+            },
+            {
+              "step": 7,
+              "rule_name": "RH-Merge",
+              "rule_number": 1,
+              "rule_kind": "double",
+              "left": 1,
+              "right": 2,
+              "check": null,
+              "left_id": "x6-1",
+              "right_id": "x7-1"
+            },
+            {
+              "step": 8,
+              "rule_name": "RH-Merge",
+              "rule_number": 1,
+              "rule_kind": "double",
+              "left": 1,
+              "right": 2,
+              "check": null,
+              "left_id": "x7-1",
+              "right_id": "x8-1"
+            },
+            {
+              "step": 9,
+              "rule_name": "RH-Merge",
+              "rule_number": 1,
+              "rule_kind": "double",
+              "left": 1,
+              "right": 2,
+              "check": null,
+              "left_id": "x8-1",
+              "right_id": "x9-1"
+            },
+            {
+              "step": 10,
+              "rule_name": "RH-Merge",
+              "rule_number": 1,
+              "rule_kind": "double",
+              "left": 1,
+              "right": 2,
+              "check": null,
+              "left_id": "x9-1",
+              "right_id": "x10-1"
+            }
+          ],
+          "full_span": true,
+          "full_span_tree": true,
+          "full_span_process": true,
+          "missing_tree": [],
+          "missing_process": [],
+          "basenum": 1,
+          "unresolved_recalc": 0,
+          "hard_reject": false,
+          "hard_reject_replay_failed": null,
+          "adoptable": true
+        }
+      ]
+    }
+  ]
+}
