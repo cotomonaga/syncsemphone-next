@@ -4104,37 +4104,62 @@ export default function App() {
     <div className={uiMode === "legacy" ? "page legacy-mode" : "page renewed-mode"}>
       <header className="hero">
         {ENABLE_LOGIN_AUTH && loggedInUser && (
-          <div className="auth-session-controls">
+          <div
+            className={
+              uiMode === "legacy"
+                ? "auth-session-controls auth-session-controls-legacy"
+                : "auth-session-controls"
+            }
+          >
             <span className="auth-session-user">{loggedInUser} でログイン中</span>
             <button type="button" className="auth-logout-btn" onClick={handleLogout}>
               ログアウト
             </button>
           </div>
         )}
-        {uiMode === "legacy" && (
-          <div className="legacy-titlebar">
-            <div className="legacy-title-main">統語意味論デモプログラム</div>
-            <div className="legacy-title-sub">
-              {activeGrammarOption?.display_name || grammarId} ({grammarId})
+        {uiMode === "legacy" ? (
+          <>
+            <div className="ui-mode-switch ui-mode-switch-legacy">
+              <button
+                type="button"
+                className="mode-btn active"
+                onClick={() => setUiMode("legacy")}
+              >
+                Legacy UI
+              </button>
+              <button
+                type="button"
+                className="mode-btn"
+                onClick={() => setUiMode("renewed")}
+              >
+                Renewed UI
+              </button>
             </div>
+            <div className="legacy-titlebar">
+              <div className="legacy-title-main">統語意味論デモプログラム</div>
+              <div className="legacy-title-sub">
+                {activeGrammarOption?.display_name || grammarId} ({grammarId})
+              </div>
+            </div>
+          </>
+        ) : (
+          <div className="ui-mode-switch">
+            <button
+              type="button"
+              className="mode-btn"
+              onClick={() => setUiMode("legacy")}
+            >
+              Legacy UI
+            </button>
+            <button
+              type="button"
+              className="mode-btn active"
+              onClick={() => setUiMode("renewed")}
+            >
+              Renewed UI
+            </button>
           </div>
         )}
-        <div className="ui-mode-switch">
-          <button
-            type="button"
-            className={uiMode === "legacy" ? "mode-btn active" : "mode-btn"}
-            onClick={() => setUiMode("legacy")}
-          >
-            Legacy UI
-          </button>
-          <button
-            type="button"
-            className={uiMode === "renewed" ? "mode-btn active" : "mode-btn"}
-            onClick={() => setUiMode("renewed")}
-          >
-            Renewed UI
-          </button>
-        </div>
       </header>
       <h1 className="hero-page-title">SYNCSEMPHONE NEXT</h1>
 

@@ -68,6 +68,12 @@ body {
   gap: 8px;
 }
 
+.auth-session-controls-legacy {
+  position: static;
+  justify-self: end;
+  align-self: end;
+}
+
 .auth-session-user {
   font-size: 0.78rem;
   color: #12404b;
@@ -1331,6 +1337,12 @@ td {
   gap: 6px;
 }
 
+.ui-mode-switch-legacy {
+  position: static;
+  display: inline-flex;
+  align-self: flex-start;
+}
+
 .mode-btn {
   background: #e8f1f5;
   color: #13414c;
@@ -1353,6 +1365,14 @@ td {
 
 .login-card {
   width: min(420px, calc(100vw - 40px));
+}
+
+.login-page-title {
+  margin: 4px 0 8px;
+  text-align: center;
+  font-family: "M PLUS 1p", sans-serif;
+  font-size: 1.55rem;
+  letter-spacing: 0.03em;
 }
 
 .login-form {
@@ -1727,6 +1747,8 @@ td {
   background: #bbccdd;
   min-height: 50px;
   padding: 10px 12px;
+  display: grid;
+  gap: 8px;
 }
 
 .legacy-mode .hero-page-title {
@@ -1741,7 +1763,7 @@ td {
 }
 
 .legacy-titlebar {
-  margin: 8px 0 0;
+  margin: 0;
   padding: 8px 10px;
   border: 1px solid #7f90a0;
   background: #aaaacc;

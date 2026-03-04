@@ -1,6 +1,8 @@
 from __future__ import annotations
 
+import html
 import os
+import re
 import subprocess
 from pathlib import Path
 from typing import Optional
@@ -8,6 +10,8 @@ from urllib.parse import urlencode
 
 from fastapi import APIRouter, HTTPException, Request
 from fastapi.responses import FileResponse, Response
+
+from app.security import LEGACY_FORM_CSRF_FIELD, get_or_create_csrf_token
 
 router = APIRouter(prefix="/legacy/perl", tags=["legacy"])
 
@@ -22,6 +26,11 @@ ALLOWED_STATIC = {
     "vis.min.js",
     "vacant.html",
 }
+
+_POST_FORM_RE = re.compile(
+    r"(<form\b[^>]*\bmethod\s*=\s*(['\"]?)post\2[^>]*>)",
+    flags=re.IGNORECASE,
+)
 
 
 def _default_legacy_root() -> Path:
@@ -78,6 +87,7 @@ def _execute_perl_cgi(
     body: bytes,
     content_type: Optional[str],
     script_url_path: str,
+    csrf_token: Optional[str],
 ) -> Response:
     script_path = root / script_name
     if not script_path.exists():
@@ -118,6 +128,12 @@ def _execute_perl_cgi(
 
     status_code, headers, response_body = _parse_cgi_response(result.stdout)
     content_type_header = headers.pop("Content-Type", None) or headers.pop("content-type", None)
+    is_html = (
+        isinstance(content_type_header, str)
+        and "text/html" in content_type_header.lower()
+    )
+    if is_html and isinstance(csrf_token, str) and csrf_token.strip() != "":
+        response_body = _inject_csrf_hidden_input(response_body, csrf_token.strip())
 
     response = Response(content=response_body, status_code=status_code)
     if content_type_header:
@@ -125,6 +141,26 @@ def _execute_perl_cgi(
     for key, value in headers.items():
         response.headers[key] = value
     return response
+
+
+def _inject_csrf_hidden_input(raw_html: bytes, csrf_token: str) -> bytes:
+    try:
+        text = raw_html.decode("utf-8")
+    except UnicodeDecodeError:
+        try:
+            text = raw_html.decode("shift_jis")
+        except UnicodeDecodeError:
+            text = raw_html.decode("utf-8", errors="replace")
+    token_html = (
+        f'<input type="hidden" name="{LEGACY_FORM_CSRF_FIELD}" '
+        f'value="{html.escape(csrf_token, quote=True)}">'
+    )
+
+    def _replace(match: re.Match[str]) -> str:
+        return f"{match.group(1)}\n{token_html}"
+
+    rewritten = _POST_FORM_RE.sub(_replace, text)
+    return rewritten.encode("utf-8")
 
 
 @router.api_route("/{resource_name}", methods=["GET", "POST"])
@@ -147,6 +183,7 @@ async def perl_resource(
 
     if resource_name in ALLOWED_CGI:
         body = await request.body()
+        csrf_token = get_or_create_csrf_token(request)
         forward_query_items = [
             (key, value)
             for key, value in request.query_params.multi_items()
@@ -161,6 +198,7 @@ async def perl_resource(
             body=body,
             content_type=request.headers.get("content-type"),
             script_url_path=f"/v1/legacy/perl/{resource_name}",
+            csrf_token=csrf_token,
         )
 
     raise HTTPException(status_code=404, detail=f"unsupported legacy resource: {resource_name}")

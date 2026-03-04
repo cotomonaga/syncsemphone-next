@@ -8,12 +8,15 @@ import os
 import secrets
 import threading
 import time
+from urllib.parse import parse_qs
 from typing import Dict, List, Optional
+from urllib.parse import urlparse
 
 from fastapi import HTTPException, Request, status
 
 SESSION_USERNAME_KEY = "username"
 SESSION_CSRF_KEY = "csrf_token"
+LEGACY_FORM_CSRF_FIELD = "_csrf_token"
 SESSION_COOKIE_NAME = "syncsemphone_session"
 DEFAULT_SESSION_MAX_AGE_SECONDS = 60 * 60 * 12
 DEFAULT_LOGIN_RATE_LIMIT_WINDOW_SECONDS = 60 * 5
@@ -59,6 +62,60 @@ def session_max_age_seconds() -> int:
     except ValueError:
         return DEFAULT_SESSION_MAX_AGE_SECONDS
     return value if value > 0 else DEFAULT_SESSION_MAX_AGE_SECONDS
+
+
+def _allowed_cors_origins() -> List[str]:
+    default_origins = "http://127.0.0.1:5173,http://localhost:5173"
+    raw = os.getenv("SYNCSEMPHONE_CORS_ORIGINS", default_origins)
+    return [origin.strip() for origin in raw.split(",") if origin.strip()]
+
+
+def _extract_origin_from_headers(request: Request) -> Optional[str]:
+    origin = request.headers.get("Origin", "").strip()
+    if origin:
+        return origin
+    referer = request.headers.get("Referer", "").strip()
+    if not referer:
+        return None
+    parsed = urlparse(referer)
+    if not parsed.scheme or not parsed.netloc:
+        return None
+    return f"{parsed.scheme}://{parsed.netloc}"
+
+
+def _legacy_post_origin_allowed(request: Request) -> bool:
+    sec_fetch_site = request.headers.get("Sec-Fetch-Site", "").strip().lower()
+    if sec_fetch_site in {"same-origin", "same-site", "none"}:
+        return True
+
+    origin = _extract_origin_from_headers(request)
+    if not origin:
+        return False
+    if origin in _allowed_cors_origins():
+        return True
+    if not is_production_environment():
+        parsed = urlparse(origin)
+        if parsed.hostname in {"127.0.0.1", "localhost"}:
+            return True
+    return False
+
+
+def _extract_legacy_form_csrf_token(request: Request, raw_body: bytes) -> str:
+    if not raw_body:
+        return ""
+    content_type = request.headers.get("content-type", "").lower()
+    if "application/x-www-form-urlencoded" not in content_type:
+        return ""
+    try:
+        payload = raw_body.decode("utf-8", errors="replace")
+    except Exception:
+        return ""
+    parsed = parse_qs(payload, keep_blank_values=True)
+    values = parsed.get(LEGACY_FORM_CSRF_FIELD, [])
+    if not values:
+        return ""
+    token = values[0]
+    return token.strip() if isinstance(token, str) else ""
 
 
 def session_secret_key() -> str:
@@ -290,7 +347,7 @@ def get_or_create_csrf_token(request: Request) -> Optional[str]:
     return csrf_token
 
 
-def require_authenticated_user(request: Request) -> str:
+async def require_authenticated_user(request: Request) -> str:
     username = get_authenticated_username(request)
     if not username:
         raise HTTPException(
@@ -304,14 +361,23 @@ def require_authenticated_user(request: Request) -> str:
 
     csrf_in_session = get_or_create_csrf_token(request)
     csrf_from_header = request.headers.get("X-CSRF-Token", "")
-    if (
-        not isinstance(csrf_in_session, str)
-        or csrf_in_session.strip() == ""
-        or csrf_from_header.strip() == ""
-        or not hmac.compare_digest(csrf_in_session, csrf_from_header.strip())
-    ):
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="CSRF token missing or invalid",
-        )
-    return username
+    valid_session_token = isinstance(csrf_in_session, str) and csrf_in_session.strip() != ""
+    if valid_session_token and csrf_from_header.strip() != "":
+        if hmac.compare_digest(csrf_in_session, csrf_from_header.strip()):
+            return username
+
+    if request.url.path.startswith("/v1/legacy/perl/"):
+        raw_body = await request.body()
+        csrf_from_form = _extract_legacy_form_csrf_token(request, raw_body)
+        if (
+            valid_session_token
+            and csrf_from_form != ""
+            and hmac.compare_digest(csrf_in_session, csrf_from_form)
+            and _legacy_post_origin_allowed(request)
+        ):
+            return username
+
+    raise HTTPException(
+        status_code=status.HTTP_403_FORBIDDEN,
+        detail="CSRF token missing or invalid",
+    )
