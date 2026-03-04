@@ -1344,15 +1344,15 @@ td {
 }
 
 .renew-menu-btn-structure {
-  background: #c53232;
+  background: #d9838b;
   color: #fff;
-  border-color: #ad2828;
+  border-color: #c97780;
 }
 
 .renew-menu-btn-structure.active {
-  background: #9f1f1f;
+  background: #c56f78;
   color: #fff;
-  border-color: #8e1b1b;
+  border-color: #b6636b;
 }
 
 .renew-main {
