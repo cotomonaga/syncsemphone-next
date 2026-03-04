@@ -32,9 +32,17 @@ from domain.grammar.rule_catalog import (
     get_rule_number_by_name,
     load_rule_catalog,
 )
-from domain.numeration.generator import SudachiMorphTokenizer, generate_numeration_from_sentence
+from domain.lexicon.legacy_loader import load_legacy_lexicon
+from domain.numeration.generator import (
+    SudachiMorphTokenizer,
+    _build_surface_index,
+    _candidate_sort_key,
+    _infer_candidate_compatibility,
+    _normalize_token,
+    generate_numeration_from_sentence,
+)
 from domain.numeration.init_builder import build_initial_derivation_state
-from domain.numeration.parser import NUMERATION_SLOT_COUNT
+from domain.numeration.parser import NUMERATION_SLOT_COUNT, parse_numeration_text
 from domain.resume.codec import (
     export_process_text_like_perl,
     export_resume_text,
@@ -302,6 +310,24 @@ class SentenceNumerationGenerateResponse(BaseModel):
 
 class SentenceTokenizeResponse(BaseModel):
     tokens: list[str]
+
+
+class NumerationTokenCandidatesRequest(BaseModel):
+    grammar_id: str
+    numeration_text: str
+    legacy_root: Optional[str] = None
+
+
+class NumerationTokenResolutionResponse(BaseModel):
+    slot: int
+    token: str
+    lexicon_id: int
+    candidate_lexicon_ids: list[int]
+    candidate_compatibility: list[TokenCandidateCompatibilityResponse] = Field(default_factory=list)
+
+
+class NumerationTokenCandidatesResponse(BaseModel):
+    token_resolutions: list[NumerationTokenResolutionResponse]
 
 
 class DerivationInitFromSentenceResponse(BaseModel):
@@ -1500,6 +1526,81 @@ def _to_sentence_numeration_response(
         auto_supplements=auto_supplements,
         numeration_text=generated.numeration_text,
     )
+
+
+def _resolve_token_candidates_from_numeration_text(
+    *,
+    grammar_id: str,
+    numeration_text: str,
+    legacy_root: Path,
+) -> NumerationTokenCandidatesResponse:
+    rows = parse_numeration_text(numeration_text)
+    lexicon = load_legacy_lexicon(legacy_root=legacy_root, grammar_id=grammar_id)
+    grammar_rule_names = {
+        row.name for row in load_rule_catalog(grammar_id=grammar_id, legacy_root=legacy_root)
+    }
+    surface_index = _build_surface_index(lexicon)
+
+    out: list[NumerationTokenResolutionResponse] = []
+    for slot in range(1, NUMERATION_SLOT_COUNT + 1):
+        raw = rows.lexicon_slot(slot).strip()
+        if raw == "":
+            continue
+        try:
+            selected_lexicon_id = int(raw)
+        except ValueError:
+            continue
+        entry = lexicon.get(selected_lexicon_id)
+        if entry is None:
+            continue
+        token = _normalize_token(entry.entry)
+        if token == "":
+            token = _normalize_token(entry.phono).strip("-")
+        if token == "":
+            continue
+
+        candidates = list(surface_index.get(token, []))
+        if selected_lexicon_id not in candidates:
+            candidates.append(selected_lexicon_id)
+
+        deduped = sorted(
+            set(candidates),
+            key=lambda lexicon_id: _candidate_sort_key(
+                grammar_id,
+                token,
+                lexicon_id,
+                lexicon,
+            ),
+        )
+        compatibilities = [
+            _infer_candidate_compatibility(
+                grammar_id=grammar_id,
+                entry=lexicon[lexicon_id],
+                grammar_rule_names=grammar_rule_names,
+            )
+            for lexicon_id in deduped
+            if lexicon_id in lexicon
+        ]
+        out.append(
+            NumerationTokenResolutionResponse(
+                slot=slot,
+                token=token,
+                lexicon_id=selected_lexicon_id,
+                candidate_lexicon_ids=deduped,
+                candidate_compatibility=[
+                    TokenCandidateCompatibilityResponse(
+                        lexicon_id=item.lexicon_id,
+                        compatible=item.compatible,
+                        reason_codes=item.reason_codes,
+                        missing_rule_names=item.missing_rule_names,
+                        referenced_rule_names=item.referenced_rule_names,
+                    )
+                    for item in compatibilities
+                ],
+            )
+        )
+
+    return NumerationTokenCandidatesResponse(token_resolutions=out)
 
 
 def _item_for_index(state: DerivationState, index: int) -> Optional[list[Any]]:
@@ -4579,6 +4680,28 @@ def tokenize_sentence(request: SentenceNumerationGenerateRequest) -> SentenceTok
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
     return SentenceTokenizeResponse(tokens=tokens)
+
+
+@router.post(
+    "/numeration/candidates-from-num",
+    response_model=NumerationTokenCandidatesResponse,
+)
+def numeration_candidates_from_num(
+    request: NumerationTokenCandidatesRequest,
+) -> NumerationTokenCandidatesResponse:
+    legacy_root = (
+        Path(request.legacy_root).expanduser().resolve()
+        if request.legacy_root
+        else _default_legacy_root()
+    )
+    try:
+        return _resolve_token_candidates_from_numeration_text(
+            grammar_id=request.grammar_id,
+            numeration_text=request.numeration_text,
+            legacy_root=legacy_root,
+        )
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
 
 
 @router.post(

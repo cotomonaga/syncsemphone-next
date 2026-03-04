@@ -79,6 +79,20 @@ type TokenSlotEdit = {
   idxValue: string;
 };
 
+type NumerationTokenResolution = {
+  slot: number;
+  token: string;
+  lexicon_id: number;
+  candidate_lexicon_ids: number[];
+  candidate_compatibility?: Array<{
+    lexicon_id: number;
+    compatible: boolean;
+    reason_codes: string[];
+    missing_rule_names: string[];
+    referenced_rule_names: string[];
+  }>;
+};
+
 type AutoSupplementNote = NonNullable<GeneratedNumeration["auto_supplements"]>[number];
 
 type ArrangeRow = {
@@ -1154,7 +1168,8 @@ export default function App() {
   const step1PartnerWarnings = useMemo(() => {
     const slotCandidates = numerationLexiconRows.map((row) => {
       const slotEdit = tokenSlotEditBySlot.get(row.slot);
-      const includeSlotCandidates = step1EntryMode === "build_lexicon";
+      const includeSlotCandidates =
+        step1EntryMode === "build_lexicon" || step1EntryMode === "example_sentence";
       const candidateIds = Array.from(
         new Set(
           [
@@ -1568,7 +1583,8 @@ export default function App() {
     const rowIds = parsedRows
       .map((row) => row.lexiconId)
       .filter((value): value is number => value !== null);
-    const includeTokenCandidates = step1EntryMode === "build_lexicon";
+    const includeTokenCandidates =
+      step1EntryMode === "build_lexicon" || step1EntryMode === "example_sentence";
     const candidateIds = includeTokenCandidates
       ? parsedRows.flatMap((row) => tokenSlotEditBySlot.get(row.slot)?.candidateLexiconIds || [])
       : [];
@@ -1938,8 +1954,44 @@ export default function App() {
   function handleChangeStep1ExampleNumerationPath(value: string) {
     setStep1ExampleNumerationPath(value);
     setStep1ExampleNumerationText("");
+    setTokenSlotEdits([]);
     setNumerationLexiconRows([]);
     setNumerationLexiconError("");
+  }
+
+  async function syncTokenEditsFromNumerationSourceText(sourceText: string) {
+    const normalized = normalizeNumerationTextForParse(sourceText);
+    const parsedRows = parseNumerationLexiconRows(normalized);
+    const parsedBySlot = new Map(parsedRows.map((row) => [row.slot, row]));
+    if (parsedRows.length === 0) {
+      setTokenSlotEdits([]);
+      return;
+    }
+    const response = await apiPost<{ token_resolutions: NumerationTokenResolution[] }>(
+      "/v1/derivation/numeration/candidates-from-num",
+      {
+        grammar_id: grammarId,
+        numeration_text: normalized
+      }
+    );
+    const edits: TokenSlotEdit[] = response.token_resolutions.map((row) => {
+      const parsed = parsedBySlot.get(row.slot);
+      return {
+        slot: row.slot,
+        token: row.token,
+        selectedLexiconId: row.lexicon_id,
+        candidateLexiconIds: row.candidate_lexicon_ids,
+        candidateCompatibilityById: normalizeTokenCandidateCompatibility({
+          token: row.token,
+          lexicon_id: row.lexicon_id,
+          candidate_lexicon_ids: row.candidate_lexicon_ids,
+          candidate_compatibility: row.candidate_compatibility || []
+        }),
+        plusValue: parsed?.plus ?? "",
+        idxValue: parsed?.idx || String(row.slot)
+      };
+    });
+    setTokenSlotEdits(edits);
   }
 
   async function handleLoadStep1ExampleNumerationByPath(path: string) {
@@ -1960,9 +2012,11 @@ export default function App() {
       setStep1ExampleNumerationMemo(response.memo || response.numeration_text?.split("\t")?.[0] || "");
       setStep1AutoSupplementNotes([]);
       setNumerationLexiconError("");
+      await syncTokenEditsFromNumerationSourceText(response.numeration_text);
     } catch {
       setStep1ExampleNumerationText("");
       setStep1ExampleNumerationMemo("");
+      setTokenSlotEdits([]);
       setNumerationLexiconError("選択した .num を読み込めませんでした。");
     }
   }
@@ -2150,9 +2204,12 @@ export default function App() {
         if (step1ExampleNumerationText.trim() === "") {
           throw new Error("例文から .num を選択してください。");
         }
-        formedNumerationText = step1ExampleNumerationText;
+        if (tokenSlotEdits.length > 0) {
+          formedNumerationText = await composeNumerationFromTokenEdits(tokenSlotEdits);
+        } else {
+          formedNumerationText = step1ExampleNumerationText;
+        }
         setGenerated(null);
-        setTokenSlotEdits([]);
         setStep1AutoSupplementNotes([]);
         setOpenStep1CandidateSlot(null);
       } else {
@@ -2325,6 +2382,9 @@ export default function App() {
     setTokenSlotEdits(nextTokenSlotEdits);
     setNumerationText(response.numeration_text);
     setNumerationEditorPath("(未保存) 候補差し替え");
+    if (step1EntryMode === "example_sentence") {
+      setStep1ExampleNumerationText(response.numeration_text);
+    }
     if (step1EntryMode === "build_lexicon") {
       setStep1BuildPreviewNumerationText(response.numeration_text);
     }
@@ -3087,7 +3147,8 @@ export default function App() {
             const idslotRaw = row.idslot.trim();
             const slotEdit = tokenSlotEditBySlot.get(row.slot);
             const includeSlotCandidates =
-              step1EntryMode === "build_lexicon" && renewPanel !== "numeration";
+              (step1EntryMode === "build_lexicon" || step1EntryMode === "example_sentence") &&
+              renewPanel !== "numeration";
             const slotCandidateIds = Array.from(
               new Set(
                 (includeSlotCandidates ? slotEdit?.candidateLexiconIds || [] : []).filter(
