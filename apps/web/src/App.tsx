@@ -93,6 +93,12 @@ type NumerationTokenResolution = {
   }>;
 };
 
+type ReachabilityDisplayGroup = {
+  firstStepKey: string;
+  representative: ReachabilityEvidence;
+  options: ReachabilityEvidence[];
+};
+
 type AutoSupplementNote = NonNullable<GeneratedNumeration["auto_supplements"]>[number];
 
 type ArrangeRow = {
@@ -207,6 +213,21 @@ function normalizeNumerationTextForParse(text: string): string {
 
 function encodeNumerationTextLikePerl(text: string): string {
   return text.replace(/\t/g, "\\t");
+}
+
+function buildReachabilityFirstStepKey(row: ReachabilityEvidence): string {
+  const first = row.rule_sequence[0];
+  if (!first) {
+    return `no-step:${row.rank}`;
+  }
+  return [
+    first.rule_number,
+    first.rule_name,
+    first.rule_kind,
+    first.left ?? "",
+    first.right ?? "",
+    first.check ?? ""
+  ].join(":");
 }
 
 type NumerationLexiconRow = {
@@ -1010,6 +1031,7 @@ export default function App() {
   const [reachabilityProgress, setReachabilityProgress] = useState<{ percent: number; phase: string; message: string } | null>(null);
   const [reachabilityOffset, setReachabilityOffset] = useState(0);
   const [reachabilityLimit, setReachabilityLimit] = useState(10);
+  const [openReachabilityFirstStepKey, setOpenReachabilityFirstStepKey] = useState<string | null>(null);
   const [step2ProcessText, setStep2ProcessText] = useState("");
   const [step2UndoStack, setStep2UndoStack] = useState<DerivationState[]>([]);
   const [selectedLeft, setSelectedLeft] = useState<number | null>(null);
@@ -1158,6 +1180,34 @@ export default function App() {
     }
     return bySlot;
   }, [tokenSlotEdits]);
+  const reachabilityDisplayGroups = useMemo<ReachabilityDisplayGroup[]>(() => {
+    const grouped = new Map<string, ReachabilityEvidence[]>();
+    for (const row of reachabilityRows) {
+      const key = buildReachabilityFirstStepKey(row);
+      const existing = grouped.get(key);
+      if (existing) {
+        existing.push(row);
+      } else {
+        grouped.set(key, [row]);
+      }
+    }
+    const groups: ReachabilityDisplayGroup[] = [];
+    for (const [firstStepKey, rows] of grouped.entries()) {
+      const sorted = [...rows].sort((a, b) => {
+        if (a.steps_to_goal !== b.steps_to_goal) {
+          return a.steps_to_goal - b.steps_to_goal;
+        }
+        return a.rank - b.rank;
+      });
+      groups.push({
+        firstStepKey,
+        representative: sorted[0],
+        options: sorted
+      });
+    }
+    groups.sort((a, b) => a.representative.rank - b.representative.rank);
+    return groups;
+  }, [reachabilityRows]);
   const numerationLookupMap = useMemo(() => {
     const byId = new Map<number, LexiconItemLookupItem>();
     for (const item of numerationLookupItems) {
@@ -1165,6 +1215,16 @@ export default function App() {
     }
     return byId;
   }, [numerationLookupItems]);
+
+  useEffect(() => {
+    if (openReachabilityFirstStepKey === null) {
+      return;
+    }
+    const exists = reachabilityDisplayGroups.some((group) => group.firstStepKey === openReachabilityFirstStepKey);
+    if (!exists) {
+      setOpenReachabilityFirstStepKey(null);
+    }
+  }, [openReachabilityFirstStepKey, reachabilityDisplayGroups]);
   const step1PartnerWarnings = useMemo(() => {
     const slotCandidates = numerationLexiconRows.map((row) => {
       const slotEdit = tokenSlotEditBySlot.get(row.slot);
@@ -2488,6 +2548,7 @@ export default function App() {
       `/v1/derivation/reachability/jobs/${jobId}/evidences?offset=${Math.max(0, offset)}&limit=${Math.max(1, limit)}`
     );
     setReachabilityRows(page.evidences);
+    setOpenReachabilityFirstStepKey(null);
     setReachabilityOffset(page.counts.offset);
     setReachabilityLimit(page.counts.limit);
     setReachabilityResult((prev) => {
@@ -2653,6 +2714,17 @@ export default function App() {
     await executeStep2Rule(candidate);
   }
 
+  function buildRuleCandidateFromReachabilityStep(step: ReachabilityEvidence["rule_sequence"][number]): RuleCandidate {
+    return {
+      rule_number: step.rule_number,
+      rule_name: step.rule_name,
+      rule_kind: step.rule_kind,
+      left: step.left ?? undefined,
+      right: step.right ?? undefined,
+      check: step.check ?? undefined,
+    };
+  }
+
   async function handleExecuteHeadAssist(row: ReachabilityEvidence) {
     const first = row.rule_sequence[0];
     if (!first) {
@@ -2662,16 +2734,63 @@ export default function App() {
     setSelectedLeft(first.left ?? null);
     setSelectedRight(first.right ?? null);
     await executeStep2Rule(
-      {
-        rule_number: first.rule_number,
-        rule_name: first.rule_name,
-        rule_kind: first.rule_kind,
-        left: first.left ?? undefined,
-        right: first.right ?? undefined,
-        check: first.check ?? undefined,
-      },
+      buildRuleCandidateFromReachabilityStep(first),
       { fromAssist: true, rank: row.rank, left: first.left ?? undefined, right: first.right ?? undefined }
     );
+  }
+
+  async function handleExecuteHeadAssistAllSteps(
+    row: ReachabilityEvidence,
+    options?: { rankOverride?: number; stepsOverride?: ReachabilityEvidence["rule_sequence"] }
+  ) {
+    if (!state) {
+      return;
+    }
+    const steps = options?.stepsOverride ?? row.rule_sequence;
+    if (steps.length === 0) {
+      setReachabilityMessage("この証拠には実行可能な規則列がありません。");
+      return;
+    }
+    const initialState = cloneState(state);
+    await withLoading(async () => {
+      let workingState = cloneState(state);
+      if (!workingState) {
+        throw new Error("state が初期化されていません。");
+      }
+      for (const step of steps) {
+        const candidate = buildRuleCandidateFromReachabilityStep(step);
+        const payload: Record<string, unknown> = {
+          state: workingState,
+          rule_name: candidate.rule_name
+        };
+        if (candidate.rule_kind === "single") {
+          payload.check = candidate.check;
+        } else {
+          payload.left = candidate.left;
+          payload.right = candidate.right;
+        }
+        workingState = await apiPost<DerivationState>("/v1/derivation/execute", payload);
+      }
+
+      if (initialState) {
+        setStep2UndoStack((prev) => [...prev, initialState]);
+      }
+      setState(workingState);
+      setCandidates([]);
+      const first = steps[0];
+      setSelectedLeft(first.left ?? null);
+      setSelectedRight(first.right ?? null);
+      setReachabilityMessage(
+        `証拠 ${options?.rankOverride ?? row.rank} の全手順（${steps.length}手）を実行しました。`
+      );
+      setSnapshots((prev) => {
+        if (!prev.T1) {
+          return { ...prev, T1: cloneState(workingState) };
+        }
+        return { ...prev, T2: cloneState(workingState) };
+      });
+      setOpenReachabilityFirstStepKey(null);
+    });
   }
 
   function handleUndoStep2Execute() {
@@ -4297,7 +4416,7 @@ export default function App() {
             </div>
           )}
 
-          {reachabilityRows.length > 0 && (
+          {reachabilityDisplayGroups.length > 0 && (
             <table data-testid="reachability-table">
               <thead>
                 <tr>
@@ -4309,7 +4428,8 @@ export default function App() {
                 </tr>
               </thead>
               <tbody>
-                {reachabilityRows.map((row) => {
+                {reachabilityDisplayGroups.map((group) => {
+                  const row = group.representative;
                   const first = row.rule_sequence[0];
                   return (
                   <tr key={`assist-${row.rank}`}>
@@ -4328,9 +4448,62 @@ export default function App() {
                           : "n/a"}
                     </td>
                     <td>
-                      <button onClick={() => void handleExecuteHeadAssist(row)} disabled={loading}>
-                        先頭手を実行
-                      </button>
+                      <div className="step2-reachability-actions">
+                        <button onClick={() => void handleExecuteHeadAssist(row)} disabled={loading}>
+                          先頭手を実行
+                        </button>
+                        <button onClick={() => void handleExecuteHeadAssistAllSteps(row)} disabled={loading}>
+                          全手順を実行
+                        </button>
+                        {group.options.length > 1 && (
+                          <div className="step2-reachability-group-options">
+                            <p className="hint">
+                              同じ先頭手の候補が {group.options.length} 件あります。
+                            </p>
+                            <div className="row row-start">
+                              <button
+                                type="button"
+                                onClick={() => void handleExecuteHeadAssistAllSteps(row)}
+                                disabled={loading}
+                              >
+                                この候補をそのまま実行
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() =>
+                                  setOpenReachabilityFirstStepKey((prev) =>
+                                    prev === group.firstStepKey ? null : group.firstStepKey
+                                  )
+                                }
+                                disabled={loading}
+                              >
+                                {openReachabilityFirstStepKey === group.firstStepKey ? "候補リストを閉じる" : "リストから選ぶ"}
+                              </button>
+                            </div>
+                            {openReachabilityFirstStepKey === group.firstStepKey && (
+                              <ul className="step2-reachability-option-list">
+                                {group.options.map((option) => (
+                                  <li key={`assist-option-${group.firstStepKey}-${option.rank}`}>
+                                    <span>rank {option.rank} / {option.steps_to_goal}手</span>
+                                    <button
+                                      type="button"
+                                      onClick={() =>
+                                        void handleExecuteHeadAssistAllSteps(option, {
+                                          rankOverride: option.rank,
+                                          stepsOverride: option.rule_sequence
+                                        })
+                                      }
+                                      disabled={loading}
+                                    >
+                                      この候補を実行
+                                    </button>
+                                  </li>
+                                ))}
+                              </ul>
+                            )}
+                          </div>
+                        )}
+                      </div>
                     </td>
                   </tr>
                 );})}
