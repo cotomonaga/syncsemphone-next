@@ -4300,6 +4300,42 @@ export default function App() {
               <p className="hint">
                 選択中 left/right: {selectedLeft ?? "-"} / {selectedRight ?? "-"}
               </p>
+              <div className="step2-tree-tools" data-testid="step2-tree-tools">
+                <button
+                  type="button"
+                  className="step0-start-btn step2-tree-btn"
+                  onClick={() => {
+                    void handleTree("tree_cat");
+                  }}
+                  disabled={loading || !state}
+                  data-testid="step2-tree-cat-btn"
+                >
+                  樹形図（範疇蘇生）
+                </button>
+                <button
+                  type="button"
+                  className="step0-start-btn step2-tree-btn"
+                  onClick={() => {
+                    void handleTree("tree");
+                  }}
+                  disabled={loading || !state}
+                  data-testid="step2-tree-index-btn"
+                >
+                  樹形図（指標番号）
+                </button>
+              </div>
+              {(treeCatCsv.trim() !== "" || treeCsv.trim() !== "") && (
+                <div className="step2-tree-preview" data-testid="step2-tree-preview">
+                  <details open>
+                    <summary>樹形図（範疇蘇生）</summary>
+                    <pre className="step2-tree-preview-body">{treeCatCsv || "(未生成)"}</pre>
+                  </details>
+                  <details open>
+                    <summary>樹形図（指標番号）</summary>
+                    <pre className="step2-tree-preview-body">{treeCsv || "(未生成)"}</pre>
+                  </details>
+                </div>
+              )}
             </div>
           ) : (
             <p className="hint">state が未初期化です。Step1で Numeration を形成してください。</p>
