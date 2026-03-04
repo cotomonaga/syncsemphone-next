@@ -1,0 +1,21 @@
+[Unit]
+Description=syncsemphone-next FastAPI service
+After=network.target
+
+[Service]
+Type=simple
+User=__APP_USER__
+Group=__APP_GROUP__
+WorkingDirectory=/opt/syncsemphone-next/current/apps/api
+EnvironmentFile=/etc/syncsemphone-next/api.env
+Environment=PYTHONUNBUFFERED=1
+ExecStart=/opt/syncsemphone-next/venv/bin/uvicorn app.main:app --host 127.0.0.1 --port __API_PORT__ --proxy-headers --forwarded-allow-ips=127.0.0.1
+Restart=always
+RestartSec=3
+TimeoutStartSec=30
+TimeoutStopSec=20
+NoNewPrivileges=true
+PrivateTmp=true
+
+[Install]
+WantedBy=multi-user.target
