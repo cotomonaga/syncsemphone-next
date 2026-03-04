@@ -991,7 +991,7 @@ button:disabled {
   padding: 8px 12px;
 }
 
-.step2-tree-preview {
+.step2-tree-graph-panel {
   margin-top: 8px;
   border: 1px solid var(--line);
   border-radius: 8px;
@@ -999,23 +999,18 @@ button:disabled {
   background: #f7fafc;
 }
 
-.step2-tree-preview details + details {
-  margin-top: 6px;
-}
-
-.step2-tree-preview summary {
-  cursor: pointer;
+.step2-tree-graph-title {
+  margin: 0 0 6px;
   color: var(--ink-soft);
   font-size: 0.84rem;
 }
 
-.step2-tree-preview-body {
-  margin: 6px 0 0;
-  white-space: pre-wrap;
-  word-break: break-word;
-  font-family: "Menlo", "Monaco", monospace;
-  font-size: 0.72rem;
-  line-height: 1.35;
+.step2-tree-graph-scroll {
+  overflow: auto;
+  background: #fff;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  padding: 4px;
 }
 
 .step2-reachability-actions {

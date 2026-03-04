@@ -971,6 +971,48 @@ function buildTreeRenderModel(csvText: string): { model: TreeRenderModel; dotTex
   };
 }
 
+function renderTreeGraphSvg(model: TreeRenderModel, testId: string): JSX.Element {
+  const nodeById = new Map(model.nodes.map((node) => [node.id, node]));
+  return (
+    <svg width={model.width} height={model.height} data-testid={testId}>
+      {model.edges.map((edge) => {
+        const from = nodeById.get(edge.from);
+        const to = nodeById.get(edge.to);
+        if (!from || !to) {
+          return null;
+        }
+        return (
+          <line
+            key={`${edge.from}-${edge.to}`}
+            x1={from.x + 70}
+            y1={from.y + 50}
+            x2={to.x + 70}
+            y2={to.y}
+            stroke={edge.color}
+            strokeWidth={2}
+          />
+        );
+      })}
+      {model.nodes.map((node) => (
+        <g key={`node-${node.id}`}>
+          <rect x={node.x} y={node.y} width={140} height={56} fill="#fff" stroke="#444" />
+          {node.labelLines.map((line, index) => (
+            <text
+              key={`label-${node.id}-${index}`}
+              x={node.x + 8}
+              y={node.y + 18 + index * 14}
+              fontSize={12}
+              fontFamily="monospace"
+            >
+              {line}
+            </text>
+          ))}
+        </g>
+      ))}
+    </svg>
+  );
+}
+
 export default function App() {
   const [uiMode, setUiMode] = useState<UiMode>("renewed");
   const [legacyFrameReloadTick, setLegacyFrameReloadTick] = useState(0);
@@ -4324,16 +4366,14 @@ export default function App() {
                   樹形図（指標番号）
                 </button>
               </div>
-              {(treeCatCsv.trim() !== "" || treeCsv.trim() !== "") && (
-                <div className="step2-tree-preview" data-testid="step2-tree-preview">
-                  <details open>
-                    <summary>樹形図（範疇蘇生）</summary>
-                    <pre className="step2-tree-preview-body">{treeCatCsv || "(未生成)"}</pre>
-                  </details>
-                  <details open>
-                    <summary>樹形図（指標番号）</summary>
-                    <pre className="step2-tree-preview-body">{treeCsv || "(未生成)"}</pre>
-                  </details>
+              {treeGraph && (
+                <div className="step2-tree-graph-panel" data-testid="step2-tree-graph-panel">
+                  <p className="step2-tree-graph-title">
+                    表示中: {activeTreeMode === "tree_cat" ? "樹形図（範疇蘇生）" : "樹形図（指標番号）"}
+                  </p>
+                  <div className="step2-tree-graph-scroll">
+                    {renderTreeGraphSvg(treeGraph, "step2-tree-graph")}
+                  </div>
                 </div>
               )}
             </div>
@@ -4617,42 +4657,7 @@ export default function App() {
           </label>
           {treeGraph && (
             <div style={{ overflow: "auto" }}>
-              <svg width={treeGraph.width} height={treeGraph.height} data-testid="tree-graph">
-                {treeGraph.edges.map((edge) => {
-                  const from = treeGraph.nodes.find((node) => node.id === edge.from);
-                  const to = treeGraph.nodes.find((node) => node.id === edge.to);
-                  if (!from || !to) {
-                    return null;
-                  }
-                  return (
-                    <line
-                      key={`${edge.from}-${edge.to}`}
-                      x1={from.x + 70}
-                      y1={from.y + 50}
-                      x2={to.x + 70}
-                      y2={to.y}
-                      stroke={edge.color}
-                      strokeWidth={2}
-                    />
-                  );
-                })}
-                {treeGraph.nodes.map((node) => (
-                  <g key={`node-${node.id}`}>
-                    <rect x={node.x} y={node.y} width={140} height={56} fill="#fff" stroke="#444" />
-                    {node.labelLines.map((line, index) => (
-                      <text
-                        key={`label-${node.id}-${index}`}
-                        x={node.x + 8}
-                        y={node.y + 18 + index * 14}
-                        fontSize={12}
-                        fontFamily="monospace"
-                      >
-                        {line}
-                      </text>
-                    ))}
-                  </g>
-                ))}
-              </svg>
+              {renderTreeGraphSvg(treeGraph, "tree-graph")}
             </div>
           )}
         </section>
