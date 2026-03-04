@@ -1343,6 +1343,18 @@ td {
   color: #fff;
 }
 
+.renew-menu-btn-structure {
+  background: #c53232;
+  color: #fff;
+  border-color: #ad2828;
+}
+
+.renew-menu-btn-structure.active {
+  background: #9f1f1f;
+  color: #fff;
+  border-color: #8e1b1b;
+}
+
 .renew-main {
   min-width: 0;
 }

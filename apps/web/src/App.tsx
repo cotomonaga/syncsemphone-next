@@ -164,7 +164,7 @@ const RENEW_MENUS: Array<{
 }> = [
   {
     key: "hypothesis",
-    label: "導出ワークフロー",
+    label: "構造を構築",
     steps: [
       { key: "setup", label: "【Step.1】LexiconとGrammarの選択" },
       { key: "sentence", label: "【Step.2】Numerationの形成" },
@@ -173,7 +173,7 @@ const RENEW_MENUS: Array<{
   },
   {
     key: "reference",
-    label: "マージルールの確認",
+    label: "Grammarの確認",
     steps: [
       { key: "grammarInspect", label: "文法規則の内容確認" },
       { key: "lexiconInspect", label: "語彙の内容確認" },
@@ -182,13 +182,13 @@ const RENEW_MENUS: Array<{
   },
   {
     key: "lexicon",
-    label: "語彙の編集",
-    steps: [{ key: "lexicon", label: "語彙の編集" }]
+    label: "Lexiconの編集",
+    steps: [{ key: "lexicon", label: "Lexiconの編集" }]
   },
   {
     key: "numeration",
-    label: "Numerationの編集",
-    steps: [{ key: "numeration", label: "Numerationの編集" }]
+    label: "Numファイルの編集",
+    steps: [{ key: "numeration", label: "Numファイルの編集" }]
   }
 ];
 
@@ -3899,7 +3899,13 @@ export default function App() {
               <button
                 key={`menu-${menu.key}`}
                 type="button"
-                className={renewMenu === menu.key ? "renew-menu-btn active" : "renew-menu-btn"}
+                className={[
+                  "renew-menu-btn",
+                  menu.key === "hypothesis" ? "renew-menu-btn-structure" : "",
+                  renewMenu === menu.key ? "active" : ""
+                ]
+                  .filter((name) => name.length > 0)
+                  .join(" ")}
                 onClick={() => handleSelectRenewMenu(menu.key)}
               >
                 {menu.label}
@@ -4339,7 +4345,7 @@ export default function App() {
         </section>
 
         <section className="card" data-panel="numeration">
-          <h2>Numerationの編集</h2>
+          <h2>Numファイルの編集</h2>
           <p className="hint">タブ区切り `.num` を直接編集し、下部で語彙情報参照を確認できます。</p>
 
           <input
