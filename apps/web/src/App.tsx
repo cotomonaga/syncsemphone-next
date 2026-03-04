@@ -38,7 +38,7 @@ type UiMode = "legacy" | "renewed";
 type TokenInputMode = "manual" | "auto";
 type Step1EntryMode = "example_sentence" | "upload_num" | "build_lexicon";
 type ReferenceDocTab = "feature" | "rule";
-type RenewMenu = "hypothesis" | "reference" | "lexicon";
+type RenewMenu = "hypothesis" | "reference" | "lexicon" | "numeration";
 type RenewPanel =
   | "setup"
   | "sentence"
@@ -164,17 +164,16 @@ const RENEW_MENUS: Array<{
 }> = [
   {
     key: "hypothesis",
-    label: "仮説検証ステップ",
+    label: "導出ワークフロー",
     steps: [
       { key: "setup", label: "【Step.1】LexiconとGrammarの選択" },
       { key: "sentence", label: "【Step.2】Numerationの形成" },
-      { key: "target", label: "【Step.3】Grammarの適用" },
-      { key: "numeration", label: "補助：Numeration編集" }
+      { key: "target", label: "【Step.3】Grammarの適用" }
     ]
   },
   {
     key: "reference",
-    label: "素性とルールの確認",
+    label: "マージルールの確認",
     steps: [
       { key: "grammarInspect", label: "文法規則の内容確認" },
       { key: "lexiconInspect", label: "語彙の内容確認" },
@@ -185,6 +184,11 @@ const RENEW_MENUS: Array<{
     key: "lexicon",
     label: "語彙の編集",
     steps: [{ key: "lexicon", label: "語彙の編集" }]
+  },
+  {
+    key: "numeration",
+    label: "Numerationの編集",
+    steps: [{ key: "numeration", label: "Numerationの編集" }]
   }
 ];
 
@@ -3904,7 +3908,7 @@ export default function App() {
           </aside>
 
           <section className="renew-main">
-            {activeRenewMenu.key !== "lexicon" && (
+            {activeRenewMenu.steps.length > 1 && (
               <div className="renew-topnav">
                 {activeRenewMenu.steps.map((step) => (
                   <button
@@ -4335,7 +4339,7 @@ export default function App() {
         </section>
 
         <section className="card" data-panel="numeration">
-          <h2>Numeration編集</h2>
+          <h2>Numerationの編集</h2>
           <p className="hint">タブ区切り `.num` を直接編集し、下部で語彙情報参照を確認できます。</p>
 
           <input

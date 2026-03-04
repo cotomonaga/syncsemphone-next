@@ -1379,7 +1379,8 @@ td {
 .renew-topnav {
   display: flex;
   gap: 8px;
-  flex-wrap: wrap;
+  flex-wrap: nowrap;
+  overflow-x: auto;
   margin-bottom: 10px;
 }
 
@@ -1406,8 +1407,6 @@ td {
 .renewed-grid[data-active-panel="setup"] .card[data-panel="setup"],
 .renewed-grid[data-active-panel="numeration"] .card[data-panel="numeration"],
 .renewed-grid[data-active-panel="target"] .card[data-panel="target"],
-.renewed-grid[data-active-panel="observation"] .card[data-panel="observation"],
-.renewed-grid[data-active-panel="resume"] .card[data-panel="resume"],
 .renewed-grid[data-active-panel="grammarInspect"] .card[data-panel="grammarInspect"],
 .renewed-grid[data-active-panel="lexiconInspect"] .card[data-panel="lexiconInspect"],
 .renewed-grid[data-active-panel="ruleCompare"] .card[data-panel="ruleCompare"],
