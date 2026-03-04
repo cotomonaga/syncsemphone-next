@@ -225,6 +225,23 @@ function encodeNumerationTextLikePerl(text: string): string {
   return text.replace(/\t/g, "\\t");
 }
 
+function inferGrammarIdFromNumerationPath(
+  filePath: string,
+  grammarOptions: GrammarOption[]
+): string | null {
+  const normalized = filePath.replace(/\\/g, "/");
+  for (const option of grammarOptions) {
+    const folder = option.folder.replace(/\\/g, "/");
+    if (
+      normalized.includes(`/${folder}/set-numeration/`) ||
+      normalized.includes(`/${folder}/numeration/`)
+    ) {
+      return option.grammar_id;
+    }
+  }
+  return null;
+}
+
 function buildReachabilityFirstStepKey(row: ReachabilityEvidence): string {
   const first = row.rule_sequence[0];
   if (!first) {
@@ -2254,11 +2271,13 @@ export default function App() {
       setStep1ExampleNumerationText("");
       return;
     }
+    const requestGrammarId =
+      inferGrammarIdFromNumerationPath(path, grammarOptions) || grammarId;
     try {
       const response = await apiPost<{ path: string; numeration_text: string; memo: string }>(
         "/v1/derivation/numeration/load",
         {
-          grammar_id: grammarId,
+          grammar_id: requestGrammarId,
           path
         }
       );
@@ -2581,11 +2600,13 @@ export default function App() {
       setError("読み込む .num ファイルを選択してください。");
       return;
     }
+    const requestGrammarId =
+      inferGrammarIdFromNumerationPath(path, grammarOptions) || grammarId;
     await withLoading(async () => {
       const response = await apiPost<{ path: string; numeration_text: string; memo: string }>(
         "/v1/derivation/numeration/load",
         {
-          grammar_id: grammarId,
+          grammar_id: requestGrammarId,
           path
         }
       );
@@ -2593,6 +2614,12 @@ export default function App() {
       setSentence(response.memo || sentence);
       setNumerationEditorPath(response.path);
       setArrangeRows([]);
+      if (grammarId !== requestGrammarId) {
+        setGrammarId(requestGrammarId);
+      }
+      if (setupGrammarId !== requestGrammarId) {
+        setSetupGrammarId(requestGrammarId);
+      }
     });
   }
 
