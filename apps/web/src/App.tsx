@@ -1216,6 +1216,7 @@ export default function App() {
   const [treeSourceCsv, setTreeSourceCsv] = useState("");
   const [treeDot, setTreeDot] = useState("");
   const [treeGraph, setTreeGraph] = useState<TreeRenderModel | null>(null);
+  const [isStep2TreeVisible, setIsStep2TreeVisible] = useState(false);
   const [isStep2TreeInfoOpen, setIsStep2TreeInfoOpen] = useState(false);
   const [step2TreeInfoCopyStatus, setStep2TreeInfoCopyStatus] = useState("");
 
@@ -3001,6 +3002,20 @@ export default function App() {
       setError("観察対象の state がありません。");
       return;
     }
+    if (isStep2TreeVisible && activeTreeMode === mode) {
+      setIsStep2TreeVisible(false);
+      setIsStep2TreeInfoOpen(false);
+      setStep2TreeInfoCopyStatus("");
+      return;
+    }
+    const cachedCsv = mode === "tree" ? treeCsv : treeCatCsv;
+    if (cachedCsv.trim() !== "") {
+      setActiveTreeMode(mode);
+      setTreeSourceCsv(cachedCsv);
+      applyTreeConversion(cachedCsv);
+      setIsStep2TreeVisible(true);
+      return;
+    }
     await withLoading(async () => {
       const response = await apiPost<ObservationTreeResponse>("/v1/observation/tree", {
         state,
@@ -3014,6 +3029,7 @@ export default function App() {
       setActiveTreeMode(mode);
       setTreeSourceCsv(response.csv_text);
       applyTreeConversion(response.csv_text);
+      setIsStep2TreeVisible(true);
     });
   }
 
@@ -4500,7 +4516,7 @@ export default function App() {
                   樹形図（指標番号）
                 </button>
               </div>
-              {treeGraph && (
+              {isStep2TreeVisible && treeGraph && (
                 <div className="step2-tree-graph-panel" data-testid="step2-tree-graph-panel">
                   <div className="step2-tree-graph-head">
                     <p className="step2-tree-graph-title">
