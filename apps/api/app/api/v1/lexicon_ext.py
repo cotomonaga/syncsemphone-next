@@ -181,7 +181,14 @@ def _default_legacy_root() -> Path:
     env_value = os.getenv("SYNCSEMPHONE_LEGACY_ROOT")
     if env_value:
         return Path(env_value).expanduser().resolve()
-    return Path(__file__).resolve().parents[6]
+    repo_root = Path(__file__).resolve().parents[5]
+    bundled_root = repo_root / "legacy"
+    if bundled_root.exists():
+        return bundled_root
+    legacy_parent = Path(__file__).resolve().parents[6]
+    if (legacy_parent / "grammar-list.pl").exists():
+        return legacy_parent
+    return bundled_root
 
 
 def _project_root() -> Path:

@@ -22,8 +22,23 @@ python -m pip install -e '.[dev]'
 uvicorn app.main:app --reload
 ```
 
-`SYNCSEMPHONE_LEGACY_ROOT` can be set to the Perl資産ルート（既定はこのリポジトリ親ディレクトリ）。
+Perl資産はこのリポジトリ配下 `legacy/` に同梱されています。
+`SYNCSEMPHONE_LEGACY_ROOT` を未設定の場合、API/Domain は `./legacy` を既定参照します。
+（必要があれば `SYNCSEMPHONE_LEGACY_ROOT` で外部パスへ上書き可能）
 `SYNCSEMPHONE_META_DB_URL`（または `DATABASE_URL`）を設定すると、Lexicon拡張API（value-dictionary / num-links / notes）がPostgreSQLを利用します。
+
+## Quick Start (Web)
+```bash
+cd apps/web
+npm install
+npm run dev
+```
+
+既定では次の URL で利用します。
+- API: `http://127.0.0.1:8000`
+- Web: `http://127.0.0.1:5173`
+
+この状態で、Legacy UI / Renewed UI の両方を同一リポジトリだけで起動できます。
 
 ## Test (API + Domain)
 ```bash

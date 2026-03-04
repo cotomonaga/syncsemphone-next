@@ -1,0 +1,147 @@
+2 	大きい		A	0 				0 						0,24	1 	大きい	＿												0
+3 	かわいい		A	0 				0 						0,24	1 	かわいい	＿												0
+6 	黄色い		A	0 				0 						0,24	1 	黄色い	＿												0
+8 	白い		A	0 				0 						0,24	1 	白い	＿												0
+10 	すごい		A	0 				0 						0,24	1 	すごい	＿												0
+12 	長い		A	0 				0 						0,24	1 	長い	＿												0
+14 	激しい		A	0 				0 						0,24	1 	激しい	＿												0
+15 	安い		A	0 				0 						0,24	1 	安い	＿												0
+18 	若い		A	0 				0 						0,24	1 	若い	＿												0
+21 	の		J	0 				2	2,1,N	2,2L,N				zero	0 														0
+22 	は		J	0 				0 						zero	0 														0
+24 	アメリカ人		N	0 				0 						id	1 	Kind	アメリカ人												0
+25 	医者		N	0 				0 						id	1 	Kind	医者												0
+26 	椅子		N	0 				0 						id	1 	Kind	椅子												0
+27 	犬		N	0 				0 						id	1 	Kind	犬												0
+28 	色		N	0 				0 						id	2 	Host	0,24	Kind	色										0
+29 	院生		N	0 				0 						id	1 	Kind	院生												0
+30 	上		N	0 				0 						id	2 	Host	0,24	Kind	上										0
+31 	大雨		N	0 				0 						id	1 	Kind	大雨												0
+32 	奥さん		N	0 				0 						id	2 	Host	0,24	Kind	奥さん										0
+33 	教え子		N	0 				0 						id	2 	Host	0,24	Kind	教え子										0
+34 	弟		N	0 				0 						id	2 	Host	0,24	Kind	弟										0
+35 	男の子		N	0 				0 						id	1 	Kind	男の子												0
+36 	オレンジ		N	0 				0 						id	1 	Kind	オレンジ												0
+37 	女の子		N	0 				0 						id	1 	Kind	女の子												0
+38 	か		N	0 				0 						id	1 	Focus	2,27,ind												0
+39 	学生		N	0 				0 						id	1 	Kind	学生												0
+40 	学長		N	0 				0 						id	2 	Host	0,24	Kind	学長										0
+41 	家族		N	0 				0 						id	2 	Host	0,24	Kind	家族										0
+42 	かなりの数		N	0 				0 						0,24	1 	Quantity	かなり												0
+43 	花びん		N	0 				0 						id	1 	Kind	花びん												0
+44 	彼		N	0 				0 						id	1 	Kind	男性												0
+45 	ギター		N	0 				0 						id	1 	Kind	ギター												0
+46 	京都		N	0 				0 						id	1 	Name	京都												0
+47 	靴		N	0 				0 						id	1 	Kind	靴												0
+48 	車		N	0 				0 						id	1 	Kind	車												0
+49 	現役力士		N	0 				0 						id	1 	Kind	現役力士												0
+50 	個		N	0 				1 	2,1,Num					2,22	2 	Quantitiy	0,24	Kind	個で数える										0
+51 	こと		N	0 				0 						id	1 	Kind	こと												0
+52 	サイズ		N	0 				0 						id	2 	Host	0,24	Kind	サイズ										0
+53 	冊		N	0 				1 	2,1,Num					2,22	2 	Quantitiy	0,24	Kind	冊で数える										0
+54 	皿		N	0 				0 						id	1 	Kind	皿												0
+55 	３人		N	0 				0 						0,24	2 	Quantity	3	Kind	人										0
+56 	実兄		N	0 				0 						id	2 	Host	0,24	Kind	実兄										0
+57 	自分		N	0 				1 	3,103					zero	0 														0
+58 	写真		N	0 				0 						id	1 	Kind	写真												0
+59 	上々		N	0 				0 						0,24	1 	上々	＿												0
+60 	ジョン		N	0 				0 						id	1 	Name	ジョン												0
+61 	スケートボード		N	0 				0 						id	1 	Kind	スケートボード												0
+62 	素敵		N	0 				0 						0,24	1 	素敵	＿												0
+63 	セーター		N	0 				0 						id	1 	Kind	セーター												0
+64 	先生		N	0 				0 						id	1 	Kind	先生												0
+65 	象		N	0 				0 						id	1 	Kind	象												0
+66 	そこ		N	0 				1 	3,103					zero	0 														0
+67 	大学		N	0 				0 						id	1 	Kind	大学												0
+68 	大学教授		N	0 				0 						id	1 	Kind	大学教授												0
+69 	大学生		N	0 				0 						id	1 	Kind	大学生												0
+70 	たくさん		N	0 				0 						0,24	1 	Quantity	たくさん												0
+71 	棚		N	0 				0 						id	1 	Kind	棚												0
+72 	誰		N	0 				2 	3,53,ind,id	3,101				id	2 	Kind	人	Identity	unknown										0
+73 	チーム		N	0 				0 						id	1 	Kind	チーム												0
+74 	長男		N	0 				0 						id	2 	Kind	長男	Host	＿										0
+75 	長男		N	0 				0 						id	2 	Host	0,24	Kind	長男										0
+76 	特大		N	0 				0 						0,24	1 	特大	＿												0
+77 	どこ		N	0 				2 	3,53,ind,id	3,101				id	2 	Kind	団体	Identity	unknown										0
+78 	床屋		N	0 				0 						id	1 	Kind	床屋												0
+79 	突然		N	0 				0 						0,24	1 	突然	＿												0
+80 	鳥		N	0 				0 						id	1 	Kind	鳥												0
+81 	何		N	0 				2 	3,53,ind,id	3,101				id	2 	Kind	人	Identity	unknown										0
+82 	日本		N	0 				0 						id	2 	Name	日本	Kind	国										0
+83 	人		N	0 				1 	2,1,Num					2,22	2 	Quantity	0,24	Kind	人										0
+84 	年齢		N	0 				0 						id	2 	Host	0,24	Kind	年齢										0
+85 	の		N	0 				0 						id	0 														0
+86 	パーティ		N	0 				0 						id	1 	Kind	パーティ												0
+87 	バイト		N	0 				0 						id	1 	Kind	バイト												0
+88 	箱		N	0 				0 						id	1 	Kind	箱												0
+89 	パソコン		N	0 				0 						id	1 	Kind	パソコン												0
+90 	鼻		N	0 				0 						id	2 	Host	0,24	Kind	鼻										0
+91 	バラ		N	0 				0 						id	1 	Kind	バラ												0
+92 	ひげ		N	0 				0 						id	2 	Host	0,24	Kind	ひげ										0
+93 	人		N	0 				0 						id	1 	Kind	人												0
+94 	ビル		N	0 				0 						id	1 	Name	ビル												0
+95 	２人		N	0 				0 						0,24	2 	Quantity	2	Kind	人										0
+96 	フロリダ産		N	0 				0 						0,24	1 	産地	フロリダ												0
+97 	帽子		N	0 				0 						id	1 	Kind	帽子												0
+98 	ポスター		N	0 				0 						id	1 	Kind	ポスター												0
+99 	ほとんど		N	0 				0 						id	2 	Host	0,24	占有率	ほとんど										0
+100 	本		N	0 				1 	2,1,Num					2,22	2 	Quantity	0,24	Kind	本で数える										0
+101 	みんな		N	0 				0 						id	2 	Kind	人	数	複数										0
+102 	村人		N	0 				0 						id	1 	Kind	村人												0
+103 	メアリ		N	0 				0 						id	1 	Name	メアリ												0
+104 	めがね		N	0 				0 						id	1 	Kind	めがね												0
+105 	木製		N	0 				0 						0,24	1 	材質	木												0
+106 	元力士		N	0 				0 						id	1 	Kind	元力士												0
+107 	誘惑		N	0 				0 						id	3 	Kind	誘惑	Theme	＿	Agent	＿								0
+108 	リボン		N	0 				0 						id	1 	Kind	リボン												0
+112 	も		P	1 	id	2,27,ind	0,21	1 	3,56,id					zero	0 														0
+113 	何人		N	0 				2 	3,52,ind	3,101				0,24	2 	Kind	人	Quantity	unknown										0
+114 	い	-i	T	0 				1 	2,1,A					0,24	1 	Time	present												0
+115 	かった	-katta	T	0 				1 	2,1,A					0,24	1 	Time	perfect												0
+116 	た	-ta	T	0 				1 	2,1,V					0,24	1 	Time	perfect												0
+117 	だ		T	0 				2 	2,1,N	da				0,24	1 	Time	present												0
+118 	だった		T	0 				2 	2,1,N	da				0,24	1 	Time	perfect												0
+120 	て	-te	T	0 				1 	2,1,V					zero	0 														0
+121 	でした		T	0 				2 	2,1,N	da				0,24	1 	Time	perfect												0
+123 	です		T	0 				2 	2,1,N	da				0,24	1 	Time	present												0
+125 	る	-ru	T	0 				1 	2,1,V					0,24	1 	Time	present												0
+140 	させ	-sase-	V	0 				1 	1,6,sase1,sase2,					0,24	1 	Causer	2,25,ga												0
+141 	sase	-sase-	V	0 				1 	1,6,sase1,sase2,					0,24	1 	Causer	2,25,ga												0
+152 	食べる		V	0 				0 						id	4 	Theme	2,25,wo	Agent	2,25,ga	Kind	食べる	Time	present						0
+157 	向かう	mukaw-	V	0 				0 						id	3 	Goal	2,25,ni	Agent	2,25,ga	Kind	向かう							Agentive 	0
+158 	向かう	mukaw-	V	0 				0 						id	3 	Goal	2,25,ni	Theme	2,25,ga	Kind	向かう							Non-Agentive	0
+159 	誘惑する		V	0 				0 						id	4 	Theme	2,25,wo	Agent	2,25,ga	Kind	誘惑する	Time	present						0
+160 	られ	-rare-	V	0 				2 	1,5,rare2	rare2				zero	0 													argument-reducing (rare2)	0
+161 	られ	-rare-	V	0 				2 	1,5,rare1	rare1				0,24	1 	Affectee	2,25,ga											argument-taking(rare1)	0
+162 	かなり		Z	0 				0 						0,24	1 	Degree	かなり												0
+163 	から		Z	0 				1 	2,1,N					0,23	1 	Source	0,24												0
+164 	極端に		Z	0 				0 						0,24	1 	Degree	極端												0
+165 	少しだけ		Z	0 				0 						0,24	1 	Degree	少しだけ												0
+166 	そこそこ		Z	0 				0 						0,24	1 	Degree	そこそこ												0
+167 	大切な		Z	0 				0 						0,24	1 	大切	＿												0
+168 	で		Z	0 				1 	2,1,N					0,23	1 	Instrument	0,24											道具	0
+169 	で		Z	0 				1 	2,1,N					0,23	1 	Location	0,24											場所	0
+170 	で		Z	0 				1 	2,1,N					0,23	1 	Reason	0,24											理由	0
+171 	と		Z	0 				1 	to					0,23	1 	Content	0,24												0
+172 	とともに		Z	0 				1 	2,1,N					0,23	1 	Concomitant	0,24												0
+173 	どの		Z	0 				3 	3,52,ind	2,1,N	3,101			0,24	1 	Identitｙ	unknown												0
+174 	に		Z	0 				1 	2,1,N					0,23	1 	Agent	0,24											後置詞としてのニ	0
+175 	において		Z	0 				1 	2,1,N					0,23	1 	Location	0,24												0
+176 	について		Z	0 				1 	2,1,N					0,23	1 	Topic	0,24												0
+177 	によって		Z	0 				1 	2,1,N					0,23	1 	Agent	0,24											Agent	0
+178 	によって		Z	0 				1 	2,1,N					0,23	1 	Cause	0,24											Cause	0
+179 	本当に		Z	0 				0 						0,24	1 	本当に	＿												0
+180 	ゆっくりと		Z	0 				0 						0,24	1 	ゆっくり	＿												0
+181 	を		Z	0 				3 	2,1,N	2,3L,V	wo			0,23	1 	状況	0,24												0
+182 	推薦した		V	0 				0 						id	4 	Theme	2,25,wo	Agent	2,25,ga	Kind	推薦する	Time	perfect						0
+185 	すぎた		V	0 				0 						2,27,target	1 	Degree	過剰												0
+186 	落ちた		V	0 				0 						id	3 	Theme	2,25,ga	Kind	落ちる	Time	perfect								0
+187 	追いかけていた		V	0 				0 						id	4 	Theme	2,25,wo	Agent	2,25,ga	Kind	追いかける	Time	progressive perfect						0
+188 	ハンカチ		N	0 				0 						id	1 	Kind	ハンカチ												0
+189 	追いかけた		V	0 				0 						id	4 	Theme	2,25,wo	Agent	2,25,ga	Kind	追いかける	Time	perfect						0
+190 	花		N	0 				0 						id	1 	Kind	花												0
+191 	愛する		V	0 				0 						id	4 	Theme	2,25,wo	Agent	2,25,ga	Kind	愛する	Time	present						0
+192 	川		N	0 				0 						id	1 	Kind	川												0
+193 	流れる		V	0 				0 						id	3 	Agent	2,25,ga	Kind	流れる	Time	present								0
+194 	愛しい		A	0 				0 						0,24	1 	愛しい	＿												0
+196 	追いかけ		V	0 				0 						id	3 	Theme	2,25,wo	Agent	2,25,ga	Kind	追いかける								0

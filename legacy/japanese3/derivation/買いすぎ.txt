@@ -1,0 +1,25 @@
+japanese3
+ƒƒAƒŠ‚ªˆÀ‚¢–Xq‚ğ”ƒ‚¢‚·‚¬‚½(target=–Xq)
+9
+3
+([x1-1 x2-1] J-Merge) ([x3-1 x4-1] Merge) ([x4-1 x5-1] J-Merge) ([x4-1 x6-1] Merge) ([x1-1 x6-1] Merge) 
+[null,["x6-1","V",null,["","A=target=x4-1"],"x6-1",[null,"Theme:x4-1","Agent:x1-1","Kind:”ƒ‚¤","Quantity:Q","Frequency:Q","Time:Perfect"],[["x1-1","NP",[],["",null,"","","ga",""],"x1-1",[null,"Name:ƒƒAƒŠ"],[["x1-1","N","",[""],"zero","zero","ƒƒAƒŠ"],["x2-1","J",[],["","","","",""],"zero",[],"‚ª"]]],["x6-1","V","",["",""],"zero","zero",[["x4-1","NP",[],["",null,"","","wo","",""],"x4-1",[null,"Kind:–Xq"],[["x4-1","N","",[""],"zero","zero",[["x3-1","A",[],[""],"x4-1",[null,"ˆÀ‚¢:Q"],"ˆÀ‚¢"],["x4-1","N","",[""],"zero","zero","–Xq"]]],["x5-1","J",[],["","","","","",""],"zero",[],"‚ğ"]]],["x6-1","V","",[""],"zero","zero","”ƒ‚¢"]]]]],["x7-1","V",null,[""],"H=black=A,target,xn",[null,"Degree:‰ßè"],"sugi-"],["x8-1","T",null,[null,"0=0=V",""],"H=black=0",[null,"Time:perfect"],"-ta"]]
+
+
+
+japanese3
+ƒƒAƒŠ‚ªˆÀ‚¢–Xq‚ğ”ƒ‚¢‚·‚¬‚½(target=–Xq)
+10
+2
+([x1-1 x2-1] J-Merge) ([x3-1 x4-1] Merge) ([x4-1 x5-1] J-Merge) ([x4-1 x6-1] Merge) ([x1-1 x6-1] Merge) ([x6-1 x7-1] Merge) 
+[null,["x7-1","V",null,["","A=target=x4-1"],"x4-1",[null,"Degree:‰ßè","ƒ¿<sub>9</sub>:x6-1"],[["x6-1","V",[],["",""],"x6-1",[null,"Theme:x4-1","Agent:x1-1","Kind:”ƒ‚¤","Quantity:Q","Frequency:Q","Time:Perfect"],[["x1-1","NP",[],["",null,"","","ga",""],"x1-1",[null,"Name:ƒƒAƒŠ"],[["x1-1","N","",[""],"zero","zero","ƒƒAƒŠ"],["x2-1","J",[],["","","","",""],"zero",[],"‚ª"]]],["x6-1","V","",["",""],"zero","zero",[["x4-1","NP",[],["",null,"","","wo","",""],"x4-1",[null,"Kind:–Xq"],[["x4-1","N","",[""],"zero","zero",[["x3-1","A",[],[""],"x4-1",[null,"ˆÀ‚¢:Q"],"ˆÀ‚¢"],["x4-1","N","",[""],"zero","zero","–Xq"]]],["x5-1","J",[],["","","","","",""],"zero",[],"‚ğ"]]],["x6-1","V","",[""],"zero","zero","”ƒ‚¢"]]]]],["x7-1","V","",[""],"x4-1","zero","sugi-"]]],["x8-1","T",null,[null,"0=0=V",""],"H=black=0",[null,"Time:perfect"],"-ta"]]
+
+
+japanese3
+ƒƒAƒŠ‚ªˆÀ‚¢–Xq‚ğ”ƒ‚¢‚·‚¬‚½(target=–Xq)
+
+10
+2
+([x1-1 x2-1] J-Merge) ([x3-1 x4-1] Merge) ([x4-1 x5-1] J-Merge) ([x4-1 x6-1] Merge) ([x1-1 x6-1] Merge) 
+([x6-1 x7-1] Merge) 
+[null,["x7-1","V",null,["","A=target=x4-1"],"x4-1",[null,"Degree:‰ßè","ƒ¿<sub>9</sub>:x6-1"],[["x6-1","V",[],["",""],"x6-1",[null,"Theme:x4-1","Agent:x1-1","Kind:”ƒ‚¤","Quantity:Q","Frequency:Q","Time:Perfect"],[["x1-1","NP",[],["",null,"","","ga",""],"x1-1",[null,"Name:ƒƒAƒŠ"],[["x1-1","N","",[""],"zero","zero","ƒƒAƒŠ"],["x2-1","J",[],["","","","",""],"zero",[],"‚ª"]]],["x6-1","V","",["",""],"zero","zero",[["x4-1","NP",[],["",null,"","","wo","",""],"x4-1",[null,"Kind:–Xq"],[["x4-1","N","",[""],"zero","zero",[["x3-1","A",[],[""],"x4-1",[null,"ˆÀ‚¢:Q"],"ˆÀ‚¢"],["x4-1","N","",[""],"zero","zero","–Xq"]]],["x5-1","J",[],["","","","","",""],"zero",[],"‚ğ"]]],["x6-1","V","",[""],"zero","zero","”ƒ‚¢"]]]]],["x7-1","V","",[""],"x4-1","zero","sugi-"]]],["x8-1","T",null,[null,"0=0=V",""],"H=black=0",[null,"Time:perfect"],"-ta"]]

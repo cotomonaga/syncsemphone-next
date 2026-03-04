@@ -1,0 +1,265 @@
+/*1 general */
+
+.new {
+  color: #ffff00;
+  font-size:110%;
+  font-weight: bold;
+}
+.indent {
+  margin-left: 20pt;
+}
+
+.hide {
+  color: #FFFFFF;
+}
+
+.red {
+  color: #ff0000;
+}
+.darkred {
+  color: #bb0000;
+}
+.redback {
+  background: #ffddbb;
+}
+
+.blue {
+  color: #bbbbff;
+}
+.blueback {
+  background: #eeeeff;
+}
+
+.green {
+  color: #bbcc44;
+}
+.greenback {
+  background: #ddee88;
+}
+
+.orange {
+  color: #ffcc99;
+}
+.orangeback {
+  background: #ffeecc;
+}
+
+.canvas {
+  background: #ffffbb; 
+}
+p.right {
+  text-align: right;
+}
+input[type=radio] {
+    width: 25px;
+    height: 25px;
+    vertical-align: middle;
+}
+
+/*1 本文 */
+p {
+  margin: 0 0 0 20pt;
+  padding: 5px 5px 5px 10px;
+  font-family: "メイリオ", "Meiryo UI", sans-serif;
+}
+
+div {
+  margin: 5pt 20pt;
+  padding: 5px;
+  background: #FFFFBB;
+}
+
+
+/*1 feature 表示 */
+.f0 {  /* id */
+  font-weight: bold;
+}
+
+.f1 {  /* ca */
+  color: #009900;
+  font-weight: bold;
+  margin-right: 5pt;
+  margin-left: 5pt;
+}
+
+.f2 {  /* pr */
+  background: #ffeecc;
+}
+.fi2 {  /* pr_id */
+  background: #ddccaa;
+}
+.fs2 {  /* pr_Subject */
+  background: #eeddbb;
+}
+.fp2 {  /* pr_Predicate */
+  background: #ffeecc;
+  background: #eeddbb;
+}
+
+.f3 {  /* sy */
+}
+
+.f4 {  /* sl */
+  background: #aaccdd;
+  margin-left: 10pt;
+}
+
+.f5 {  /* se */
+  background: #eeeeff;
+}
+
+.f6 {  /* wo */
+  font-weight: bold;
+  color: #EE33CC;
+  margin-left: 10pt;
+}
+
+.f7 {  /* nb */
+  color: #994400;
+  margin-left: 10pt;
+}
+
+.memo {  /* memo */
+  font-weight: bold;
+  color: #994400;
+}
+
+.plus {
+  background: #ffbbbb;
+  padding-left: 10px;
+  padding-right: 10px;
+  margin-left: 10px;
+}
+
+.feature {  /* uninterpretable features */
+  font-weight: bold;
+  color: #ff0000;
+}
+
+/*1 base 表示 */
+.base0 {
+  margin-left: 20pt;
+}
+
+.base1 {
+  margin-left: 40pt;
+}
+
+.base2 {
+  margin-left: 60pt;
+}
+
+.base3 {
+  margin-left: 80pt;
+}
+
+.base4 {
+  margin-left: 100pt;
+}
+
+.base5 {
+  margin-left: 120pt;
+}
+
+.base6 {
+  margin-left: 140pt;
+}
+
+.base7 {
+  margin-left: 160pt;
+}
+
+.base8 {
+  margin-left: 180pt;
+}
+
+.base9 {
+  margin-left: 200pt;
+}
+
+.base10 {
+  margin-left: 220pt;
+}
+
+.base11 {
+  margin-left: 240pt;
+}
+
+.base12 {
+  margin-left: 260pt;
+}
+
+.base13 {
+  margin-left: 280pt;
+}
+
+.base14 {
+  margin-left: 300pt;
+}
+
+.base15 {
+  margin-left: 320pt;
+}
+
+.base16 {
+  margin-left: 340pt;
+}
+
+.base17 {
+  margin-left: 360pt;
+}
+
+.base18 {
+  margin-left: 380pt;
+}
+
+.base19 {
+  margin-left: 400pt;
+}
+
+
+/*1 意味表示 */
+.Predication {
+  background: #ccff88;
+  font-weight: bold;
+  padding: 0px 10px;
+}
+.object {
+  background: #ffbbbb;
+  font-weight: bold;
+  padding: 0px 10px;
+}
+.layer {
+  color: #ff4444;
+  font-weight: bold;
+  padding: 0px 10px;
+}
+
+/*1 rule 表示 */
+.head {
+  color: #a52a2a;  /*  brown  */
+}
+.nonhead {
+  color: #808000;  /*  olive  */
+}
+.attention {
+  font-weight: bold;
+  text-decoration: underline;
+}
+.del {
+  font-weight: bold;
+  text-decoration: line-through; /* 取り消し線 */
+}
+.pickup {
+  font-weight: bold;
+  color: #808000;
+  background: #EEEEEE;
+}
+.subject {
+  color: #008000;  /*  green  */
+}
+.predicate {
+  color: #000080;  /*  darkblue  */
+}
+
+
