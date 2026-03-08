@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState, type FormEvent, type PointerEvent } from "react";
+import { useEffect, useMemo, useRef, useState, type FormEvent, type PointerEvent, type ReactNode } from "react";
 import { apiGet, apiPost, parseManualTokens, setApiCsrfToken } from "./api";
 import LexiconWorkbench from "./LexiconWorkbench";
 import type {
@@ -34,6 +34,7 @@ import type {
 type SnapshotSlot = "T0" | "T1" | "T2";
 type BranchSlot = "A" | "B";
 type TreeMode = "tree" | "tree_cat";
+type ObservationMode = TreeMode | "lf" | "sr";
 type UiMode = "legacy" | "renewed";
 type TokenInputMode = "manual" | "auto";
 type Step1EntryMode = "example_sentence" | "upload_num" | "build_lexicon";
@@ -130,7 +131,7 @@ type RenderNode = {
 type RenderEdge = {
   from: string;
   to: string;
-  sideLabel: string;
+  isHead: boolean;
 };
 
 type TreeRenderModel = {
@@ -264,6 +265,65 @@ function buildReachabilityFirstStepKey(row: ReachabilityEvidence): string {
     first.right ?? "",
     first.check ?? ""
   ].join(":");
+}
+
+function getObservationModeLabel(mode: ObservationMode): string {
+  switch (mode) {
+    case "tree":
+      return "樹形図（指標番号）";
+    case "tree_cat":
+      return "樹形図（範疇素性）";
+    case "lf":
+      return "節点意味";
+    case "sr":
+      return "意味表示";
+  }
+}
+
+function formatLfRowsForDisplay(rows: LfResponse["list_representation"]): string {
+  return rows
+    .map((row) => {
+      const semantics = row.semantics.join("; ");
+      const predication = row.predication.map((parts) => parts.join(" / ")).join(" ; ");
+      return [row.lexical_id, row.category, row.idslot, semantics, predication]
+        .filter((value) => value !== "")
+        .join(" | ");
+    })
+    .join("\n");
+}
+
+function formatSrRowsForDisplay(rows: SrResponse["truth_conditional_meaning"]): string {
+  return rows
+    .map((row) => `${row.object_id}-${row.layer}-${row.kind} | ${row.properties.join("; ")}`)
+    .join("\n");
+}
+
+function renderSemanticTextWithSubscript(text: string): ReactNode {
+  const parts: ReactNode[] = [];
+  const pattern = /<sub>(.*?)<\/sub>/g;
+  let lastIndex = 0;
+  let match: RegExpExecArray | null;
+  let key = 0;
+  while ((match = pattern.exec(text)) !== null) {
+    if (match.index > lastIndex) {
+      parts.push(text.slice(lastIndex, match.index));
+    }
+    parts.push(<sub key={`sub-${key}`}>{match[1]}</sub>);
+    lastIndex = pattern.lastIndex;
+    key += 1;
+  }
+  if (lastIndex < text.length) {
+    parts.push(text.slice(lastIndex));
+  }
+  return parts.length > 0 ? <>{parts}</> : text;
+}
+
+function isReferenceLikeSemantic(text: string): boolean {
+  return /^α<sub>.*<\/sub>:/u.test(text.trim());
+}
+
+function containsHtmlSubscript(text: string): boolean {
+  return /<sub>.*<\/sub>/.test(text);
 }
 
 type NumerationLexiconRow = {
@@ -891,6 +951,7 @@ function buildTreeRenderModel(csvText: string): { model: TreeRenderModel; dotTex
   const nodeLabels = new Map<string, string>();
   const children = new Map<string, string[]>();
   const parents = new Map<string, string>();
+  const flags = new Map<string, string>();
 
   const lines = csvText
     .split(/\r?\n/)
@@ -902,8 +963,9 @@ function buildTreeRenderModel(csvText: string): { model: TreeRenderModel; dotTex
     if (cols.length !== 4) {
       continue;
     }
-    const [node, edgeRaw, _flag, label] = cols;
+    const [node, edgeRaw, flag, label] = cols;
     nodeLabels.set(node, label);
+    flags.set(node, flag);
 
     const edgeList = edgeRaw
       .split(" ")
@@ -917,66 +979,80 @@ function buildTreeRenderModel(csvText: string): { model: TreeRenderModel; dotTex
 
   const roots = Array.from(nodeLabels.keys()).filter((node) => !parents.has(node));
   const orderedRoots = roots.length > 0 ? roots : Array.from(nodeLabels.keys());
-
   const depthByNode = new Map<string, number>();
-  const queue: string[] = [...orderedRoots];
-  for (const root of orderedRoots) {
-    depthByNode.set(root, 0);
-  }
-  while (queue.length > 0) {
-    const current = queue.shift() as string;
-    const currentDepth = depthByNode.get(current) || 0;
-    for (const child of children.get(current) || []) {
-      if (!depthByNode.has(child)) {
-        depthByNode.set(child, currentDepth + 1);
-        queue.push(child);
-      }
+  const subtreeUnits = new Map<string, number>();
+
+  function assignDepth(nodeId: string, depth: number): void {
+    const current = depthByNode.get(nodeId);
+    if (current !== undefined && current >= depth) {
+      return;
+    }
+    depthByNode.set(nodeId, depth);
+    for (const child of children.get(nodeId) || []) {
+      assignDepth(child, depth + 1);
     }
   }
 
-  const nodesByDepth = new Map<number, string[]>();
-  for (const node of nodeLabels.keys()) {
-    const depth = depthByNode.get(node) || 0;
-    const arr = nodesByDepth.get(depth) || [];
-    arr.push(node);
-    nodesByDepth.set(depth, arr);
+  function measureSubtree(nodeId: string): number {
+    const childIds = children.get(nodeId) || [];
+    if (childIds.length === 0) {
+      subtreeUnits.set(nodeId, 1);
+      return 1;
+    }
+    const width = childIds.reduce((sum, childId) => sum + measureSubtree(childId), 0);
+    subtreeUnits.set(nodeId, Math.max(1, width));
+    return Math.max(1, width);
   }
 
-  const sortedDepths = Array.from(nodesByDepth.keys()).sort((a, b) => a - b);
-  for (const depth of sortedDepths) {
-    nodesByDepth.get(depth)?.sort((a, b) => Number(a) - Number(b));
+  for (const root of orderedRoots) {
+    assignDepth(root, 0);
+    measureSubtree(root);
   }
 
+  const maxDepth = Math.max(0, ...Array.from(depthByNode.values()));
   const xSpacing = 180;
   const ySpacing = 120;
   const nodeWidth = 140;
-  const maxPerDepth = Math.max(...Array.from(nodesByDepth.values()).map((rows) => rows.length), 1);
-  const width = Math.max(420, maxPerDepth * xSpacing + 80);
-  const height = Math.max(240, sortedDepths.length * ySpacing + 80);
+  const totalUnits = orderedRoots.reduce((sum, rootId) => sum + (subtreeUnits.get(rootId) || 1), 0);
+  const width = Math.max(420, totalUnits * xSpacing + 80);
+  const height = Math.max(240, (maxDepth + 1) * ySpacing + 80);
 
   const renderNodes: RenderNode[] = [];
   const position = new Map<string, { x: number; y: number }>();
+  const unitCenterOffset = xSpacing / 2;
 
-  for (const depth of sortedDepths) {
-    const rows = nodesByDepth.get(depth) || [];
-    rows.forEach((nodeId, index) => {
-      const x = 40 + index * xSpacing;
-      const y = 40 + depth * ySpacing;
-      position.set(nodeId, { x, y });
-      renderNodes.push({
-        id: nodeId,
-        x,
-        y,
-        labelLines: toDisplayLines(nodeLabels.get(nodeId) || "")
-      });
+  function placeNode(nodeId: string, startUnit: number): void {
+    const depth = depthByNode.get(nodeId) || 0;
+    const span = subtreeUnits.get(nodeId) || 1;
+    const centerUnit = startUnit + span / 2;
+    const x = 40 + centerUnit * xSpacing - unitCenterOffset;
+    const y = 40 + depth * ySpacing;
+    position.set(nodeId, { x, y });
+    renderNodes.push({
+      id: nodeId,
+      x,
+      y,
+      labelLines: toDisplayLines(nodeLabels.get(nodeId) || "")
     });
+
+    let cursor = startUnit;
+    for (const childId of children.get(nodeId) || []) {
+      const childSpan = subtreeUnits.get(childId) || 1;
+      placeNode(childId, cursor);
+      cursor += childSpan;
+    }
+  }
+
+  let rootCursor = 0;
+  for (const rootId of orderedRoots) {
+    placeNode(rootId, rootCursor);
+    rootCursor += subtreeUnits.get(rootId) || 1;
   }
 
   const renderEdges: RenderEdge[] = [];
   for (const [from, edgeList] of children.entries()) {
-    for (const [index, to] of edgeList.entries()) {
-      const sideLabel = index === 0 ? "L" : index === 1 ? "R" : "";
-      renderEdges.push({ from, to, sideLabel });
+    for (const to of edgeList) {
+      renderEdges.push({ from, to, isHead: flags.get(to) === "1" });
     }
   }
 
@@ -1001,6 +1077,84 @@ function buildTreeRenderModel(csvText: string): { model: TreeRenderModel; dotTex
   };
 }
 
+function escapeForestLabel(text: string): string {
+  return text
+    .replace(/\\/g, "\\textbackslash{}")
+    .replace(/([{}%&#_$])/g, "\\$1")
+    .replace(/\^/g, "\\textasciicircum{}")
+    .replace(/~/g, "\\textasciitilde{}");
+}
+
+function buildForestNodeLabel(rawLabel: string): string {
+  const lines = toDisplayLines(rawLabel).map((line) => line.trim()).filter((line) => line !== "");
+  if (lines.length <= 1) {
+    return `{${escapeForestLabel(lines[0] || "")}}`;
+  }
+  return `\\shortstack{${lines.map(escapeForestLabel).join("\\\\")}}`;
+}
+
+function buildForestCode(csvText: string): string {
+  const nodeLabels = new Map<string, string>();
+  const children = new Map<string, string[]>();
+  const parents = new Map<string, string>();
+  const flags = new Map<string, string>();
+
+  const lines = csvText
+    .split(/\r?\n/)
+    .map((line) => line.trim())
+    .filter((line) => line.length > 0);
+
+  for (const line of lines) {
+    const cols = line.split(",", 4);
+    if (cols.length !== 4) {
+      continue;
+    }
+    const [node, edgeRaw, flag, label] = cols;
+    nodeLabels.set(node, label);
+    flags.set(node, flag);
+    const edgeList = edgeRaw
+      .split(" ")
+      .map((item) => item.trim())
+      .filter((item) => item.length > 0);
+    children.set(node, edgeList);
+    for (const child of edgeList) {
+      parents.set(child, node);
+    }
+  }
+
+  const roots = Array.from(nodeLabels.keys()).filter((node) => !parents.has(node));
+  const orderedRoots = roots.length > 0 ? roots : Array.from(nodeLabels.keys());
+
+  function renderNode(nodeId: string, depth: number, edgeOptions = ""): string {
+    const label = buildForestNodeLabel(nodeLabels.get(nodeId) || "");
+    const childIds = children.get(nodeId) || [];
+    const indent = "  ".repeat(depth);
+    if (childIds.length === 0) {
+      return edgeOptions === ""
+        ? `${indent}[${label}]`
+        : `${indent}[${label}, ${edgeOptions}]`;
+    }
+    const renderedChildren = childIds
+      .map((childId) =>
+        renderNode(
+          childId,
+          depth + 1,
+          flags.get(childId) === "1" ? "edge={line width=1.8pt}" : ""
+        )
+      )
+      .join("\n");
+    return edgeOptions === ""
+      ? `${indent}[${label}\n${renderedChildren}\n${indent}]`
+      : `${indent}[${label}, ${edgeOptions}\n${renderedChildren}\n${indent}]`;
+  }
+
+  if (orderedRoots.length === 0) {
+    return "";
+  }
+
+  return `\\begin{forest}\n  for tree={align=center}\n${orderedRoots.map((rootId) => renderNode(rootId, 1)).join("\n")}\n\\end{forest}`;
+}
+
 function renderTreeGraphElements(model: TreeRenderModel): JSX.Element {
   const nodeById = new Map(model.nodes.map((node) => [node.id, node]));
   return (
@@ -1011,6 +1165,10 @@ function renderTreeGraphElements(model: TreeRenderModel): JSX.Element {
         if (!from || !to) {
           return null;
         }
+        const midX = (from.x + 70 + (to.x + 70)) / 2;
+        const midY = (from.y + 50 + to.y) / 2;
+        const headLabelX = midX + (to.x >= from.x ? 22 : -22);
+        const headLabelY = midY - 10;
         return (
           <g key={`${edge.from}-${edge.to}`}>
             <line
@@ -1019,17 +1177,28 @@ function renderTreeGraphElements(model: TreeRenderModel): JSX.Element {
               y1={from.y + 50}
               x2={to.x + 70}
               y2={to.y}
-              strokeWidth={2}
+              strokeWidth={edge.isHead ? 4 : 2}
             />
-            {edge.sideLabel !== "" && (
-              <text
-                className="tree-graph-edge-label"
-                x={(from.x + 70 + (to.x + 70)) / 2}
-                y={(from.y + 50 + to.y) / 2 - 4}
-                textAnchor="middle"
-              >
-                {edge.sideLabel}
-              </text>
+            {edge.isHead && (
+              <g>
+                <rect
+                  className="tree-graph-edge-label-bg"
+                  x={headLabelX - 20}
+                  y={headLabelY - 11}
+                  width={40}
+                  height={16}
+                  rx={5}
+                  ry={5}
+                />
+                <text
+                  className="tree-graph-edge-label"
+                  x={headLabelX}
+                  y={headLabelY}
+                  textAnchor="middle"
+                >
+                  HEAD
+                </text>
+              </g>
             )}
           </g>
         );
@@ -1263,11 +1432,13 @@ export default function App() {
   const [treeSourceCsv, setTreeSourceCsv] = useState("");
   const [treeDot, setTreeDot] = useState("");
   const [treeGraph, setTreeGraph] = useState<TreeRenderModel | null>(null);
-  const [isStep2TreeVisible, setIsStep2TreeVisible] = useState(false);
+  const [isStep2ObservationVisible, setIsStep2ObservationVisible] = useState(false);
+  const [activeObservationMode, setActiveObservationMode] = useState<ObservationMode>("tree");
   const [isStep2TreeInfoOpen, setIsStep2TreeInfoOpen] = useState(false);
   const [step2TreeInfoCopyStatus, setStep2TreeInfoCopyStatus] = useState("");
 
   const [lfRows, setLfRows] = useState<LfResponse["list_representation"]>([]);
+  const [lfHasUnresolvedFeatureLikeToken, setLfHasUnresolvedFeatureLikeToken] = useState(false);
   const [srRows, setSrRows] = useState<SrResponse["truth_conditional_meaning"]>([]);
 
   const [featureDocs, setFeatureDocs] = useState<FeatureDocEntry[]>([]);
@@ -1390,6 +1561,35 @@ export default function App() {
     () => (activeTreeMode === "tree_cat" ? treeCatCsv : treeCsv),
     [activeTreeMode, treeCatCsv, treeCsv]
   );
+  const activeObservationTitle = useMemo(
+    () => getObservationModeLabel(activeObservationMode),
+    [activeObservationMode]
+  );
+  const activeObservationRawText = useMemo(() => {
+    if (activeObservationMode === "tree" || activeObservationMode === "tree_cat") {
+      return activeTreeCsvText;
+    }
+    if (activeObservationMode === "lf") {
+      return formatLfRowsForDisplay(lfRows);
+    }
+    return formatSrRowsForDisplay(srRows);
+  }, [activeObservationMode, activeTreeCsvText, lfRows, srRows]);
+  const activeTreeForestCode = useMemo(
+    () => (activeTreeCsvText.trim() === "" ? "" : buildForestCode(activeTreeCsvText)),
+    [activeTreeCsvText]
+  );
+  const activeObservationInfoText = useMemo(() => {
+    if (activeObservationMode === "tree" || activeObservationMode === "tree_cat") {
+      return activeTreeForestCode;
+    }
+    return activeObservationRawText;
+  }, [activeObservationMode, activeObservationRawText, activeTreeForestCode]);
+  const activeObservationInfoToggleLabel = useMemo(() => {
+    if (activeObservationMode === "tree" || activeObservationMode === "tree_cat") {
+      return isStep2TreeInfoOpen ? "TeXのコードを閉じる" : "TeXのコードを表示";
+    }
+    return isStep2TreeInfoOpen ? "情報を閉じる" : "情報を表示";
+  }, [activeObservationMode, isStep2TreeInfoOpen]);
   const numerationEditorGrid = useMemo(() => parseTabSeparatedGrid(numerationText), [numerationText]);
   const numerationEditorGridColumnCount = useMemo(
     () => Math.max(8, ...numerationEditorGrid.map((row) => Math.max(1, row.length))),
@@ -1778,6 +1978,9 @@ export default function App() {
 
   const step2DisplayRows = useMemo(() => buildStep2DisplayRows(state), [state]);
   const step2RuleRows = useMemo(() => {
+    if (!state || state.basenum <= 1) {
+      return [];
+    }
     const fallbackRules = Array.from(
       new Map(
         candidates.map((candidate) => [
@@ -1902,12 +2105,23 @@ export default function App() {
               const attribute = pos >= 0 ? semantic.slice(0, pos).trim() : "";
               const rawValue = pos >= 0 ? semantic.slice(pos + 1).trim() : semantic.trim();
               return (
-                <span className="perl-f5" key={`${keyPath}-se-${semIdx}`}>
-                  {attribute !== "" ? `${attribute}: ` : ""}
-                  {isEncodedFeature(rawValue)
-                    ? renderEncodedFeatureLikePerl(rawValue, `${rowSlot}-step2-${keyPath}-se-${semIdx}`)
-                    : rawValue}
-                </span>
+	                <span className="perl-f5" key={`${keyPath}-se-${semIdx}`}>
+	                  {attribute !== ""
+	                    ? containsHtmlSubscript(attribute)
+	                      ? (
+	                          <>
+	                            {renderSemanticTextWithSubscript(attribute)}
+	                            {": "}
+	                          </>
+	                        )
+	                      : `${attribute}: `
+	                    : ""}
+	                  {isEncodedFeature(rawValue)
+	                    ? renderEncodedFeatureLikePerl(rawValue, `${rowSlot}-step2-${keyPath}-se-${semIdx}`)
+	                    : containsHtmlSubscript(rawValue)
+	                      ? renderSemanticTextWithSubscript(rawValue)
+	                      : rawValue}
+	                </span>
               );
             })}
             {node.phono !== "" && <span className="perl-f6">{node.phono}</span>}
@@ -2610,16 +2824,30 @@ export default function App() {
     setSnapshots({ T0: cloneState(nextState), T1: null, T2: null });
     setCandidates([]);
     setIsStep2CandidatesLoading(false);
+    resetObservationArtifacts();
+    setArrangeRows([]);
+    setSelectedLeft(null);
+    setSelectedRight(null);
+  }
+
+  function resetObservationArtifacts() {
     setTreeCsv("");
     setTreeCatCsv("");
     setTreeSourceCsv("");
     setTreeDot("");
     setTreeGraph(null);
+    setIsStep2ObservationVisible(false);
+    setActiveObservationMode("tree");
+    setIsStep2TreeInfoOpen(false);
+    setStep2TreeInfoCopyStatus("");
     setLfRows([]);
+    setLfHasUnresolvedFeatureLikeToken(false);
     setSrRows([]);
-    setArrangeRows([]);
-    setSelectedLeft(null);
-    setSelectedRight(null);
+  }
+
+  function replaceStateAndResetObservation(nextState: DerivationState) {
+    setState(nextState);
+    resetObservationArtifacts();
   }
 
   async function requestGenerateNumeration(
@@ -3169,7 +3397,7 @@ export default function App() {
       if (currentState) {
         setStep2UndoStack((prev) => [...prev, currentState]);
       }
-      setState(nextState);
+      replaceStateAndResetObservation(nextState);
       setCandidates([]);
       if (options?.fromAssist) {
         setReachabilityMessage(`証拠 ${options.rank ?? "-"} の先頭手を実行しました。`);
@@ -3248,7 +3476,7 @@ export default function App() {
       if (initialState) {
         setStep2UndoStack((prev) => [...prev, initialState]);
       }
-      setState(workingState);
+      replaceStateAndResetObservation(workingState);
       setCandidates([]);
       const first = steps[0];
       setSelectedLeft(first.left ?? null);
@@ -3273,7 +3501,7 @@ export default function App() {
     }
     const previous = step2UndoStack[step2UndoStack.length - 1];
     setStep2UndoStack((prev) => prev.slice(0, -1));
-    setState(cloneState(previous));
+    replaceStateAndResetObservation(cloneState(previous) as DerivationState);
     setCandidates([]);
     setIsStep2CandidatesLoading(false);
     setReachabilityMessage("直前の実行を取り消しました。");
@@ -3330,8 +3558,8 @@ export default function App() {
       setError("観察対象の state がありません。");
       return;
     }
-    if (isStep2TreeVisible && activeTreeMode === mode) {
-      setIsStep2TreeVisible(false);
+    if (isStep2ObservationVisible && activeObservationMode === mode) {
+      setIsStep2ObservationVisible(false);
       setIsStep2TreeInfoOpen(false);
       setStep2TreeInfoCopyStatus("");
       return;
@@ -3339,9 +3567,10 @@ export default function App() {
     const cachedCsv = mode === "tree" ? treeCsv : treeCatCsv;
     if (cachedCsv.trim() !== "") {
       setActiveTreeMode(mode);
+      setActiveObservationMode(mode);
       setTreeSourceCsv(cachedCsv);
       applyTreeConversion(cachedCsv);
-      setIsStep2TreeVisible(true);
+      setIsStep2ObservationVisible(true);
       return;
     }
     await withLoading(async () => {
@@ -3355,9 +3584,10 @@ export default function App() {
         setTreeCatCsv(response.csv_text);
       }
       setActiveTreeMode(mode);
+      setActiveObservationMode(mode);
       setTreeSourceCsv(response.csv_text);
       applyTreeConversion(response.csv_text);
-      setIsStep2TreeVisible(true);
+      setIsStep2ObservationVisible(true);
     });
   }
 
@@ -3370,14 +3600,39 @@ export default function App() {
       setError("観察対象の state がありません。");
       return;
     }
+    if (isStep2ObservationVisible && activeObservationMode === mode) {
+      setIsStep2ObservationVisible(false);
+      setIsStep2TreeInfoOpen(false);
+      setStep2TreeInfoCopyStatus("");
+      return;
+    }
+    if (mode === "lf" && lfRows.length > 0) {
+      setActiveObservationMode(mode);
+      setIsStep2TreeInfoOpen(false);
+      setStep2TreeInfoCopyStatus("");
+      setIsStep2ObservationVisible(true);
+      return;
+    }
+    if (mode === "sr" && srRows.length > 0) {
+      setActiveObservationMode(mode);
+      setIsStep2TreeInfoOpen(false);
+      setStep2TreeInfoCopyStatus("");
+      setIsStep2ObservationVisible(true);
+      return;
+    }
     await withLoading(async () => {
       if (mode === "lf") {
         const response = await apiPost<LfResponse>("/v1/semantics/lf", { state });
         setLfRows(response.list_representation);
+        setLfHasUnresolvedFeatureLikeToken(response.unresolved_feature_like_token);
       } else {
         const response = await apiPost<SrResponse>("/v1/semantics/sr", { state });
         setSrRows(response.truth_conditional_meaning);
       }
+      setActiveObservationMode(mode);
+      setIsStep2TreeInfoOpen(false);
+      setStep2TreeInfoCopyStatus("");
+      setIsStep2ObservationVisible(true);
     });
   }
 
@@ -3418,6 +3673,7 @@ export default function App() {
 
   async function handleOpenFeatureDoc(fileName: string) {
     if (fileName.trim() === "") {
+      setFeatureDocHtml("");
       return;
     }
     await withLoading(async () => {
@@ -3428,6 +3684,7 @@ export default function App() {
 
   async function handleOpenRuleDoc(fileName: string) {
     if (fileName.trim() === "") {
+      setRuleDocHtml("");
       return;
     }
     await withLoading(async () => {
@@ -3454,7 +3711,7 @@ export default function App() {
       const response = await apiPost<DerivationState>("/v1/derivation/resume/import", {
         resume_text: resumeText
       });
-      setState(response);
+      replaceStateAndResetObservation(response);
     });
   }
 
@@ -3538,7 +3795,7 @@ export default function App() {
       setError(`${slot} は未保存です。`);
       return;
     }
-    setState(cloneState(restored));
+    replaceStateAndResetObservation(cloneState(restored) as DerivationState);
   }
 
   function saveBranch(slot: BranchSlot) {
@@ -3551,7 +3808,7 @@ export default function App() {
       setError(`branch ${slot} は未保存です。`);
       return;
     }
-    setState(cloneState(restored));
+    replaceStateAndResetObservation(cloneState(restored) as DerivationState);
   }
 
   function handleSelectRenewMenu(menuKey: RenewMenu) {
@@ -3872,12 +4129,23 @@ export default function App() {
                         const attribute = pos >= 0 ? semantic.slice(0, pos).trim() : "";
                         const rawValue = pos >= 0 ? semantic.slice(pos + 1).trim() : semantic.trim();
                         return (
-                          <span className="perl-f5" key={`${row.slot}-se-${semIdx}`}>
-                            {attribute !== "" ? `${attribute}: ` : ""}
-                            {isEncodedFeature(rawValue)
-                              ? renderEncodedFeatureLikePerl(rawValue, `${row.slot}-se-${semIdx}`)
-                              : rawValue}
-                          </span>
+	                          <span className="perl-f5" key={`${row.slot}-se-${semIdx}`}>
+	                            {attribute !== ""
+	                              ? containsHtmlSubscript(attribute)
+	                                ? (
+	                                    <>
+	                                      {renderSemanticTextWithSubscript(attribute)}
+	                                      {": "}
+	                                    </>
+	                                  )
+	                                : `${attribute}: `
+	                              : ""}
+	                            {isEncodedFeature(rawValue)
+	                              ? renderEncodedFeatureLikePerl(rawValue, `${row.slot}-se-${semIdx}`)
+	                              : containsHtmlSubscript(rawValue)
+	                                ? renderSemanticTextWithSubscript(rawValue)
+	                                : rawValue}
+	                          </span>
                         );
                       })}
                       {row.phono !== "" && <span className="perl-f6">{row.phono}</span>}
@@ -4223,7 +4491,6 @@ export default function App() {
           >
         <section className="card" data-panel="setup">
           <h2>1. Lexicon / Grammar の選択</h2>
-          <p className="hint step0-description">{STEP0_START_DESCRIPTION}</p>
           <div className="step0-field">
             <div className="grammar-label">Lexicon / Grammar（共通選択）</div>
             <div className="row grammar-controls step0-controls">
@@ -4307,23 +4574,6 @@ export default function App() {
 
         <section className="card" data-panel="sentence">
           <h2>【Step.2】Numerationの形成</h2>
-          {!workflowStarted && (
-            <p className="hint">
-              先に Step1 で設定を確定してください。未確定でも操作できますが、観察条件の固定には Step1 開始操作を推奨します。
-            </p>
-          )}
-          <p className="hint">
-            適用中のGrammar:
-            {" "}
-            {activeGrammarOption ? formatGrammarOption(activeGrammarOption) : grammarId}
-          </p>
-          <p className="hint">
-            このステップのゴールは「観察に使う .num（Numeration）を1本確定すること」です。
-          </p>
-          <p className="hint">
-            入口を分離しています。<strong>例文選択 / Lexiconから組み立てる</strong>は「Numerationを新規に形成」します。
-            <strong>numファイルを選ぶ</strong>は「既存 .num を読み込み」です。
-          </p>
           <div className="row step1-entry-modes" role="group" aria-label="Step1 Entry Mode">
             <button
               type="button"
@@ -4634,8 +4884,6 @@ export default function App() {
 
         <section className="card" data-panel="numeration">
           <h2>Numファイルの編集</h2>
-          <p className="hint">タブ区切り `.num` を直接編集し、下部で語彙情報参照を確認できます。</p>
-
           <input
             aria-label="Numeration Editor Upload File"
             type="file"
@@ -4715,10 +4963,6 @@ export default function App() {
 
         <section className="card" data-panel="target">
           <h2>【Step.3】Grammarの適用</h2>
-          <p className="hint">
-            このステップの目的は、具体的な Numeration から解釈不可能性を消していくことです。
-            手動で left/right と rule を選んで適用します（手動モードを維持）。
-          </p>
           <p>status: {grammarStatus}</p>
           <p>
             basenum/newnum: {state ? `${state.basenum}/${state.newnum}` : "-"}
@@ -4730,14 +4974,22 @@ export default function App() {
           {state ? (
             <div className="numeration-lexicon-panel legacy-numeration-panel step2-target-panel">
               <h3>適用対象（left / right の選択）</h3>
-              <p className="hint">
-                `numerationの語彙情報参照` と同じ表示で確認しながら、左列・右列を選択してください。
-                初期表示では先頭2行を自動選択し、候補規則を表示します。
-              </p>
               {step2DisplayRows.length === 0 ? (
                 <p className="hint">適用対象の行がありません。</p>
               ) : (
                 <div className="numeration-legacy-list step2-selection-list" data-testid="step2-selection-list">
+                  <div className="numeration-legacy-row step2-selection-row step2-selection-header">
+                    <div className="step2-selection-header-cell step2-selection-header-lr">L</div>
+                    <div className="step2-selection-header-cell step2-selection-header-lr">R</div>
+                    <div className="step2-selection-header-cell step2-selection-header-slot">No.</div>
+                    <div className="step2-selection-header-cell step2-selection-header-legend">
+                      <span className="perl-f0">指標</span>{" "}
+                      <span className="perl-f1">範疇素性</span>{" "}
+                      <span className="perl-f4">id-slot</span>{" "}
+                      <span className="perl-f5">意味素性（attribute: value)</span>{" "}
+                      <span className="perl-f6">音韻形式</span>
+                    </div>
+                  </div>
                   {step2DisplayRows.map((row) => {
                     const slotEdit = tokenSlotEditBySlot.get(row.slot);
                     const slotCandidateIds = Array.from(
@@ -4944,7 +5196,7 @@ export default function App() {
                   disabled={loading || !state}
                   data-testid="step2-tree-cat-btn"
                 >
-                  樹形図（範疇蘇生）
+                  樹形図（範疇素性）
                 </button>
                 <button
                   type="button"
@@ -4957,12 +5209,34 @@ export default function App() {
                 >
                   樹形図（指標番号）
                 </button>
+                <button
+                  type="button"
+                  className="step0-start-btn step2-tree-btn"
+                  onClick={() => {
+                    void handleSemantics("lf");
+                  }}
+                  disabled={loading || !state}
+                  data-testid="step2-lf-btn"
+                >
+                  節点意味
+                </button>
+                <button
+                  type="button"
+                  className="step0-start-btn step2-tree-btn"
+                  onClick={() => {
+                    void handleSemantics("sr");
+                  }}
+                  disabled={loading || !state}
+                  data-testid="step2-sr-btn"
+                >
+                  意味表示
+                </button>
               </div>
-              {isStep2TreeVisible && treeGraph && (
+              {isStep2ObservationVisible && (
                 <div className="step2-tree-graph-panel" data-testid="step2-tree-graph-panel">
                   <div className="step2-tree-graph-head">
                     <p className="step2-tree-graph-title">
-                      表示中: {activeTreeMode === "tree_cat" ? "樹形図（範疇蘇生）" : "樹形図（指標番号）"}
+                      表示中: {activeObservationTitle}
                     </p>
                     <button
                       type="button"
@@ -4973,7 +5247,7 @@ export default function App() {
                       }}
                       data-testid="step2-tree-info-toggle"
                     >
-                      {isStep2TreeInfoOpen ? "情報を閉じる" : "情報を表示"}
+                      {activeObservationInfoToggleLabel}
                     </button>
                   </div>
                   {isStep2TreeInfoOpen && (
@@ -4984,7 +5258,7 @@ export default function App() {
                           className="step0-start-btn step2-tree-copy-btn"
                           data-testid="step2-tree-info-copy-btn"
                           onClick={async () => {
-                            const copyTarget = activeTreeCsvText.trim();
+                            const copyTarget = activeObservationInfoText.trim();
                             if (copyTarget === "") {
                               setStep2TreeInfoCopyStatus("コピー対象がありません");
                               return;
@@ -5013,31 +5287,161 @@ export default function App() {
                             }
                           }}
                         >
-                          クリップボードにコピー
+                          {activeObservationMode === "tree" || activeObservationMode === "tree_cat"
+                            ? "TeXコードをクリップボードにコピー"
+                            : "クリップボードにコピー"}
                         </button>
                         {step2TreeInfoCopyStatus !== "" && (
                           <span className="step2-tree-copy-status">{step2TreeInfoCopyStatus}</span>
                         )}
                       </div>
-                      {activeTreeCsvText.trim() === "" ? (
-                        <p className="step2-tree-info-empty">表示中の樹形図テキスト情報はありません。</p>
+                      {activeObservationInfoText.trim() === "" ? (
+                        <p className="step2-tree-info-empty">
+                          {activeObservationMode === "tree" || activeObservationMode === "tree_cat"
+                            ? "表示中のTeXコードはありません。"
+                            : "表示中のテキスト情報はありません。"}
+                        </p>
                       ) : (
                         <textarea
                           className="step2-tree-info-textarea"
                           data-testid="step2-tree-info-textarea"
-                          value={activeTreeCsvText}
+                          value={activeObservationInfoText}
                           readOnly
                         />
                       )}
                     </div>
                   )}
-                  <div className="step2-tree-graph-scroll">
-                    <TreeGraphViewport
-                      model={treeGraph}
-                      testId="step2-tree-graph"
-                      className="step2-tree-graph-viewport"
-                    />
-                  </div>
+                  {(activeObservationMode === "tree" || activeObservationMode === "tree_cat") && treeGraph && (
+                    <div className="step2-tree-graph-scroll">
+                      <TreeGraphViewport
+                        model={treeGraph}
+                        testId="step2-tree-graph"
+                        className="step2-tree-graph-viewport"
+                      />
+                    </div>
+                  )}
+                  {activeObservationMode === "lf" && (
+                    <div className="step2-semantics-panel" data-testid="step2-lf-panel">
+                      {state.basenum > 1 && (
+                        <p className="step2-semantics-note">
+                          現在の state には複数候補が含まれます。節点意味は候補横断で並びます。
+                        </p>
+                      )}
+                      {lfHasUnresolvedFeatureLikeToken && (
+                        <p className="step2-semantics-note step2-semantics-note-warning">
+                          解釈不可能素性のような記号が残っているため、意味表示は未確定の可能性があります。
+                        </p>
+                      )}
+                      {lfRows.length === 0 ? (
+                        <p className="step2-tree-info-empty">節点意味はまだ取得されていません。</p>
+                      ) : (
+                        <div className="step2-semantics-table-scroll">
+                          <table className="step2-semantics-table">
+                            <thead>
+                              <tr>
+                                <th>lexical_id</th>
+                                <th>category</th>
+                                <th>idslot</th>
+                                <th>semantics</th>
+                                <th>predication</th>
+                              </tr>
+                            </thead>
+                            <tbody>
+                              {lfRows.map((row) => (
+                                <tr key={`step2-lf-${row.lexical_id}-${row.idslot}`}>
+                                  <td className="mono">{row.lexical_id}</td>
+                                  <td>{row.category}</td>
+                                  <td className="mono">{row.idslot}</td>
+                                  <td>
+                                    <div className="step2-semantics-badges">
+                                      {row.semantics.length > 0 ? (
+                                        row.semantics.map((semantic, idx) => (
+                                          <span
+                                            className={
+                                              isReferenceLikeSemantic(semantic)
+                                                ? "step2-semantics-badge step2-semantics-badge-reference"
+                                                : "step2-semantics-badge"
+                                            }
+                                            key={`step2-lf-sem-${row.lexical_id}-${idx}`}
+                                          >
+                                            {renderSemanticTextWithSubscript(semantic)}
+                                          </span>
+                                        ))
+                                      ) : (
+                                        <span className="step2-semantics-empty">-</span>
+                                      )}
+                                    </div>
+                                  </td>
+                                  <td>
+                                    <div className="step2-semantics-badges">
+                                      {row.predication.length > 0 ? (
+                                        row.predication.map((parts, idx) => (
+                                          <span
+                                            className="step2-semantics-badge step2-semantics-badge-alt"
+                                            key={`step2-lf-pr-${row.lexical_id}-${idx}`}
+                                          >
+                                            {parts.join(" / ")}
+                                          </span>
+                                        ))
+                                      ) : (
+                                        <span className="step2-semantics-empty">-</span>
+                                      )}
+                                    </div>
+                                  </td>
+                                </tr>
+                              ))}
+                            </tbody>
+                          </table>
+                        </div>
+                      )}
+                    </div>
+                  )}
+                  {activeObservationMode === "sr" && (
+                    <div className="step2-semantics-panel" data-testid="step2-sr-panel">
+                      {state.basenum > 1 && (
+                        <p className="step2-semantics-note step2-semantics-note-warning">
+                          現在の state は複数候補を含みます。legacy 互換の意味表示は候補別に分離されず、混在して見える可能性があります。
+                        </p>
+                      )}
+                      {srRows.length === 0 ? (
+                        <p className="step2-tree-info-empty">意味表示はまだ取得されていません。</p>
+                      ) : (
+                        <div className="step2-sr-grid">
+                          {srRows.map((row) => (
+                            <article
+                              className="step2-sr-card"
+                              key={`step2-sr-${row.object_id}-${row.layer}-${row.kind}`}
+                            >
+                              <div className="step2-sr-card-head">
+                                <strong>{row.kind === "Predication" ? "Predication" : `OBJECT x${row.object_id}`}</strong>
+                                <span className="step2-sr-layer">x{row.object_id}-{row.layer}</span>
+                              </div>
+                              <div className="step2-semantics-badges">
+                                {row.properties.length > 0 ? (
+                                  row.properties.map((property, idx) => (
+                                    <span
+                                      className={
+                                        row.kind === "Predication"
+                                          ? "step2-semantics-badge step2-semantics-badge-alt"
+                                          : isReferenceLikeSemantic(property)
+                                            ? "step2-semantics-badge step2-semantics-badge-reference"
+                                          : "step2-semantics-badge"
+                                      }
+                                      key={`step2-sr-prop-${row.object_id}-${row.layer}-${idx}`}
+                                    >
+                                      {renderSemanticTextWithSubscript(property)}
+                                    </span>
+                                  ))
+                                ) : (
+                                  <span className="step2-semantics-empty">-</span>
+                                )}
+                              </div>
+                            </article>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  )}
                 </div>
               )}
             </div>
@@ -5046,6 +5450,7 @@ export default function App() {
           )}
 
           {step2RulesError && <p className="hint">{step2RulesError}</p>}
+          <h3>マージルールの適用</h3>
           <div className="step2-rule-table-scroll">
             <table data-testid="candidate-table" className="step2-rule-table">
               <thead>
@@ -5103,7 +5508,7 @@ export default function App() {
                         ? "ルール一覧を読込中です…"
                         : isStep2CandidatesLoading
                           ? "left/right に対する適用可否を判定中です…"
-                          : "ルールがありません。"}
+                          : "適用可能なルールがありません。"}
                     </td>
                     <td>
                       <div className="step2-candidate-actions">
@@ -5305,14 +5710,10 @@ export default function App() {
           <pre data-testid="tree-cat-output">{treeCatCsv}</pre>
           <h3>LF list representation</h3>
           <pre data-testid="lf-output">
-            {lfRows.map((row) => `${row.lexical_id} | ${row.semantics.join("; ")}`).join("\n")}
+            {formatLfRowsForDisplay(lfRows)}
           </pre>
           <h3>SR truth conditional meaning</h3>
-          <pre data-testid="sr-output">
-            {srRows
-              .map((row) => `${row.object_id}-${row.layer}-${row.kind} | ${row.properties.join("; ")}`)
-              .join("\n")}
-          </pre>
+          <pre data-testid="sr-output">{formatSrRowsForDisplay(srRows)}</pre>
 
           <h3>Tree graphical viewer ({activeTreeMode})</h3>
           <label>
@@ -5413,14 +5814,6 @@ export default function App() {
               再読込
             </button>
           </div>
-          <p className="hint">
-            選択中 Grammar:
-            {" "}
-            {activeSetupGrammarOption?.display_name || setupGrammarId}
-          </p>
-          <p className="hint">
-            このシステムで用いられる Merge規則は、次の規則です（選択文法の定義に基づく）。
-          </p>
           <div className="inspect-table-wrap">
             <table data-testid="merge-rule-table">
               <thead>
@@ -5466,57 +5859,49 @@ export default function App() {
           <div className="stack grammar-docs-inline">
             <h3>この文法に関する資料</h3>
             <div className="row grammar-doc-row">
-              <label>
+              <label className="grammar-doc-label">
                 規則資料
                 <select
+                  className="grammar-doc-select"
                   aria-label="rule-doc-select-inline"
                   value={selectedRuleDoc}
-                  onChange={(event) => setSelectedRuleDoc(event.target.value)}
+                  onChange={(event) => {
+                    const nextValue = event.target.value;
+                    setSelectedRuleDoc(nextValue);
+                    void handleOpenRuleDoc(nextValue);
+                  }}
                 >
                   <option value="">（規則資料を選択）</option>
                   {ruleDocs.map((doc) => (
                     <option key={`${doc.rule_number}-${doc.file_name}`} value={doc.file_name}>
-                      {doc.rule_number}: {doc.rule_name}
+                      {doc.rule_number}: {doc.rule_name} 【{doc.file_name}】
                     </option>
                   ))}
                 </select>
               </label>
-              <button
-                type="button"
-                onClick={() => {
-                  void handleOpenRuleDoc(selectedRuleDoc);
-                }}
-                disabled={loading || selectedRuleDoc === ""}
-              >
-                表示
-              </button>
             </div>
             <iframe title="rule-doc-inline" srcDoc={ruleDocHtml} style={{ width: "100%", height: 240 }} />
             <div className="row grammar-doc-row">
-              <label>
+              <label className="grammar-doc-label">
                 素性資料
                 <select
+                  className="grammar-doc-select"
                   aria-label="feature-doc-select-inline"
                   value={selectedFeatureDoc}
-                  onChange={(event) => setSelectedFeatureDoc(event.target.value)}
+                  onChange={(event) => {
+                    const nextValue = event.target.value;
+                    setSelectedFeatureDoc(nextValue);
+                    void handleOpenFeatureDoc(nextValue);
+                  }}
                 >
                   <option value="">（素性資料を選択）</option>
                   {featureDocs.map((doc) => (
                     <option key={doc.file_name} value={doc.file_name}>
-                      {doc.title}
+                      {doc.title} 【{doc.file_name}】
                     </option>
                   ))}
                 </select>
               </label>
-              <button
-                type="button"
-                onClick={() => {
-                  void handleOpenFeatureDoc(selectedFeatureDoc);
-                }}
-                disabled={loading || selectedFeatureDoc === ""}
-              >
-                表示
-              </button>
             </div>
             <iframe
               title="feature-doc-inline"

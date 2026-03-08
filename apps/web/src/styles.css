@@ -919,8 +919,41 @@ button:disabled {
   align-items: stretch;
 }
 
+.step2-selection-header {
+  min-height: 40px;
+  background: #f3ecbd;
+  font-size: 0.78rem;
+  font-weight: 700;
+}
+
 .step2-selection-row:last-child {
   border-bottom-width: 0;
+}
+
+.step2-selection-header-cell {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 6px 8px;
+  border-right: 1px solid #707070;
+  box-sizing: border-box;
+}
+
+.step2-selection-header-cell:last-child {
+  border-right: none;
+}
+
+.step2-selection-header-lr,
+.step2-selection-header-slot {
+  background: #e3dca7;
+}
+
+.step2-selection-header-legend {
+  justify-content: flex-start;
+  flex-wrap: wrap;
+  gap: 4px 8px;
+  line-height: 1.35;
+  background: #f7f1c9;
 }
 
 .step2-side-select {
@@ -1026,6 +1059,7 @@ button:disabled {
   display: flex;
   justify-content: flex-end;
   gap: 8px;
+  flex-wrap: wrap;
 }
 
 .step2-tree-btn {
@@ -1122,6 +1156,148 @@ button:disabled {
   padding: 6px;
 }
 
+.step2-semantics-panel {
+  display: grid;
+  gap: 10px;
+}
+
+.step2-semantics-note {
+  margin: 0;
+  padding: 9px 11px;
+  border-radius: 10px;
+  background: rgba(27, 84, 141, 0.08);
+  color: #2c4c69;
+  font-size: 0.82rem;
+  line-height: 1.45;
+}
+
+.step2-semantics-note-warning {
+  background: rgba(182, 96, 6, 0.1);
+  color: #7b4d10;
+}
+
+.step2-semantics-table-scroll {
+  overflow-x: auto;
+  border: 1px solid #d4e0ed;
+  border-radius: 10px;
+  background: #fff;
+}
+
+.step2-semantics-table {
+  width: 100%;
+  min-width: 760px;
+  border-collapse: collapse;
+}
+
+.step2-semantics-table th,
+.step2-semantics-table td {
+  padding: 10px 12px;
+  border-bottom: 1px solid #e6edf4;
+  vertical-align: top;
+  text-align: left;
+  font-size: 0.82rem;
+}
+
+.step2-semantics-table th {
+  background: #f6f9fc;
+  color: var(--ink-soft);
+  font-weight: 700;
+}
+
+.step2-semantics-table tbody tr:last-child td {
+  border-bottom: none;
+}
+
+.step2-semantics-badges {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.step2-semantics-badge {
+  display: inline-block;
+  padding: 5px 10px;
+  border-radius: 999px;
+  background: #eef6ff;
+  color: #17446f;
+  font-size: 0.84rem;
+  line-height: 1.35;
+  font-weight: 600;
+  border: 1px solid #cfe0f1;
+}
+
+.step2-semantics-badge sub {
+  font-size: 0.72em;
+  line-height: 0;
+  vertical-align: -0.35em;
+}
+
+.step2-semantics-badge-alt {
+  background: #fff5e6;
+  color: #7b4d10;
+  border-color: #ecd4ab;
+}
+
+.step2-semantics-badge-reference {
+  background: #f4f6f8;
+  color: #52606d;
+  border-color: #d7dee5;
+  font-weight: 500;
+}
+
+.step2-semantics-empty {
+  color: var(--ink-soft);
+  font-size: 0.78rem;
+}
+
+.step2-sr-grid {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.step2-sr-card {
+  border: 1px solid #d4e0ed;
+  border-radius: 10px;
+  background: #fff;
+  padding: 10px;
+  box-shadow: 0 4px 10px rgba(23, 44, 71, 0.05);
+  display: grid;
+  gap: 10px;
+}
+
+.step2-sr-card-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.step2-sr-card-head strong {
+  font-size: 0.78rem;
+  font-weight: 600;
+  color: var(--ink-soft);
+  letter-spacing: 0.02em;
+}
+
+.step2-sr-layer {
+  color: var(--ink-soft);
+  font-size: 0.72rem;
+  font-family: "Menlo", "Monaco", monospace;
+}
+
+.grammar-doc-label {
+  display: grid;
+  gap: 6px;
+  flex: 1 1 560px;
+  min-width: 340px;
+}
+
+.grammar-doc-select {
+  width: 100%;
+  min-width: 340px;
+}
+
 .tree-graph-viewport {
   width: 100%;
   overflow: hidden;
@@ -1146,6 +1322,12 @@ button:disabled {
 
 .tree-graph-edge-line {
   stroke: #111;
+}
+
+.tree-graph-edge-label-bg {
+  fill: rgba(255, 255, 255, 0.92);
+  stroke: #111;
+  stroke-width: 0.6;
 }
 
 .tree-graph-edge-label {
